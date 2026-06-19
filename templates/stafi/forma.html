@@ -1,0 +1,81 @@
+{% extends 'base.html' %}
+{% load widget_tweaks %}
+{% block titulli %}{{ titulli }} — Xhamia Pirok{% endblock %}
+
+{% block kontent %}
+<div class="page-header">
+  <div class="flex items-center gap-3">
+    <a href="{% url 'lista_stafit' %}" class="btn-dytësor btn-sm">← Kthehu</a>
+    <h2>{{ titulli }}</h2>
+  </div>
+</div>
+
+<form method="post" style="max-width:620px;">
+  {% csrf_token %}
+
+  <div class="card" style="margin-bottom:20px;">
+    <div class="card-header"><h5>👤 Informacionet Personale</h5></div>
+    <div class="card-body">
+      <div class="grid-2">
+        <div class="forma-grup">
+          <label>Emri</label>
+          <input type="text" name="first_name" value="{{ form.first_name.value|default:'' }}" placeholder="Emri">
+          {% if form.first_name.errors %}<p class="gabim-fusha">{{ form.first_name.errors.0 }}</p>{% endif %}
+        </div>
+        <div class="forma-grup">
+          <label>Mbiemri</label>
+          <input type="text" name="last_name" value="{{ form.last_name.value|default:'' }}" placeholder="Mbiemri">
+        </div>
+        <div class="forma-grup">
+          <label>Email</label>
+          <input type="email" name="email" value="{{ form.email.value|default:'' }}" placeholder="email@shembull.com">
+        </div>
+        <div class="forma-grup">
+          <label>{{ form.nr_telefoni.label }}</label>
+          {% render_field form.nr_telefoni placeholder="+383..." %}
+        </div>
+        <div class="forma-grup">
+          <label>{{ form.pozita.label }}</label>
+          {% render_field form.pozita placeholder="p.sh. Hoxhë, Kryetar Këshilli..." %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:20px;">
+    <div class="card-header"><h5>🔐 Llogaria & Autorizimet</h5></div>
+    <div class="card-body">
+      <div class="grid-2">
+        <div class="forma-grup">
+          <label>Emri i Përdoruesit (username)</label>
+          <input type="text" name="username" value="{{ form.username.value|default:'' }}" placeholder="username">
+          {% if form.username.errors %}<p class="gabim-fusha">{{ form.username.errors.0 }}</p>{% endif %}
+        </div>
+        <div class="forma-grup">
+          <label>Fjalëkalimi</label>
+          <input type="password" name="password" placeholder="Fjalëkalimi...">
+          <p class="ndihma">Lëre bosh nëse nuk e ndryshon.</p>
+        </div>
+        <div class="forma-grup">
+          <label>{{ form.rol.label }}</label>
+          {% render_field form.rol %}
+        </div>
+      </div>
+      <div class="divider"></div>
+      <label class="checkbox-grup" style="margin-bottom:12px;">
+        {% render_field form.mund_regjistrojë_pagesa %}
+        <span>Mund të regjistrojë pagesa</span>
+      </label>
+      <label class="checkbox-grup">
+        {% render_field form.merr_email_pagese %}
+        <span>Merr email automatik për çdo pagesë të regjistruar</span>
+      </label>
+    </div>
+  </div>
+
+  <div class="flex gap-3">
+    <button type="submit" class="btn-kryesor">💾 Ruaj</button>
+    <a href="{% url 'lista_stafit' %}" class="btn-dytësor">Anulo</a>
+  </div>
+</form>
+{% endblock %}

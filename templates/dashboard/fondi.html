@@ -1,0 +1,176 @@
+{% extends 'base.html' %}
+{% block titulli %}Dashboard Fondi — Xhamia Pirok{% endblock %}
+
+{% block kontent %}
+<div class="page-header">
+  <div>
+    <h2>Dashboard Fondi i Xhamisë</h2>
+    <p>Pasqyra e donacioneve dhe fondit të xhamisë</p>
+  </div>
+  <div class="flex items-center gap-3">
+    <form method="get" style="display:flex; gap:10px; align-items:center;">
+      <select name="viti" onchange="this.form.submit()" style="padding:8px 13px; border:1.5px solid var(--kufi); border-radius:10px; font-family:'Inter',sans-serif; font-size:14px; background:var(--e-bardhë);">
+        {% for v in vitit_lista %}
+          <option value="{{ v }}" {% if v == viti_zgjedhur %}selected{% endif %}>{{ v }}</option>
+        {% endfor %}
+      </select>
+    </form>
+    <a href="{% url 'shto_pagese_fondi' %}" class="btn-kryesor">+ Regjistro Donacion</a>
+  </div>
+</div>
+
+<!-- Statistikat -->
+<div class="grid-3" style="margin-bottom:24px;">
+  <div class="stat-card kafe">
+    <div class="stat-label">Total Fondi {{ viti_zgjedhur }}</div>
+    <div class="stat-vlera kafe">{{ total_fondi }}€</div>
+    <div class="stat-nën">donacione të mbledhura</div>
+  </div>
+  <div class="stat-card gjelbër">
+    <div class="stat-label">Nr. Donatorëve</div>
+    <div class="stat-vlera gjelbër">{{ total_donator }}</div>
+    <div class="stat-nën">donatorë gjatë vitit {{ viti_zgjedhur }}</div>
+  </div>
+  <div class="stat-card blu">
+    <div class="stat-label">Mesatare / Donacion</div>
+    <div class="stat-vlera" style="color:#007AFF;">
+      {% if total_donator > 0 %}{% widthratio total_fondi total_donator 1 %}€{% else %}0€{% endif %}
+    </div>
+    <div class="stat-nën">shuma mesatare e donacionit</div>
+  </div>
+</div>
+
+<div class="grid-2" style="margin-bottom:24px;">
+  <!-- Grafiku mujor -->
+  <div class="card">
+    <div class="card-header">
+      <h5>📈 Donacionet Mujore {{ viti_zgjedhur }}</h5>
+    </div>
+    <div class="card-body">
+      <canvas id="grafikuMujor" height="220"></canvas>
+    </div>
+  </div>
+
+  <!-- Krahasimi viteve -->
+  <div class="card">
+    <div class="card-header">
+      <h5>📊 Krahasimi i Viteve</h5>
+    </div>
+    <div class="card-body">
+      <canvas id="grafikuVitet" height="220"></canvas>
+    </div>
+  </div>
+</div>
+
+<div class="grid-2">
+  <!-- Pagesat e fundit -->
+  <div class="card">
+    <div class="card-header">
+      <h5>🕐 Donacionet e Fundit</h5>
+      <a href="{% url 'lista_pagesa_fondi' %}" class="btn-dytësor btn-sm">Shih të gjitha</a>
+    </div>
+    <div style="overflow-x:auto;">
+      <table class="tabela-xhami">
+        <thead>
+          <tr>
+            <th>Fatura</th>
+            <th>Donatori</th>
+            <th>Shuma</th>
+            <th>Data</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in pagesat_e_fundit %}
+          <tr>
+            <td><a href="{% url 'detaje_pagesa_fondi' p.pk %}">{{ p.nr_fatures }}</a></td>
+            <td>{{ p.emri_donatorit }} {{ p.mbiemri_donatorit }}</td>
+            <td class="tekst-kafe font-semibold">{{ p.shuma }}€</td>
+            <td class="tekst-dytësor">{{ p.data_pageses|date:"d M Y" }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="4" style="text-align:center; padding:24px; color:var(--tekst-dytësor);">Asnjë donacion ende.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Top donatorë -->
+  <div class="card">
+    <div class="card-header">
+      <h5>🏆 Top Donatorët {{ viti_zgjedhur }}</h5>
+    </div>
+    <div class="card-body">
+      {% for d in top_donator %}
+      <div class="flex items-center justify-between" style="padding:10px 0; border-bottom:1px solid var(--krem-errët);">
+        <div class="flex items-center gap-3">
+          <div style="width:32px;height:32px;background:rgba(107,68,35,0.12);border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--kafe);font-size:13px;">
+            {{ forloop.counter }}
+          </div>
+          <span>{{ d.emri_donatorit }} {{ d.mbiemri_donatorit }}</span>
+        </div>
+        <span class="tekst-kafe font-semibold">{{ d.total }}€</span>
+      </div>
+      {% empty %}
+      <p style="text-align:center; color:var(--tekst-dytësor);">Asnjë donacion ende.</p>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block skripte %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+const muajt = {{ muajt_etiketat_json|safe }};
+const pagesat = {{ pagesat_mujore_json|safe }};
+const krahasimi = {{ krahasimi_viteve_json|safe }};
+
+new Chart(document.getElementById('grafikuMujor'), {
+  type: 'line',
+  data: {
+    labels: muajt,
+    datasets: [{
+      label: 'Donacione (€)',
+      data: pagesat,
+      borderColor: '#6B4423',
+      backgroundColor: 'rgba(107,68,35,0.1)',
+      fill: true,
+      tension: 0.4,
+      borderWidth: 2.5,
+      pointBackgroundColor: '#6B4423',
+      pointRadius: 4,
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { display: false } },
+    scales: {
+      y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' } },
+      x: { grid: { display: false } }
+    }
+  }
+});
+
+new Chart(document.getElementById('grafikuVitet'), {
+  type: 'bar',
+  data: {
+    labels: krahasimi.map(k => k.viti),
+    datasets: [{
+      label: 'Total (€)',
+      data: krahasimi.map(k => k.shuma),
+      backgroundColor: ['rgba(107,68,35,0.5)', 'rgba(107,68,35,0.7)', 'rgba(107,68,35,1)'],
+      borderRadius: 8,
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { display: false } },
+    scales: {
+      y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' } },
+      x: { grid: { display: false } }
+    }
+  }
+});
+</script>
+{% endblock %}

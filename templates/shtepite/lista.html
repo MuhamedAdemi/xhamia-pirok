@@ -1,0 +1,85 @@
+{% extends 'base.html' %}
+{% block titulli %}Shtëpitë — Xhamia Pirok{% endblock %}
+
+{% block kontent %}
+<div class="page-header">
+  <div>
+    <h2>🏠 Shtëpitë</h2>
+    <p>{{ shtepite.count }} shtëpi të regjistruara</p>
+  </div>
+  {% if request.user.profili.është_admin %}
+  <a href="{% url 'shto_shtepi' %}" class="btn-kryesor">+ Shto Shtëpi</a>
+  {% endif %}
+</div>
+
+<div class="card">
+  <form method="get" class="filtrat">
+    <input type="text" name="kerkimi" value="{{ kerkimi }}" placeholder="Kërko nr., emër, mbiemër...">
+    <select name="kategoria">
+      <option value="">Të gjitha kategoritë</option>
+      {% for k in kategoritë %}
+        <option value="{{ k.pk }}" {% if kategoria_id == k.pk|stringformat:'s' %}selected{% endif %}>{{ k.emri }}</option>
+      {% endfor %}
+    </select>
+    <select name="statusi">
+      <option value="aktive" {% if statusi == 'aktive' %}selected{% endif %}>Aktive</option>
+      <option value="te_gjitha" {% if statusi == 'te_gjitha' %}selected{% endif %}>Të gjitha</option>
+      <option value="joaktive" {% if statusi == 'joaktive' %}selected{% endif %}>Joaktive</option>
+    </select>
+    <button type="submit" class="btn-kryesor btn-sm">Kërko</button>
+    <a href="{% url 'lista_shtepive' %}" class="btn-dytësor btn-sm">Pastro</a>
+  </form>
+
+  <div style="overflow-x:auto;">
+    <table class="tabela-xhami">
+      <thead>
+        <tr>
+          <th>Nr.</th>
+          <th>Kryefamiljari</th>
+          <th>Anëtarë</th>
+          <th>Kategoria</th>
+          <th>Telefoni</th>
+          <th>Statusi</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for sh in shtepite %}
+        <tr>
+          <td><span class="nr-shtepi">{{ sh.nr_shtepise }}</span></td>
+          <td>
+            <a href="{% url 'detaje_shtepia' sh.pk %}" style="font-weight:600;">
+              {{ sh.emri_kryefamiljarit }} {{ sh.mbiemri_kryefamiljarit }}
+            </a>
+          </td>
+          <td class="tekst-dytësor">{{ sh.nr_antareve_familjes }}</td>
+          <td><span class="badge-gjelbër">{{ sh.kategoria.emri }}</span></td>
+          <td class="tekst-dytësor">{{ sh.nr_telefoni_kryesor|default:"—" }}</td>
+          <td>
+            {% if sh.është_aktiv %}
+              <span class="badge-gjelbër">Aktive</span>
+            {% else %}
+              <span class="badge-gri">Joaktive</span>
+            {% endif %}
+          </td>
+          <td>
+            <div class="flex gap-3">
+              <a href="{% url 'detaje_shtepia' sh.pk %}" class="btn-dytësor btn-sm">Shih</a>
+              {% if request.user.profili.është_admin %}
+              <a href="{% url 'edito_shtepi' sh.pk %}" class="btn-dytësor btn-sm">Edito</a>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="7" style="text-align:center; padding:40px; color:var(--tekst-dytësor);">
+            Asnjë shtëpi e gjetur me këto kritere.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,73 @@
+{% extends 'base.html' %}
+{% load widget_tweaks %}
+{% block titulli %}Regjistro Donacion — Xhamia Pirok{% endblock %}
+
+{% block kontent %}
+<div class="page-header">
+  <div class="flex items-center gap-3">
+    <a href="{% url 'lista_pagesa_fondi' %}" class="btn-dytësor btn-sm">← Kthehu</a>
+    <h2>🤲 Regjistro Donacion — Fondi i Xhamisë</h2>
+  </div>
+</div>
+
+<form method="post" style="max-width:680px;">
+  {% csrf_token %}
+
+  <div class="card" style="margin-bottom:20px;">
+    <div class="card-header"><h5>👤 Të Dhënat e Donatorit</h5></div>
+    <div class="card-body">
+      <div class="grid-2">
+        <div class="forma-grup">
+          <label>{{ form.emri_donatorit.label }}</label>
+          {% render_field form.emri_donatorit placeholder="Emri" %}
+          {% if form.emri_donatorit.errors %}<p class="gabim-fusha">{{ form.emri_donatorit.errors.0 }}</p>{% endif %}
+        </div>
+        <div class="forma-grup">
+          <label>{{ form.mbiemri_donatorit.label }}</label>
+          {% render_field form.mbiemri_donatorit placeholder="Mbiemri" %}
+          {% if form.mbiemri_donatorit.errors %}<p class="gabim-fusha">{{ form.mbiemri_donatorit.errors.0 }}</p>{% endif %}
+        </div>
+        <div class="forma-grup">
+          <label>{{ form.email_donatorit.label }}</label>
+          {% render_field form.email_donatorit placeholder="email@shembull.com" %}
+        </div>
+        <div class="forma-grup">
+          <label>{{ form.nr_telefoni.label }}</label>
+          {% render_field form.nr_telefoni placeholder="+383..." %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:20px;">
+    <div class="card-header"><h5>💶 Detajet e Donacionit</h5></div>
+    <div class="card-body">
+      <div class="grid-2">
+        <div class="forma-grup">
+          <label>{{ form.shuma.label }}</label>
+          {% render_field form.shuma placeholder="0.00" %}
+          {% if form.shuma.errors %}<p class="gabim-fusha">{{ form.shuma.errors.0 }}</p>{% endif %}
+        </div>
+        <div class="forma-grup">
+          <label>{{ form.data_pageses.label }}</label>
+          {% render_field form.data_pageses %}
+          {% if form.data_pageses.errors %}<p class="gabim-fusha">{{ form.data_pageses.errors.0 }}</p>{% endif %}
+        </div>
+      </div>
+      <div class="forma-grup">
+        <label>{{ form.arsyeja.label }}</label>
+        {% render_field form.arsyeja placeholder="p.sh. Ndërtimi i çatisë, Blerja e carpet-it..." %}
+      </div>
+      <div class="forma-grup">
+        <label>{{ form.shenime.label }}</label>
+        {% render_field form.shenime placeholder="Shënime opsionale..." %}
+      </div>
+    </div>
+  </div>
+
+  <div class="flex gap-3">
+    <button type="submit" class="btn-kryesor">✅ Regjistro & Dërgo Email</button>
+    <a href="{% url 'lista_pagesa_fondi' %}" class="btn-dytësor">Anulo</a>
+  </div>
+</form>
+{% endblock %}

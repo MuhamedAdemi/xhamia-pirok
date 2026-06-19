@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+{% load widget_tweaks %}
+{% block titulli %}{{ titulli }} — Xhamia Pirok{% endblock %}
+
+{% block kontent %}
+<div class="page-header">
+  <div class="flex items-center gap-3">
+    <a href="{% url 'lista_kategorive' %}" class="btn-dytësor btn-sm">← Kthehu</a>
+    <h2>{{ titulli }}</h2>
+  </div>
+</div>
+
+<form method="post" style="max-width:580px;">
+  {% csrf_token %}
+  <div class="card" style="margin-bottom:20px;">
+    <div class="card-header"><h5>🏷️ Informacionet e Kategorisë</h5></div>
+    <div class="card-body">
+      <div class="forma-grup">
+        <label>{{ form.emri.label }}</label>
+        {% render_field form.emri placeholder="p.sh. Normale, E Liruar, E Pasur..." %}
+        {% if form.emri.errors %}<p class="gabim-fusha">{{ form.emri.errors.0 }}</p>{% endif %}
+      </div>
+      <div class="forma-grup">
+        <label>{{ form.pershkrimi.label }}</label>
+        {% render_field form.pershkrimi placeholder="Përshkrimi opsional..." %}
+      </div>
+      <div class="divider"></div>
+      <div class="grid-2">
+        <div class="forma-grup">
+          <label>{{ form.shuma_vjetore.label }}</label>
+          {% render_field form.shuma_vjetore placeholder="0.00" %}
+          {% if form.shuma_vjetore.errors %}<p class="gabim-fusha">{{ form.shuma_vjetore.errors.0 }}</p>{% endif %}
+        </div>
+        <div class="forma-grup">
+          <label>{{ form.shuma_6mujore.label }}</label>
+          {% render_field form.shuma_6mujore placeholder="Opsionale..." %}
+        </div>
+        <div class="forma-grup">
+          <label>{{ form.shuma_3mujore.label }}</label>
+          {% render_field form.shuma_3mujore placeholder="Opsionale..." %}
+        </div>
+        <div class="forma-grup">
+          <label>{{ form.shuma_mujore.label }}</label>
+          {% render_field form.shuma_mujore placeholder="Opsionale..." %}
+        </div>
+        <div class="forma-grup">
+          <label>{{ form.renditja.label }}</label>
+          {% render_field form.renditja %}
+          <p class="ndihma">0 = shfaqet e para në listë</p>
+        </div>
+      </div>
+      <label class="checkbox-grup" style="margin-top:8px;">
+        {% render_field form.është_aktiv %}
+        <span>Kategoria është aktive</span>
+      </label>
+    </div>
+  </div>
+  <div class="flex gap-3">
+    <button type="submit" class="btn-kryesor">💾 Ruaj</button>
+    <a href="{% url 'lista_kategorive' %}" class="btn-dytësor">Anulo</a>
+  </div>
+</form>
+{% endblock %}

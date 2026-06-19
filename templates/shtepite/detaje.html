@@ -1,0 +1,132 @@
+{% extends 'base.html' %}
+{% block titulli %}Shtëpia #{{ shtepi.nr_shtepise }} — Xhamia Pirok{% endblock %}
+
+{% block kontent %}
+<div class="page-header">
+  <div class="flex items-center gap-3">
+    <a href="{% url 'lista_shtepive' %}" class="btn-dytësor btn-sm">← Kthehu</a>
+    <div>
+      <h2><span class="nr-shtepi" style="font-size:18px; width:60px; height:34px;">{{ shtepi.nr_shtepise }}</span>
+        {{ shtepi.emri_kryefamiljarit }} {{ shtepi.mbiemri_kryefamiljarit }}
+      </h2>
+      <p>{{ shtepi.kategoria.emri }} • {{ shtepi.nr_antareve_familjes }} anëtarë familje</p>
+    </div>
+  </div>
+  <div class="flex gap-3">
+    {% if request.user.profili.është_admin %}
+    <a href="{% url 'edito_shtepi' shtepi.pk %}" class="btn-dytësor">Edito</a>
+    {% endif %}
+    <a href="{% url 'shto_pagese_antaresia' %}?shtepi={{ shtepi.pk }}" class="btn-kryesor">+ Regjistro Pagesë</a>
+  </div>
+</div>
+
+<div class="grid-2" style="margin-bottom:24px;">
+  <div class="card">
+    <div class="card-header"><h5>👤 Të Dhënat e Kryefamiljarit</h5></div>
+    <div class="card-body">
+      <table style="width:100%; border-collapse:collapse;">
+        <tr>
+          <td style="padding:8px 0; color:var(--tekst-dytësor); font-size:13px; width:40%;">Emri i plotë</td>
+          <td style="padding:8px 0; font-weight:600;">{{ shtepi.emri_kryefamiljarit }} {{ shtepi.mbiemri_kryefamiljarit }}</td>
+        </tr>
+        <tr>
+          <td style="padding:8px 0; color:var(--tekst-dytësor); font-size:13px;">Nr. anëtarëve</td>
+          <td style="padding:8px 0;">{{ shtepi.nr_antareve_familjes }}</td>
+        </tr>
+        <tr>
+          <td style="padding:8px 0; color:var(--tekst-dytësor); font-size:13px;">Email</td>
+          <td style="padding:8px 0;">{{ shtepi.email|default:"—" }}</td>
+        </tr>
+        <tr>
+          <td style="padding:8px 0; color:var(--tekst-dytësor); font-size:13px;">Tel. kryesor</td>
+          <td style="padding:8px 0;">{{ shtepi.nr_telefoni_kryesor|default:"—" }}</td>
+        </tr>
+        <tr>
+          <td style="padding:8px 0; color:var(--tekst-dytësor); font-size:13px;">Tel. sporadik</td>
+          <td style="padding:8px 0;">{{ shtepi.nr_telefoni_sporadik|default:"—" }}</td>
+        </tr>
+        <tr>
+          <td style="padding:8px 0; color:var(--tekst-dytësor); font-size:13px;">Kategoria</td>
+          <td style="padding:8px 0;"><span class="badge-gjelbër">{{ shtepi.kategoria.emri }}</span> — {{ shtepi.kategoria.shuma_vjetore }}€/vit</td>
+        </tr>
+        <tr>
+          <td style="padding:8px 0; color:var(--tekst-dytësor); font-size:13px;">Statusi</td>
+          <td style="padding:8px 0;">{% if shtepi.është_aktiv %}<span class="badge-gjelbër">Aktive</span>{% else %}<span class="badge-gri">Joaktive</span>{% endif %}</td>
+        </tr>
+        {% if shtepi.shenime %}
+        <tr>
+          <td style="padding:8px 0; color:var(--tekst-dytësor); font-size:13px;">Shënime</td>
+          <td style="padding:8px 0;">{{ shtepi.shenime }}</td>
+        </tr>
+        {% endif %}
+      </table>
+    </div>
+  </div>
+
+  {% if shtepi.kontakt_sporadik_emri %}
+  <div class="card">
+    <div class="card-header"><h5>👥 Kontakt Sporadik</h5></div>
+    <div class="card-body">
+      <table style="width:100%; border-collapse:collapse;">
+        <tr>
+          <td style="padding:8px 0; color:var(--tekst-dytësor); font-size:13px; width:40%;">Emri</td>
+          <td style="padding:8px 0; font-weight:600;">{{ shtepi.kontakt_sporadik_emri }}</td>
+        </tr>
+        <tr>
+          <td style="padding:8px 0; color:var(--tekst-dytësor); font-size:13px;">Email</td>
+          <td style="padding:8px 0;">{{ shtepi.kontakt_sporadik_email|default:"—" }}</td>
+        </tr>
+        <tr>
+          <td style="padding:8px 0; color:var(--tekst-dytësor); font-size:13px;">Telefon</td>
+          <td style="padding:8px 0;">{{ shtepi.kontakt_sporadik_telefoni|default:"—" }}</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Historia pagesave -->
+<div class="card">
+  <div class="card-header">
+    <h5>📋 Historia e Pagesave</h5>
+    <a href="{% url 'shto_pagese_antaresia' %}?shtepi={{ shtepi.pk }}" class="btn-kryesor btn-sm">+ Pagesë e Re</a>
+  </div>
+  <div style="overflow-x:auto;">
+    <table class="tabela-xhami">
+      <thead>
+        <tr>
+          <th>Nr. Faturës</th>
+          <th>Viti</th>
+          <th>Periudha</th>
+          <th>Shuma</th>
+          <th>Data</th>
+          <th>Arktar</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in pagesat %}
+        <tr>
+          <td><a href="{% url 'detaje_pagesa_antaresia' p.pk %}">{{ p.nr_fatures }}</a></td>
+          <td class="font-semibold">{{ p.viti }}</td>
+          <td><span class="badge-gjelbër">{{ p.get_periudha_display }}</span></td>
+          <td class="tekst-gjelbër font-semibold">{{ p.shuma_paguar }}€</td>
+          <td class="tekst-dytësor">{{ p.data_pageses|date:"d M Y" }}</td>
+          <td class="tekst-dytësor">{{ p.arktar.get_full_name }}</td>
+          <td>
+            <a href="{% url 'fatura_antaresia_pdf' p.pk %}" class="btn-dytësor btn-sm" target="_blank">🖨️ Fatura</a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="7" style="text-align:center; padding:30px; color:var(--tekst-dytësor);">
+            Asnjë pagesë e regjistruar ende.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,73 @@
+{% extends 'base.html' %}
+{% block titulli %}Pagesat Antarësia — Xhamia Pirok{% endblock %}
+
+{% block kontent %}
+<div class="page-header">
+  <div>
+    <h2>📋 Pagesat Antarësia</h2>
+    <p>{{ pagesat.count }} pagesa të gjetura</p>
+  </div>
+  {% if request.user.profili.mund_regjistrojë_pagesa or request.user.profili.është_admin %}
+  <a href="{% url 'shto_pagese_antaresia' %}" class="btn-kryesor">+ Regjistro Pagesë</a>
+  {% endif %}
+</div>
+
+<div class="card">
+  <form method="get" class="filtrat">
+    <input type="text" name="kerkimi" value="{{ kerkimi }}" placeholder="Nr. fature, emër...">
+    <select name="viti">
+      {% for v in vitit_lista %}
+        <option value="{{ v }}" {% if v|stringformat:'s' == viti|stringformat:'s' %}selected{% endif %}>{{ v }}</option>
+      {% endfor %}
+    </select>
+    <button type="submit" class="btn-kryesor btn-sm">Filtro</button>
+    <a href="{% url 'lista_pagesa_antaresia' %}" class="btn-dytësor btn-sm">Pastro</a>
+  </form>
+
+  <div style="overflow-x:auto;">
+    <table class="tabela-xhami">
+      <thead>
+        <tr>
+          <th>Nr. Faturës</th>
+          <th>Shtëpia</th>
+          <th>Kategoria</th>
+          <th>Shuma</th>
+          <th>Periudha</th>
+          <th>Viti</th>
+          <th>Data</th>
+          <th>Arktar</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in pagesat %}
+        <tr>
+          <td><a href="{% url 'detaje_pagesa_antaresia' p.pk %}" style="font-family:monospace; font-weight:600;">{{ p.nr_fatures }}</a></td>
+          <td>
+            <a href="{% url 'detaje_shtepia' p.shtepia.pk %}">
+              <span class="nr-shtepi">{{ p.shtepia.nr_shtepise }}</span>
+              {{ p.shtepia.emri_kryefamiljarit }} {{ p.shtepia.mbiemri_kryefamiljarit }}
+            </a>
+          </td>
+          <td><span class="badge-gri">{{ p.kategoria_pageses.emri }}</span></td>
+          <td class="tekst-gjelbër font-semibold">{{ p.shuma_paguar }}€</td>
+          <td><span class="badge-gjelbër">{{ p.get_periudha_display }}</span></td>
+          <td class="font-semibold">{{ p.viti }}</td>
+          <td class="tekst-dytësor">{{ p.data_pageses|date:"d M Y" }}</td>
+          <td class="tekst-dytësor">{{ p.arktar.get_full_name }}</td>
+          <td>
+            <a href="{% url 'fatura_antaresia_pdf' p.pk %}" class="btn-dytësor btn-sm" target="_blank">🖨️</a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="9" style="text-align:center; padding:40px; color:var(--tekst-dytësor);">
+            Asnjë pagesë e gjetur.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

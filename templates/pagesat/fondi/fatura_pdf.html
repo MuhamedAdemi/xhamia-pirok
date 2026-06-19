@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="sq">
+<head>
+<meta charset="UTF-8">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family: 'Inter', Arial, sans-serif; font-size: 13px; color: #1C1C1E; background: #fff; }
+
+  .fatura { max-width: 680px; margin: 0 auto; padding: 40px; }
+
+  .kreu { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 32px; }
+  .logo h1 { font-size: 22px; font-weight: 700; color: #2D5A1B; }
+  .logo p { font-size: 11px; color: #6E6E73; margin-top: 2px; }
+
+  .nr-fatura { text-align: right; }
+  .nr-fatura .etiketa { font-size: 10px; color: #6E6E73; text-transform: uppercase; letter-spacing: 0.5px; }
+  .nr-fatura .vlera { font-size: 18px; font-weight: 700; font-family: monospace; color: #6B4423; }
+  .nr-fatura .data { font-size: 12px; color: #6E6E73; margin-top: 4px; }
+
+  .vija { height: 3px; background: linear-gradient(to right, #6B4423, #2D5A1B); border-radius: 2px; margin-bottom: 28px; }
+
+  .blloku-info { display: flex; gap: 24px; margin-bottom: 28px; }
+  .bllok { flex: 1; background: #F7F3ED; border-radius: 10px; padding: 16px; }
+  .bllok h4 { font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: #6E6E73; font-weight: 600; margin-bottom: 10px; }
+  .bllok .emri { font-weight: 700; font-size: 15px; display: block; margin-bottom: 4px; }
+
+  .tabela-detaje { width: 100%; border-collapse: collapse; margin-bottom: 24px; }
+  .tabela-detaje th {
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px;
+    color: #6E6E73; background: #F7F3ED;
+    padding: 10px 14px; text-align: left; border-bottom: 2px solid #EDE7DC;
+  }
+  .tabela-detaje td { padding: 14px; border-bottom: 1px solid #EDE7DC; }
+
+  .shuma-total { background: #6B4423; color: #fff; border-radius: 10px; padding: 18px 24px; margin-bottom: 24px; }
+  .shuma-total .etiketa { font-size: 11px; opacity: 0.7; text-transform: uppercase; letter-spacing: 0.5px; }
+  .shuma-total .vlera { font-size: 36px; font-weight: 700; }
+
+  .fund { display: flex; justify-content: space-between; align-items: center; padding-top: 20px; border-top: 1px solid #EDE7DC; }
+  .fund p { font-size: 11px; color: #6E6E73; }
+  .stempel { text-align: center; color: #6E6E73; font-size: 10px; margin-top: 16px; }
+</style>
+</head>
+<body>
+<div class="fatura">
+  <div class="kreu">
+    <div class="logo">
+      <h1>🕌 Xhamia Pirok</h1>
+      <p>Fondi i Xhamisë — Fshati Pirok</p>
+      <p>xhamijapirok@gmail.com</p>
+    </div>
+    <div class="nr-fatura">
+      <div class="etiketa">Nr. Faturës</div>
+      <div class="vlera">{{ pagese.nr_fatures }}</div>
+      <div class="data">Lëshuar: {{ pagese.data_regjistrimit|date:"d.m.Y" }}</div>
+    </div>
+  </div>
+
+  <div class="vija"></div>
+
+  <div class="blloku-info">
+    <div class="bllok">
+      <h4>Donatori</h4>
+      <span class="emri">{{ pagese.emri_donatorit }} {{ pagese.mbiemri_donatorit }}</span>
+      {% if pagese.email_donatorit %}<p>{{ pagese.email_donatorit }}</p>{% endif %}
+      {% if pagese.nr_telefoni %}<p>{{ pagese.nr_telefoni }}</p>{% endif %}
+    </div>
+    <div class="bllok">
+      <h4>Arktar (mori paratë)</h4>
+      <span class="emri">{{ pagese.arktar.get_full_name }}</span>
+      {% if pagese.arktar.profili.pozita %}<p>{{ pagese.arktar.profili.pozita }}</p>{% endif %}
+      <p>{{ pagese.arktar.email }}</p>
+      <p>Regjistruar: {{ pagese.data_regjistrimit|date:"d.m.Y H:i" }}</p>
+    </div>
+  </div>
+
+  <table class="tabela-detaje">
+    <thead>
+      <tr>
+        <th>Përshkrimi</th>
+        <th>Arsyeja</th>
+        <th>Data</th>
+        <th>Shuma</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Donacion — Fondi i Xhamisë Pirok</td>
+        <td>{{ pagese.arsyeja|default:"—" }}</td>
+        <td>{{ pagese.data_pageses|date:"d.m.Y" }}</td>
+        <td><strong>{{ pagese.shuma }} €</strong></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="shuma-total">
+    <div class="etiketa">Shuma e Donacionit</div>
+    <div class="vlera">{{ pagese.shuma }} €</div>
+  </div>
+
+  {% if pagese.shenime %}
+  <p style="font-size:12px; color:#6E6E73; margin-bottom:20px;"><strong>Shënime:</strong> {{ pagese.shenime }}</p>
+  {% endif %}
+
+  <div class="fund">
+    <p>Data e pagesës: <strong>{{ pagese.data_pageses|date:"d MMMM Y" }}</strong></p>
+    <p>Faleminderit për kontributin tuaj!</p>
+  </div>
+
+  <div class="stempel">
+    Xhamia e Fshatit Pirok — Dokument i lëshuar elektronikisht nga sistemi i brendshëm
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,103 @@
+{% extends 'base.html' %}
+{% load widget_tweaks %}
+{% block titulli %}Regjistro Pagesë Antarësia — Xhamia Pirok{% endblock %}
+
+{% block kontent %}
+<div class="page-header">
+  <div class="flex items-center gap-3">
+    <a href="{% url 'lista_pagesa_antaresia' %}" class="btn-dytësor btn-sm">← Kthehu</a>
+    <h2>📋 Regjistro Pagesë Antarësia</h2>
+  </div>
+</div>
+
+<form method="post" style="max-width:680px;">
+  {% csrf_token %}
+  <div class="card" style="margin-bottom:20px;">
+    <div class="card-header"><h5>🏠 Shtëpia & Kategoria</h5></div>
+    <div class="card-body">
+      <div class="grid-2">
+        <div class="forma-grup">
+          <label>{{ form.shtepia.label }}</label>
+          {% render_field form.shtepia %}
+          {% if form.shtepia.errors %}<p class="gabim-fusha">{{ form.shtepia.errors.0 }}</p>{% endif %}
+        </div>
+        <div class="forma-grup">
+          <label>{{ form.kategoria_pageses.label }}</label>
+          {% render_field form.kategoria_pageses %}
+          {% if form.kategoria_pageses.errors %}<p class="gabim-fusha">{{ form.kategoria_pageses.errors.0 }}</p>{% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:20px;">
+    <div class="card-header"><h5>💶 Detajet e Pagesës</h5></div>
+    <div class="card-body">
+      <div class="grid-2">
+        <div class="forma-grup">
+          <label>{{ form.shuma_paguar.label }}</label>
+          {% render_field form.shuma_paguar placeholder="70.00" %}
+          {% if form.shuma_paguar.errors %}<p class="gabim-fusha">{{ form.shuma_paguar.errors.0 }}</p>{% endif %}
+        </div>
+        <div class="forma-grup">
+          <label>{{ form.periudha.label }}</label>
+          {% render_field form.periudha %}
+        </div>
+        <div class="forma-grup">
+          <label>{{ form.viti.label }}</label>
+          {% render_field form.viti %}
+          {% if form.viti.errors %}<p class="gabim-fusha">{{ form.viti.errors.0 }}</p>{% endif %}
+        </div>
+        <div class="forma-grup">
+          <label>{{ form.data_pageses.label }}</label>
+          {% render_field form.data_pageses %}
+          {% if form.data_pageses.errors %}<p class="gabim-fusha">{{ form.data_pageses.errors.0 }}</p>{% endif %}
+        </div>
+        <div class="forma-grup" id="muajiDiv" style="display:none;">
+          <label>{{ form.muaji_fillimit.label }}</label>
+          {% render_field form.muaji_fillimit %}
+        </div>
+        <div class="forma-grup" id="muajiMbarimitDiv" style="display:none;">
+          <label>{{ form.muaji_mbarimit.label }}</label>
+          {% render_field form.muaji_mbarimit %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:24px;">
+    <div class="card-header"><h5>📝 Shënime</h5></div>
+    <div class="card-body">
+      <div class="forma-grup">
+        {% render_field form.shenime placeholder="Shënime opsionale..." %}
+      </div>
+    </div>
+  </div>
+
+  <div class="flex gap-3">
+    <button type="submit" class="btn-kryesor">✅ Regjistro & Dërgo Email</button>
+    <a href="{% url 'lista_pagesa_antaresia' %}" class="btn-dytësor">Anulo</a>
+  </div>
+</form>
+{% endblock %}
+
+{% block skripte %}
+<script>
+const periudha = document.querySelector('[name="periudha"]');
+const muajiDiv = document.getElementById('muajiDiv');
+const muajiMbarimitDiv = document.getElementById('muajiMbarimitDiv');
+
+function updateMuajt() {
+  const v = periudha.value;
+  if (v === 'VJETORE') {
+    muajiDiv.style.display = 'none';
+    muajiMbarimitDiv.style.display = 'none';
+  } else {
+    muajiDiv.style.display = 'block';
+    muajiMbarimitDiv.style.display = 'block';
+  }
+}
+periudha.addEventListener('change', updateMuajt);
+updateMuajt();
+</script>
+{% endblock %}

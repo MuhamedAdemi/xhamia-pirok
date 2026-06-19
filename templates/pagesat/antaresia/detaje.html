@@ -1,0 +1,102 @@
+{% extends 'base.html' %}
+{% block titulli %}{{ pagese.nr_fatures }} — Xhamia Pirok{% endblock %}
+
+{% block kontent %}
+<div class="page-header">
+  <div class="flex items-center gap-3">
+    <a href="{% url 'lista_pagesa_antaresia' %}" class="btn-dytësor btn-sm">← Kthehu</a>
+    <div>
+      <h2>{{ pagese.nr_fatures }}</h2>
+      <p>Pagesë Antarësia — {{ pagese.shtepia }}</p>
+    </div>
+  </div>
+  <a href="{% url 'fatura_antaresia_pdf' pagese.pk %}" class="btn-kryesor" target="_blank">🖨️ Shiko Faturën PDF</a>
+</div>
+
+<div class="grid-2">
+  <div class="card">
+    <div class="card-header"><h5>📋 Detajet e Pagesës</h5></div>
+    <div class="card-body">
+      <table style="width:100%; border-collapse:collapse;">
+        <tr>
+          <td style="padding:10px 0; color:var(--tekst-dytësor); font-size:13px; width:40%;">Nr. Faturës</td>
+          <td style="padding:10px 0; font-family:monospace; font-weight:700; color:var(--gjelbër);">{{ pagese.nr_fatures }}</td>
+        </tr>
+        <tr>
+          <td style="padding:10px 0; color:var(--tekst-dytësor); font-size:13px;">Shtëpia</td>
+          <td style="padding:10px 0;">
+            <a href="{% url 'detaje_shtepia' pagese.shtepia.pk %}">
+              <span class="nr-shtepi">{{ pagese.shtepia.nr_shtepise }}</span>
+              {{ pagese.shtepia.emri_kryefamiljarit }} {{ pagese.shtepia.mbiemri_kryefamiljarit }}
+            </a>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:10px 0; color:var(--tekst-dytësor); font-size:13px;">Kategoria</td>
+          <td style="padding:10px 0;"><span class="badge-gjelbër">{{ pagese.kategoria_pageses.emri }}</span></td>
+        </tr>
+        <tr>
+          <td style="padding:10px 0; color:var(--tekst-dytësor); font-size:13px;">Shuma</td>
+          <td style="padding:10px 0; font-size:22px; font-weight:700; color:var(--gjelbër);">{{ pagese.shuma_paguar }}€</td>
+        </tr>
+        <tr>
+          <td style="padding:10px 0; color:var(--tekst-dytësor); font-size:13px;">Periudha</td>
+          <td style="padding:10px 0;"><span class="badge-gjelbër">{{ pagese.get_periudha_display }}</span></td>
+        </tr>
+        <tr>
+          <td style="padding:10px 0; color:var(--tekst-dytësor); font-size:13px;">Viti</td>
+          <td style="padding:10px 0; font-weight:600;">{{ pagese.viti }}</td>
+        </tr>
+        {% if pagese.muaji_fillimit %}
+        <tr>
+          <td style="padding:10px 0; color:var(--tekst-dytësor); font-size:13px;">Periudha muajore</td>
+          <td style="padding:10px 0;">Muaji {{ pagese.muaji_fillimit }} — {{ pagese.muaji_mbarimit }}</td>
+        </tr>
+        {% endif %}
+        <tr>
+          <td style="padding:10px 0; color:var(--tekst-dytësor); font-size:13px;">Data e pagesës</td>
+          <td style="padding:10px 0; font-weight:600;">{{ pagese.data_pageses|date:"d MMMM Y" }}</td>
+        </tr>
+        <tr>
+          <td style="padding:10px 0; color:var(--tekst-dytësor); font-size:13px;">Arktar</td>
+          <td style="padding:10px 0; font-weight:600;">{{ pagese.arktar.get_full_name }}</td>
+        </tr>
+        <tr>
+          <td style="padding:10px 0; color:var(--tekst-dytësor); font-size:13px;">Regjistruar më</td>
+          <td style="padding:10px 0; color:var(--tekst-dytësor);">{{ pagese.data_regjistrimit|date:"d M Y, H:i" }}</td>
+        </tr>
+        {% if pagese.shenime %}
+        <tr>
+          <td style="padding:10px 0; color:var(--tekst-dytësor); font-size:13px;">Shënime</td>
+          <td style="padding:10px 0;">{{ pagese.shenime }}</td>
+        </tr>
+        {% endif %}
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><h5>🏠 Informacioni i Shtëpisë</h5></div>
+    <div class="card-body">
+      <table style="width:100%; border-collapse:collapse;">
+        <tr>
+          <td style="padding:8px 0; color:var(--tekst-dytësor); font-size:13px; width:40%;">Kryefamiljari</td>
+          <td style="padding:8px 0; font-weight:600;">{{ pagese.shtepia.emri_kryefamiljarit }} {{ pagese.shtepia.mbiemri_kryefamiljarit }}</td>
+        </tr>
+        <tr>
+          <td style="padding:8px 0; color:var(--tekst-dytësor); font-size:13px;">Email</td>
+          <td style="padding:8px 0;">{{ pagese.shtepia.email|default:"—" }}</td>
+        </tr>
+        <tr>
+          <td style="padding:8px 0; color:var(--tekst-dytësor); font-size:13px;">Telefoni</td>
+          <td style="padding:8px 0;">{{ pagese.shtepia.nr_telefoni_kryesor|default:"—" }}</td>
+        </tr>
+      </table>
+      <div class="divider"></div>
+      <a href="{% url 'detaje_shtepia' pagese.shtepia.pk %}" class="btn-dytësor" style="width:100%; text-align:center; justify-content:center;">
+        Shih Profilin e Shtëpisë →
+      </a>
+    </div>
+  </div>
+</div>
+{% endblock %}

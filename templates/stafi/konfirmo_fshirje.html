@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+{% block titulli %}Çaktivizo Stafin — Xhamia Pirok{% endblock %}
+
+{% block kontent %}
+<div style="max-width:500px; margin:60px auto;">
+  <div class="card">
+    <div class="card-body" style="text-align:center; padding:40px;">
+      <div style="font-size:48px; margin-bottom:16px;">⚠️</div>
+      <h3 style="margin-bottom:12px;">Çaktivizo Stafin?</h3>
+      <p style="color:var(--tekst-dytësor); margin-bottom:28px;">
+        A jeni i sigurt që dëshironi të çaktivizoni
+        <strong>{{ profil.user.get_full_name }}</strong>?<br>
+        Llogaria do të mbetet por nuk do mund të hyjë në sistem.
+      </p>
+      <form method="post" class="flex gap-3" style="justify-content:center;">
+        {% csrf_token %}
+        <button type="submit" class="btn-rrezik">Po, Çaktivizo</button>
+        <a href="{% url 'lista_stafit' %}" class="btn-dytësor">Anulo</a>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

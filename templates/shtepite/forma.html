@@ -1,0 +1,108 @@
+{% extends 'base.html' %}
+{% load widget_tweaks %}
+{% block titulli %}{{ titulli }} — Xhamia Pirok{% endblock %}
+
+{% block kontent %}
+<div class="page-header">
+  <div class="flex items-center gap-3">
+    <a href="{% url 'lista_shtepive' %}" class="btn-dytësor btn-sm">← Kthehu</a>
+    <h2>{{ titulli }}</h2>
+  </div>
+</div>
+
+<form method="post" style="max-width:760px;">
+  {% csrf_token %}
+
+  <div class="card" style="margin-bottom:20px;">
+    <div class="card-header"><h5>🏠 Informacione Bazë</h5></div>
+    <div class="card-body">
+      <div class="grid-2">
+        <div class="forma-grup">
+          <label>{{ form.nr_shtepise.label }}</label>
+          {% render_field form.nr_shtepise placeholder="p.sh. 0001" %}
+          {% if form.nr_shtepise.errors %}<p class="gabim-fusha">{{ form.nr_shtepise.errors.0 }}</p>{% endif %}
+        </div>
+        <div class="forma-grup">
+          <label>{{ form.kategoria.label }}</label>
+          {% render_field form.kategoria %}
+          {% if form.kategoria.errors %}<p class="gabim-fusha">{{ form.kategoria.errors.0 }}</p>{% endif %}
+        </div>
+        <div class="forma-grup">
+          <label>{{ form.emri_kryefamiljarit.label }}</label>
+          {% render_field form.emri_kryefamiljarit placeholder="Emri" %}
+          {% if form.emri_kryefamiljarit.errors %}<p class="gabim-fusha">{{ form.emri_kryefamiljarit.errors.0 }}</p>{% endif %}
+        </div>
+        <div class="forma-grup">
+          <label>{{ form.mbiemri_kryefamiljarit.label }}</label>
+          {% render_field form.mbiemri_kryefamiljarit placeholder="Mbiemri" %}
+          {% if form.mbiemri_kryefamiljarit.errors %}<p class="gabim-fusha">{{ form.mbiemri_kryefamiljarit.errors.0 }}</p>{% endif %}
+        </div>
+        <div class="forma-grup">
+          <label>{{ form.nr_antareve_familjes.label }}</label>
+          {% render_field form.nr_antareve_familjes %}
+          {% if form.nr_antareve_familjes.errors %}<p class="gabim-fusha">{{ form.nr_antareve_familjes.errors.0 }}</p>{% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:20px;">
+    <div class="card-header"><h5>📞 Kontaktet</h5></div>
+    <div class="card-body">
+      <div class="grid-2">
+        <div class="forma-grup">
+          <label>{{ form.email.label }}</label>
+          {% render_field form.email placeholder="email@shembull.com" %}
+        </div>
+        <div class="forma-grup">
+          <label>{{ form.nr_telefoni_kryesor.label }}</label>
+          {% render_field form.nr_telefoni_kryesor placeholder="+383..." %}
+        </div>
+        <div class="forma-grup">
+          <label>{{ form.nr_telefoni_sporadik.label }}</label>
+          {% render_field form.nr_telefoni_sporadik placeholder="+383..." %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:20px;">
+    <div class="card-header"><h5>👥 Kontakt Sporadik (Opsional)</h5></div>
+    <div class="card-body">
+      <div class="grid-2">
+        <div class="forma-grup">
+          <label>{{ form.kontakt_sporadik_emri.label }}</label>
+          {% render_field form.kontakt_sporadik_emri placeholder="Emri Mbiemri" %}
+        </div>
+        <div class="forma-grup">
+          <label>{{ form.kontakt_sporadik_email.label }}</label>
+          {% render_field form.kontakt_sporadik_email placeholder="email@shembull.com" %}
+        </div>
+        <div class="forma-grup">
+          <label>{{ form.kontakt_sporadik_telefoni.label }}</label>
+          {% render_field form.kontakt_sporadik_telefoni placeholder="+383..." %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:24px;">
+    <div class="card-header"><h5>📝 Shënime & Statusi</h5></div>
+    <div class="card-body">
+      <div class="forma-grup">
+        <label>{{ form.shenime.label }}</label>
+        {% render_field form.shenime placeholder="Shënime shtesë..." %}
+      </div>
+      <label class="checkbox-grup">
+        {% render_field form.është_aktiv %}
+        <span>Shtëpia është aktive (merr pjesë në pagesat e antarësisë)</span>
+      </label>
+    </div>
+  </div>
+
+  <div class="flex gap-3">
+    <button type="submit" class="btn-kryesor">💾 Ruaj</button>
+    <a href="{% url 'lista_shtepive' %}" class="btn-dytësor">Anulo</a>
+  </div>
+</form>
+{% endblock %}

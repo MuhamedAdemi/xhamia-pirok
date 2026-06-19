@@ -1,0 +1,72 @@
+{% extends 'base.html' %}
+{% block titulli %}Stafi — Xhamia Pirok{% endblock %}
+
+{% block kontent %}
+<div class="page-header">
+  <div>
+    <h2>👥 Stafi</h2>
+    <p>{{ stafi.count }} anëtarë stafi</p>
+  </div>
+  <a href="{% url 'shto_staf' %}" class="btn-kryesor">+ Shto Staf</a>
+</div>
+
+<div class="card">
+  <div style="overflow-x:auto;">
+    <table class="tabela-xhami">
+      <thead>
+        <tr>
+          <th>Emri</th>
+          <th>Pozita</th>
+          <th>Roli</th>
+          <th>Email</th>
+          <th>Telefoni</th>
+          <th>Mund të regjistrojë</th>
+          <th>Email pagese</th>
+          <th>Statusi</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in stafi %}
+        <tr>
+          <td>
+            <div class="flex items-center gap-3">
+              <div class="user-avatar" style="background:{% if s.rol == 'ADMIN' %}var(--gjelbër){% else %}var(--kafe){% endif %}; width:36px; height:36px; font-size:13px; border-radius:50%; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700;">
+                {{ s.user.first_name|first }}{{ s.user.last_name|first }}
+              </div>
+              <div>
+                <p style="font-weight:600; font-size:14px;">{{ s.user.get_full_name }}</p>
+                <span style="font-size:12px; color:var(--tekst-dytësor);">@{{ s.user.username }}</span>
+              </div>
+            </div>
+          </td>
+          <td>{{ s.pozita|default:"—" }}</td>
+          <td>
+            {% if s.rol == 'ADMIN' %}
+              <span class="badge-gjelbër">Administrator</span>
+            {% else %}
+              <span class="badge-gri">Staf</span>
+            {% endif %}
+          </td>
+          <td class="tekst-dytësor">{{ s.user.email|default:"—" }}</td>
+          <td class="tekst-dytësor">{{ s.nr_telefoni|default:"—" }}</td>
+          <td>{% if s.mund_regjistrojë_pagesa %}✅{% else %}❌{% endif %}</td>
+          <td>{% if s.merr_email_pagese %}✅{% else %}❌{% endif %}</td>
+          <td>{% if s.është_aktiv %}<span class="badge-gjelbër">Aktiv</span>{% else %}<span class="badge-gri">Joaktiv</span>{% endif %}</td>
+          <td>
+            <div class="flex gap-3">
+              <a href="{% url 'edito_staf' s.pk %}" class="btn-dytësor btn-sm">Edito</a>
+              {% if s.user != request.user %}
+              <a href="{% url 'fshi_staf' s.pk %}" class="btn-rrezik btn-sm">Çaktivizo</a>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="9" style="text-align:center; padding:30px; color:var(--tekst-dytësor);">Asnjë staf.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

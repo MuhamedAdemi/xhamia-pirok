@@ -1,0 +1,80 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="sq">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block titulli %}Xhamia Pirok{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'css/main.css' %}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+</head>
+<body>
+
+<!-- Sidebar -->
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <h1>🕌 Xhamia Pirok</h1>
+    <p>Sistem Menaxhimi</p>
+  </div>
+
+  <div class="sidebar-nav">
+    <div class="nav-section-label">Dashboard</div>
+    <a href="{% url 'dashboard' %}" class="{% if faqja_aktive == 'dashboard' %}aktive{% endif %}">
+      <span class="ikona">📊</span> Antarësia
+    </a>
+    <a href="{% url 'dashboard_fondi' %}" class="{% if faqja_aktive == 'dashboard_fondi' %}aktive{% endif %}">
+      <span class="ikona">💰</span> Fondi i Xhamisë
+    </a>
+
+    <div class="nav-section-label">Antarësia</div>
+    <a href="{% url 'lista_shtepive' %}" class="{% if faqja_aktive == 'shtepite' %}aktive{% endif %}">
+      <span class="ikona">🏠</span> Shtëpitë
+    </a>
+    <a href="{% url 'lista_pagesa_antaresia' %}" class="{% if faqja_aktive == 'pagesat_antaresia' %}aktive{% endif %}">
+      <span class="ikona">📋</span> Pagesat Antarësia
+    </a>
+
+    <div class="nav-section-label">Fondi</div>
+    <a href="{% url 'lista_pagesa_fondi' %}" class="{% if faqja_aktive == 'pagesat_fondi' %}aktive{% endif %}">
+      <span class="ikona">🤲</span> Pagesat Fondit
+    </a>
+
+    {% if request.user.profili.është_admin %}
+    <div class="nav-section-label">Administrata</div>
+    <a href="{% url 'lista_stafit' %}" class="{% if faqja_aktive == 'stafi' %}aktive{% endif %}">
+      <span class="ikona">👥</span> Stafi
+    </a>
+    <a href="{% url 'lista_kategorive' %}" class="{% if faqja_aktive == 'kategoritë' %}aktive{% endif %}">
+      <span class="ikona">🏷️</span> Kategoritë
+    </a>
+    {% endif %}
+  </div>
+
+  <div class="sidebar-fund">
+    <div class="user-card">
+      <div class="user-avatar">{{ request.user.first_name|first }}{{ request.user.last_name|first }}</div>
+      <div class="user-info">
+        <p>{{ request.user.get_full_name }}</p>
+        <span>{% if request.user.profili.pozita %}{{ request.user.profili.pozita }}{% else %}{{ request.user.profili.get_rol_display }}{% endif %}</span>
+      </div>
+    </div>
+    <a href="{% url 'logout' %}" class="btn-logout">⬅ Dil nga sistemi</a>
+  </div>
+</nav>
+
+<!-- Kontent -->
+<main class="main-content">
+  {% for msg in messages %}
+    <div class="njoftim {% if msg.tags == 'success' %}sukses{% elif msg.tags == 'error' %}gabim{% else %}paralajmërim{% endif %}">
+      {% if msg.tags == 'success' %}✅{% elif msg.tags == 'error' %}❌{% else %}⚠️{% endif %}
+      {{ msg }}
+    </div>
+  {% endfor %}
+
+  {% block kontent %}{% endblock %}
+</main>
+
+{% block skripte %}{% endblock %}
+</body>
+</html>

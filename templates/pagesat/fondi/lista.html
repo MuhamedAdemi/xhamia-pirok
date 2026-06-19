@@ -1,0 +1,64 @@
+{% extends 'base.html' %}
+{% block titulli %}Pagesat Fondit — Xhamia Pirok{% endblock %}
+
+{% block kontent %}
+<div class="page-header">
+  <div>
+    <h2>🤲 Pagesat Fondit të Xhamisë</h2>
+    <p>{{ pagesat.count }} donacione të gjetura</p>
+  </div>
+  {% if request.user.profili.mund_regjistrojë_pagesa or request.user.profili.është_admin %}
+  <a href="{% url 'shto_pagese_fondi' %}" class="btn-kryesor">+ Regjistro Donacion</a>
+  {% endif %}
+</div>
+
+<div class="card">
+  <form method="get" class="filtrat">
+    <input type="text" name="kerkimi" value="{{ kerkimi }}" placeholder="Nr. fature, emër...">
+    <select name="viti">
+      {% for v in vitit_lista %}
+        <option value="{{ v }}" {% if v|stringformat:'s' == viti|stringformat:'s' %}selected{% endif %}>{{ v }}</option>
+      {% endfor %}
+    </select>
+    <button type="submit" class="btn-kryesor btn-sm">Filtro</button>
+    <a href="{% url 'lista_pagesa_fondi' %}" class="btn-dytësor btn-sm">Pastro</a>
+  </form>
+
+  <div style="overflow-x:auto;">
+    <table class="tabela-xhami">
+      <thead>
+        <tr>
+          <th>Nr. Faturës</th>
+          <th>Donatori</th>
+          <th>Shuma</th>
+          <th>Arsyeja</th>
+          <th>Data</th>
+          <th>Arktar</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in pagesat %}
+        <tr>
+          <td><a href="{% url 'detaje_pagesa_fondi' p.pk %}" style="font-family:monospace; font-weight:600;">{{ p.nr_fatures }}</a></td>
+          <td class="font-semibold">{{ p.emri_donatorit }} {{ p.mbiemri_donatorit }}</td>
+          <td class="tekst-kafe font-semibold">{{ p.shuma }}€</td>
+          <td class="tekst-dytësor">{{ p.arsyeja|default:"—"|truncatechars:40 }}</td>
+          <td class="tekst-dytësor">{{ p.data_pageses|date:"d M Y" }}</td>
+          <td class="tekst-dytësor">{{ p.arktar.get_full_name }}</td>
+          <td>
+            <a href="{% url 'fatura_fondi_pdf' p.pk %}" class="btn-dytësor btn-sm" target="_blank">🖨️</a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="7" style="text-align:center; padding:40px; color:var(--tekst-dytësor);">
+            Asnjë donacion i gjetur.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,190 @@
+{% extends 'base.html' %}
+{% block titulli %}Dashboard Antarësia — Xhamia Pirok{% endblock %}
+
+{% block kontent %}
+<div class="page-header">
+  <div>
+    <h2>Dashboard Antarësia</h2>
+    <p>Pasqyra e pagesave të antarësisë së xhamisë</p>
+  </div>
+  <div class="flex items-center gap-3">
+    <form method="get" style="display:flex; gap:10px; align-items:center;">
+      <select name="viti" onchange="this.form.submit()" style="padding:8px 13px; border:1.5px solid var(--kufi); border-radius:10px; font-family:'Inter',sans-serif; font-size:14px; background:var(--e-bardhë);">
+        {% for v in vitit_lista %}
+          <option value="{{ v }}" {% if v == viti_zgjedhur %}selected{% endif %}>{{ v }}</option>
+        {% endfor %}
+      </select>
+    </form>
+    <a href="{% url 'shto_pagese_antaresia' %}" class="btn-kryesor">+ Regjistro Pagesë</a>
+  </div>
+</div>
+
+<!-- Statistikat -->
+<div class="grid-4" style="margin-bottom:24px;">
+  <div class="stat-card gjelbër">
+    <div class="stat-label">Total Mbledhur {{ viti_zgjedhur }}</div>
+    <div class="stat-vlera gjelbër">{{ total_mbledhur }}€</div>
+    <div class="stat-nën">nga pagesat e antarësisë</div>
+  </div>
+  <div class="stat-card blu">
+    <div class="stat-label">Kanë Paguar</div>
+    <div class="stat-vlera" style="color:#007AFF;">{{ kane_paguar }}</div>
+    <div class="stat-nën">shtëpi nga {{ total_shtepite }} gjithsej</div>
+  </div>
+  <div class="stat-card portokalli">
+    <div class="stat-label">Nuk Kanë Paguar</div>
+    <div class="stat-vlera" style="color:var(--paralajmërim);">{{ nuk_kane_paguar }}</div>
+    <div class="stat-nën">shtëpi ende pa pagesë</div>
+  </div>
+  <div class="stat-card kafe">
+    <div class="stat-label">Përqindja</div>
+    <div class="stat-vlera kafe">
+      {% if total_shtepite > 0 %}{% widthratio kane_paguar total_shtepite 100 %}%{% else %}0%{% endif %}
+    </div>
+    <div class="stat-nën">shkalla e pagesës</div>
+  </div>
+</div>
+
+<div class="grid-2" style="margin-bottom:24px;">
+  <!-- Grafiku mujor -->
+  <div class="card">
+    <div class="card-header">
+      <h5>📈 Pagesat Mujore {{ viti_zgjedhur }}</h5>
+    </div>
+    <div class="card-body">
+      <canvas id="grafikuMujor" height="220"></canvas>
+    </div>
+  </div>
+
+  <!-- Sipas kategorisë -->
+  <div class="card">
+    <div class="card-header">
+      <h5>🏷️ Sipas Kategorisë</h5>
+    </div>
+    <div class="card-body">
+      <canvas id="grafikuKategoria" height="220"></canvas>
+    </div>
+  </div>
+</div>
+
+<div class="grid-2">
+  <!-- Pagesat e fundit -->
+  <div class="card">
+    <div class="card-header">
+      <h5>🕐 Pagesat e Fundit</h5>
+      <a href="{% url 'lista_pagesa_antaresia' %}" class="btn-dytësor btn-sm">Shih të gjitha</a>
+    </div>
+    <div style="overflow-x:auto;">
+      <table class="tabela-xhami">
+        <thead>
+          <tr>
+            <th>Fatura</th>
+            <th>Shtëpia</th>
+            <th>Shuma</th>
+            <th>Data</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in pagesat_e_fundit %}
+          <tr>
+            <td><a href="{% url 'detaje_pagesa_antaresia' p.pk %}">{{ p.nr_fatures }}</a></td>
+            <td>
+              <span class="nr-shtepi">{{ p.shtepia.nr_shtepise }}</span>
+              {{ p.shtepia.emri_kryefamiljarit }} {{ p.shtepia.mbiemri_kryefamiljarit }}
+            </td>
+            <td class="tekst-gjelbër font-semibold">{{ p.shuma_paguar }}€</td>
+            <td class="tekst-dytësor">{{ p.data_pageses|date:"d M Y" }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="4" style="text-align:center; padding:24px; color:var(--tekst-dytësor);">Asnjë pagesë ende.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Shtëpitë pa pagesë -->
+  <div class="card">
+    <div class="card-header">
+      <h5>⚠️ Shtëpi pa Pagesë ({{ viti_zgjedhur }})</h5>
+      <a href="{% url 'lista_shtepive' %}?pa_pagese=1&viti_pageses={{ viti_zgjedhur }}" class="btn-dytësor btn-sm">Shih të gjitha</a>
+    </div>
+    <div style="overflow-x:auto;">
+      <table class="tabela-xhami">
+        <thead>
+          <tr><th>Nr.</th><th>Kryefamiljari</th><th>Kategoria</th></tr>
+        </thead>
+        <tbody>
+          {% for sh in shtepite_pa_pagese %}
+          <tr>
+            <td><span class="nr-shtepi">{{ sh.nr_shtepise }}</span></td>
+            <td><a href="{% url 'detaje_shtepia' sh.pk %}">{{ sh.emri_kryefamiljarit }} {{ sh.mbiemri_kryefamiljarit }}</a></td>
+            <td><span class="badge-gri">{{ sh.kategoria.emri }}</span></td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="3" style="text-align:center; padding:24px; color:var(--tekst-dytësor);">✅ Të gjitha shtëpitë kanë paguar!</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block skripte %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+const ngjyraGjelbër = '#2D5A1B';
+const ngjyraKafe = '#6B4423';
+const muajt = {{ muajt_etiketat_json|safe }};
+const pagesat = {{ pagesat_mujore_json|safe }};
+const katData = {{ sipas_kategorise_json|safe }};
+
+// Grafiku mujor
+new Chart(document.getElementById('grafikuMujor'), {
+  type: 'bar',
+  data: {
+    labels: muajt,
+    datasets: [{
+      label: 'Shuma (€)',
+      data: pagesat,
+      backgroundColor: 'rgba(45,90,27,0.75)',
+      borderColor: ngjyraGjelbër,
+      borderWidth: 1.5,
+      borderRadius: 6,
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { display: false } },
+    scales: {
+      y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' } },
+      x: { grid: { display: false } }
+    }
+  }
+});
+
+// Grafiku kategoria
+if (katData.length > 0) {
+  new Chart(document.getElementById('grafikuKategoria'), {
+    type: 'doughnut',
+    data: {
+      labels: katData.map(k => k.emri),
+      datasets: [{
+        data: katData.map(k => k.count),
+        backgroundColor: ['#2D5A1B', '#6B4423', '#007AFF', '#FF9500', '#34C759'],
+        borderWidth: 2,
+        borderColor: '#fff',
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { position: 'bottom', labels: { font: { family: 'Inter', size: 13 }, padding: 16 } }
+      },
+      cutout: '65%',
+    }
+  });
+}
+</script>
+{% endblock %}

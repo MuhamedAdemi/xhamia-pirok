@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+{% block titulli %}Kategoritë — Xhamia Pirok{% endblock %}
+
+{% block kontent %}
+<div class="page-header">
+  <div>
+    <h2>🏷️ Kategoritë e Pagesave</h2>
+    <p>Menaxho kategoritë dhe çmimet</p>
+  </div>
+  <a href="{% url 'shto_kategori' %}" class="btn-kryesor">+ Shto Kategori</a>
+</div>
+
+<div class="card">
+  <div style="overflow-x:auto;">
+    <table class="tabela-xhami">
+      <thead>
+        <tr>
+          <th>Emri</th>
+          <th>Vjetore</th>
+          <th>6-Mujore</th>
+          <th>3-Mujore</th>
+          <th>Mujore</th>
+          <th>Statusi</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for k in kategoritë %}
+        <tr>
+          <td class="font-semibold">{{ k.emri }}</td>
+          <td class="tekst-gjelbër font-semibold">{{ k.shuma_vjetore }}€</td>
+          <td class="tekst-dytësor">{% if k.shuma_6mujore %}{{ k.shuma_6mujore }}€{% else %}—{% endif %}</td>
+          <td class="tekst-dytësor">{% if k.shuma_3mujore %}{{ k.shuma_3mujore }}€{% else %}—{% endif %}</td>
+          <td class="tekst-dytësor">{% if k.shuma_mujore %}{{ k.shuma_mujore }}€{% else %}—{% endif %}</td>
+          <td>{% if k.është_aktiv %}<span class="badge-gjelbër">Aktive</span>{% else %}<span class="badge-gri">Joaktive</span>{% endif %}</td>
+          <td><a href="{% url 'edito_kategori' k.pk %}" class="btn-dytësor btn-sm">Edito</a></td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7" style="text-align:center; padding:30px; color:var(--tekst-dytësor);">Asnjë kategori.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

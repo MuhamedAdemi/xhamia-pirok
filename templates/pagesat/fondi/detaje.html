@@ -1,0 +1,73 @@
+{% extends 'base.html' %}
+{% block titulli %}{{ pagese.nr_fatures }} — Xhamia Pirok{% endblock %}
+
+{% block kontent %}
+<div class="page-header">
+  <div class="flex items-center gap-3">
+    <a href="{% url 'lista_pagesa_fondi' %}" class="btn-dytësor btn-sm">← Kthehu</a>
+    <div>
+      <h2>{{ pagese.nr_fatures }}</h2>
+      <p>Donacion — Fondi i Xhamisë</p>
+    </div>
+  </div>
+  <a href="{% url 'fatura_fondi_pdf' pagese.pk %}" class="btn-kryesor" target="_blank">🖨️ Shiko Faturën PDF</a>
+</div>
+
+<div style="max-width:680px;">
+  <div class="card">
+    <div class="card-header"><h5>🤲 Detajet e Donacionit</h5></div>
+    <div class="card-body">
+      <table style="width:100%; border-collapse:collapse;">
+        <tr>
+          <td style="padding:10px 0; color:var(--tekst-dytësor); font-size:13px; width:35%;">Nr. Faturës</td>
+          <td style="padding:10px 0; font-family:monospace; font-weight:700; color:var(--kafe);">{{ pagese.nr_fatures }}</td>
+        </tr>
+        <tr>
+          <td style="padding:10px 0; color:var(--tekst-dytësor); font-size:13px;">Donatori</td>
+          <td style="padding:10px 0; font-weight:700; font-size:17px;">{{ pagese.emri_donatorit }} {{ pagese.mbiemri_donatorit }}</td>
+        </tr>
+        {% if pagese.email_donatorit %}
+        <tr>
+          <td style="padding:10px 0; color:var(--tekst-dytësor); font-size:13px;">Email</td>
+          <td style="padding:10px 0;">{{ pagese.email_donatorit }}</td>
+        </tr>
+        {% endif %}
+        {% if pagese.nr_telefoni %}
+        <tr>
+          <td style="padding:10px 0; color:var(--tekst-dytësor); font-size:13px;">Telefoni</td>
+          <td style="padding:10px 0;">{{ pagese.nr_telefoni }}</td>
+        </tr>
+        {% endif %}
+        <tr>
+          <td style="padding:10px 0; color:var(--tekst-dytësor); font-size:13px;">Shuma</td>
+          <td style="padding:10px 0; font-size:28px; font-weight:700; color:var(--kafe);">{{ pagese.shuma }}€</td>
+        </tr>
+        <tr>
+          <td style="padding:10px 0; color:var(--tekst-dytësor); font-size:13px;">Data e pagesës</td>
+          <td style="padding:10px 0; font-weight:600;">{{ pagese.data_pageses|date:"d MMMM Y" }}</td>
+        </tr>
+        {% if pagese.arsyeja %}
+        <tr>
+          <td style="padding:10px 0; color:var(--tekst-dytësor); font-size:13px;">Arsyeja</td>
+          <td style="padding:10px 0;">{{ pagese.arsyeja }}</td>
+        </tr>
+        {% endif %}
+        <tr>
+          <td style="padding:10px 0; color:var(--tekst-dytësor); font-size:13px;">Arktar</td>
+          <td style="padding:10px 0; font-weight:600;">{{ pagese.arktar.get_full_name }}</td>
+        </tr>
+        <tr>
+          <td style="padding:10px 0; color:var(--tekst-dytësor); font-size:13px;">Regjistruar më</td>
+          <td style="padding:10px 0; color:var(--tekst-dytësor);">{{ pagese.data_regjistrimit|date:"d M Y, H:i" }}</td>
+        </tr>
+        {% if pagese.shenime %}
+        <tr>
+          <td style="padding:10px 0; color:var(--tekst-dytësor); font-size:13px;">Shënime</td>
+          <td style="padding:10px 0;">{{ pagese.shenime }}</td>
+        </tr>
+        {% endif %}
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
