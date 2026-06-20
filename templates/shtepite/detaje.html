@@ -15,6 +15,7 @@
   <div class="flex gap-3">
     {% if request.user.profili.është_admin %}
     <a href="{% url 'edito_shtepi' shtepi.pk %}" class="btn-dytësor">Edito</a>
+    <a href="{% url 'fshi_shtepi' shtepi.pk %}" class="btn-rrezik">Çaktivizo</a>
     {% endif %}
     <a href="{% url 'shto_pagese_antaresia' %}?shtepi={{ shtepi.pk }}" class="btn-kryesor">+ Regjistro Pagesë</a>
   </div>
@@ -130,3 +131,4 @@
   </div>
 </div>
 {% endblock %}
+

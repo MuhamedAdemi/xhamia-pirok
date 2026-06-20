@@ -77,6 +77,14 @@ class PagesaAntaresiaForm(forms.ModelForm):
         choices=[('', '—')] + MUAJT, required=False, label='Muaji Mbarimit'
     )
 
+    def clean_muaji_fillimit(self):
+        val = self.cleaned_data.get('muaji_fillimit')
+        return int(val) if val else None
+
+    def clean_muaji_mbarimit(self):
+        val = self.cleaned_data.get('muaji_mbarimit')
+        return int(val) if val else None
+
     class Meta:
         model = PagesaAntaresia
         fields = [

@@ -16,18 +16,21 @@ urlpatterns = [
     path('shtepite/shto/', views.shto_shtepi, name='shto_shtepi'),
     path('shtepite/<int:pk>/', views.detaje_shtepia, name='detaje_shtepia'),
     path('shtepite/<int:pk>/edito/', views.edito_shtepi, name='edito_shtepi'),
+    path('shtepite/<int:pk>/fshi/', views.fshi_shtepi, name='fshi_shtepi'),
 
     # Pagesat Antaresia
     path('pagesat/antaresia/', views.lista_pagesa_antaresia, name='lista_pagesa_antaresia'),
     path('pagesat/antaresia/shto/', views.shto_pagese_antaresia, name='shto_pagese_antaresia'),
     path('pagesat/antaresia/<int:pk>/', views.detaje_pagesa_antaresia, name='detaje_pagesa_antaresia'),
     path('pagesat/antaresia/<int:pk>/fatura/', views.fatura_antaresia_pdf, name='fatura_antaresia_pdf'),
+    path('pagesat/antaresia/<int:pk>/fshi/', views.fshi_pagese_antaresia, name='fshi_pagese_antaresia'),
 
     # Pagesat Fondi
     path('pagesat/fondi/', views.lista_pagesa_fondi, name='lista_pagesa_fondi'),
     path('pagesat/fondi/shto/', views.shto_pagese_fondi, name='shto_pagese_fondi'),
     path('pagesat/fondi/<int:pk>/', views.detaje_pagesa_fondi, name='detaje_pagesa_fondi'),
     path('pagesat/fondi/<int:pk>/fatura/', views.fatura_fondi_pdf, name='fatura_fondi_pdf'),
+    path('pagesat/fondi/<int:pk>/fshi/', views.fshi_pagese_fondi, name='fshi_pagese_fondi'),
 
     # Stafi
     path('stafi/', views.lista_stafit, name='lista_stafit'),

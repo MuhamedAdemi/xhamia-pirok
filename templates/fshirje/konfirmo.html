@@ -1,0 +1,116 @@
+{% extends 'base.html' %}
+{% block titulli %}Konfirmo Veprimin — Xhamia Pirok{% endblock %}
+
+{% block kontent %}
+<div style="max-width:520px; margin:50px auto;">
+
+  <!-- Hapi indicator -->
+  <div style="display:flex; align-items:center; justify-content:center; gap:8px; margin-bottom:28px;">
+    {% for step_num in step_list %}
+    <div style="width:34px; height:34px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:700;
+      {% if step_num == hapi %}background:var(--gjelbër); color:#fff;
+      {% elif step_num < hapi %}background:var(--gjelbër-shumë-i-çelur); color:var(--gjelbër); border:2px solid var(--gjelbër);
+      {% else %}background:var(--krem-errët); color:var(--tekst-dytësor);{% endif %}">
+      {{ step_num }}
+    </div>
+    {% if not forloop.last %}
+    <div style="width:44px; height:2px; background:{% if step_num < hapi %}var(--gjelbër){% else %}var(--kufi){% endif %};"></div>
+    {% endif %}
+    {% endfor %}
+  </div>
+
+  <div class="card">
+    <div class="card-body" style="padding:40px; text-align:center;">
+
+      {% if hapi == 1 %}
+      <!-- Step 1: A jeni i sigurt? -->
+      <div style="font-size:52px; margin-bottom:16px;">⚠️</div>
+      <h3 style="margin-bottom:8px; color:var(--gabim);">A jeni i sigurt?</h3>
+      <p style="color:var(--tekst-dytësor); font-size:14px; margin-bottom:12px;">
+        Jeni duke vepruar mbi <strong>{{ info.lloji }}</strong>:
+      </p>
+      <div style="background:var(--krem-errët); border-radius:12px; padding:16px 20px; margin-bottom:20px; text-align:left;">
+        <p style="font-weight:700; font-size:16px; margin:0 0 4px;">{{ info.emri }}</p>
+        {% if info.detaje %}
+        <p style="color:var(--tekst-dytësor); font-size:13px; margin:0;">{{ info.detaje }}</p>
+        {% endif %}
+      </div>
+      <p style="color:var(--gabim); font-size:13px; margin-bottom:24px; background:rgba(255,59,48,0.06); padding:10px 14px; border-radius:8px;">
+        ⚠️ Ky veprim <strong>nuk mund të kthehet mbrapsht</strong>.
+      </p>
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="veprimi" value="hapi1">
+        <div class="flex gap-3" style="justify-content:center;">
+          <button type="submit" class="btn-rrezik">Vazhdo →</button>
+          <a href="{{ info.url_anulo }}" class="btn-dytësor">Anulo</a>
+        </div>
+      </form>
+
+      {% elif hapi == 2 %}
+      <!-- Step 2: Shkruaj kodin -->
+      <div style="font-size:52px; margin-bottom:16px;">🔐</div>
+      <h3 style="margin-bottom:8px;">Verifikimi i Identitetit</h3>
+      <p style="color:var(--tekst-dytësor); font-size:14px; margin-bottom:20px;">
+        Për të konfirmuar, shkruani kodin e mëposhtëm saktësisht:
+      </p>
+      <div style="background:var(--gjelbër); color:#fff; border-radius:14px; padding:22px; margin-bottom:24px; font-family:monospace; font-size:28px; font-weight:700; letter-spacing:10px; text-align:center; user-select:none;">
+        {{ kodi }}
+      </div>
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="veprimi" value="hapi2">
+        <div class="forma-grup" style="margin-bottom:14px; text-align:left;">
+          <label style="font-size:14px;">Shkruani kodin këtu:</label>
+          <input type="text" name="kodi" maxlength="9"
+                 placeholder="_ _ _ _ _ _ _ _ _"
+                 style="text-transform:uppercase; font-family:monospace; font-size:22px; letter-spacing:6px; text-align:center; padding:14px;"
+                 autocomplete="off" autofocus>
+        </div>
+        {% if gabim_kodi %}
+        <p style="color:var(--gabim); font-size:13px; margin-bottom:16px; background:rgba(255,59,48,0.08); padding:10px 14px; border-radius:8px; border-left:3px solid var(--gabim); text-align:left;">
+          ❌ {{ gabim_kodi }}
+        </p>
+        {% endif %}
+        <div class="flex gap-3" style="justify-content:center;">
+          <button type="submit" class="btn-rrezik">Verifiko →</button>
+          <a href="{{ info.url_anulo }}" class="btn-dytësor">Anulo</a>
+        </div>
+      </form>
+
+      {% elif hapi == 3 %}
+      <!-- Step 3: Konfirmo fshirjen -->
+      <div style="font-size:52px; margin-bottom:16px;">✅</div>
+      <h3 style="margin-bottom:8px;">Konfirmo Veprimin</h3>
+      <p style="color:var(--tekst-dytësor); font-size:14px; margin-bottom:12px;">
+        Kodi u verifikua. Konfirmoni veprimin përfundimtar mbi:
+      </p>
+      <div style="background:rgba(255,59,48,0.06); border:1.5px solid rgba(255,59,48,0.2); border-radius:12px; padding:16px 20px; margin-bottom:20px; text-align:left;">
+        <p style="font-weight:700; font-size:16px; margin:0 0 4px; color:var(--gabim);">{{ info.emri }}</p>
+        {% if info.detaje %}
+        <p style="color:var(--tekst-dytësor); font-size:13px; margin:0;">{{ info.detaje }}</p>
+        {% endif %}
+      </div>
+      <p style="color:var(--gabim); font-weight:600; font-size:14px; margin-bottom:24px;">
+        Ky veprim është i pakthyeshëm!
+      </p>
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="veprimi" value="hapi3">
+        <div class="flex gap-3" style="justify-content:center;">
+          <button type="submit" class="btn-rrezik" style="background:rgba(255,59,48,0.15); border-color:rgba(255,59,48,0.35);">
+            🗑️ Konfirmo Veprimin
+          </button>
+          <a href="{{ info.url_anulo }}" class="btn-dytësor">Anulo</a>
+        </div>
+      </form>
+      {% endif %}
+
+    </div>
+  </div>
+
+  <p style="text-align:center; margin-top:12px; color:var(--tekst-dytësor); font-size:12px;">
+    Hapi {{ hapi }} nga 3 • Vetëm administratorët mund të kryejnë këtë veprim
+  </p>
+</div>
+{% endblock %}

@@ -10,7 +10,12 @@
       <p>Donacion — Fondi i Xhamisë</p>
     </div>
   </div>
-  <a href="{% url 'fatura_fondi_pdf' pagese.pk %}" class="btn-kryesor" target="_blank">🖨️ Shiko Faturën PDF</a>
+  <div class="flex gap-3">
+    <a href="{% url 'fatura_fondi_pdf' pagese.pk %}" class="btn-kryesor" target="_blank">🖨️ Shiko Faturën PDF</a>
+    {% if request.user.profili.është_admin %}
+    <a href="{% url 'fshi_pagese_fondi' pagese.pk %}" class="btn-rrezik">Fshi</a>
+    {% endif %}
+  </div>
 </div>
 
 <div style="max-width:680px;">
@@ -44,7 +49,7 @@
         </tr>
         <tr>
           <td style="padding:10px 0; color:var(--tekst-dytësor); font-size:13px;">Data e pagesës</td>
-          <td style="padding:10px 0; font-weight:600;">{{ pagese.data_pageses|date:"d MMMM Y" }}</td>
+          <td style="padding:10px 0; font-weight:600;">{{ pagese.data_pageses|date:"d F Y" }}</td>
         </tr>
         {% if pagese.arsyeja %}
         <tr>
@@ -71,3 +76,4 @@
   </div>
 </div>
 {% endblock %}
+

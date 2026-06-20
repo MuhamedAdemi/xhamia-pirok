@@ -56,7 +56,12 @@
           <td class="tekst-dytësor">{{ p.data_pageses|date:"d M Y" }}</td>
           <td class="tekst-dytësor">{{ p.arktar.get_full_name }}</td>
           <td>
-            <a href="{% url 'fatura_antaresia_pdf' p.pk %}" class="btn-dytësor btn-sm" target="_blank">🖨️</a>
+            <div class="flex gap-3">
+              <a href="{% url 'fatura_antaresia_pdf' p.pk %}" class="btn-dytësor btn-sm" target="_blank">🖨️</a>
+              {% if request.user.profili.është_admin %}
+              <a href="{% url 'fshi_pagese_antaresia' p.pk %}" class="btn-rrezik btn-sm">Fshi</a>
+              {% endif %}
+            </div>
           </td>
         </tr>
         {% empty %}
@@ -71,3 +76,4 @@
   </div>
 </div>
 {% endblock %}
+

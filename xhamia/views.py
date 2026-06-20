@@ -7,9 +7,12 @@ from django.http import HttpResponse
 from django.db.models import Sum, Count, Q
 from django.utils import timezone
 from django.template.loader import render_to_string
+from django.urls import reverse
 from io import BytesIO
 from xhtml2pdf import pisa
 import json
+import random
+import string
 
 from .models import ProfilStafi, Kategoria, Shtepia, PagesaAntaresia, PagesaFondi
 from .forms import (
@@ -17,6 +20,46 @@ from .forms import (
     PagesaAntaresiaForm, PagesaFondiForm
 )
 from .utils import dërgo_email_antaresia, dërgo_email_fondi
+
+
+def _gjenero_kod():
+    return ''.join(random.choices(string.ascii_uppercase + string.digits, k=9))
+
+
+def _fshirje_3hap(request, çelësi, fshi_fn, redirect_sukses, info, mesazh_sukses='Të dhënat u fshinë me sukses.'):
+    s_kod  = f'fshirje_{çelësi}_kod'
+    s_ver  = f'fshirje_{çelësi}_ver'
+    s_hapi = f'fshirje_{çelësi}_hapi'
+    gabim_kodi = None
+
+    if request.method == 'POST':
+        veprimi = request.POST.get('veprimi')
+        if veprimi == 'hapi1':
+            request.session[s_kod]  = _gjenero_kod()
+            request.session[s_hapi] = 2
+            return redirect(request.path)
+        elif veprimi == 'hapi2':
+            kod_sakt  = request.session.get(s_kod, '')
+            kod_hyres = request.POST.get('kodi', '').strip().upper()
+            if kod_hyres == kod_sakt:
+                request.session[s_ver]  = True
+                request.session[s_hapi] = 3
+                return redirect(request.path)
+            gabim_kodi = 'Kodi i shënuar është i gabuar. Provoni përsëri.'
+        elif veprimi == 'hapi3':
+            if request.session.get(s_ver):
+                for k in (s_kod, s_ver, s_hapi):
+                    request.session.pop(k, None)
+                fshi_fn()
+                messages.success(request, mesazh_sukses)
+                return redirect(redirect_sukses)
+
+    hapi = int(request.session.get(s_hapi, 1))
+    kod  = request.session.get(s_kod)
+    return render(request, 'fshirje/konfirmo.html', {
+        'hapi': hapi, 'kodi': kod, 'info': info,
+        'gabim_kodi': gabim_kodi, 'step_list': [1, 2, 3],
+    })
 
 
 def është_admin(user):
@@ -461,12 +504,102 @@ def fshi_staf(request, pk):
         messages.error(request, 'Aksesi i refuzuar.')
         return redirect('dashboard')
     profil = get_object_or_404(ProfilStafi, pk=pk)
-    if request.method == 'POST':
+    if profil.user == request.user:
+        messages.error(request, 'Nuk mund ta çaktivizoni llogarinë tuaj.')
+        return redirect('lista_stafit')
+    emri = profil.user.get_full_name()
+
+    def çaktivizo():
+        profil.user.is_active = False
+        profil.user.save()
         profil.është_aktiv = False
         profil.save()
-        messages.success(request, f'{profil.user.get_full_name()} u çaktivizua.')
-        return redirect('lista_stafit')
-    return render(request, 'stafi/konfirmo_fshirje.html', {'profil': profil, 'faqja_aktive': 'stafi'})
+
+    return _fshirje_3hap(
+        request,
+        çelësi=f'staf_{pk}',
+        fshi_fn=çaktivizo,
+        redirect_sukses=reverse('lista_stafit'),
+        info={
+            'lloji':     'Staf',
+            'emri':      emri,
+            'detaje':    profil.pozita or f'@{profil.user.username}',
+            'url_anulo': reverse('lista_stafit'),
+        },
+        mesazh_sukses=f'{emri} u çaktivizua me sukses.',
+    )
+
+
+@login_required
+def fshi_shtepi(request, pk):
+    if not është_admin(request.user):
+        messages.error(request, 'Nuk keni leje.')
+        return redirect('lista_shtepive')
+    shtepi = get_object_or_404(Shtepia, pk=pk)
+
+    def çaktivizo():
+        shtepi.është_aktiv = False
+        shtepi.save()
+
+    return _fshirje_3hap(
+        request,
+        çelësi=f'shtepi_{pk}',
+        fshi_fn=çaktivizo,
+        redirect_sukses=reverse('lista_shtepive'),
+        info={
+            'lloji':     'Shtëpi',
+            'emri':      f'Shtëpia #{shtepi.nr_shtepise}',
+            'detaje':    f'{shtepi.emri_kryefamiljarit} {shtepi.mbiemri_kryefamiljarit} — {shtepi.kategoria.emri}',
+            'url_anulo': reverse('detaje_shtepia', args=[pk]),
+        },
+        mesazh_sukses=f'Shtëpia #{shtepi.nr_shtepise} u çaktivizua me sukses.',
+    )
+
+
+@login_required
+def fshi_pagese_antaresia(request, pk):
+    if not është_admin(request.user):
+        messages.error(request, 'Nuk keni leje.')
+        return redirect('lista_pagesa_antaresia')
+    pagese = get_object_or_404(PagesaAntaresia, pk=pk)
+    nr = pagese.nr_fatures
+
+    return _fshirje_3hap(
+        request,
+        çelësi=f'ant_{pk}',
+        fshi_fn=lambda: pagese.delete(),
+        redirect_sukses=reverse('lista_pagesa_antaresia'),
+        info={
+            'lloji':     'Pagesë Antarësia',
+            'emri':      pagese.nr_fatures,
+            'detaje':    f'{pagese.shtepia} — {pagese.shuma_paguar}€ ({pagese.viti})',
+            'url_anulo': reverse('detaje_pagesa_antaresia', args=[pk]),
+        },
+        mesazh_sukses=f'Pagesa {nr} u fshi me sukses.',
+    )
+
+
+@login_required
+def fshi_pagese_fondi(request, pk):
+    if not është_admin(request.user):
+        messages.error(request, 'Nuk keni leje.')
+        return redirect('lista_pagesa_fondi')
+    pagese = get_object_or_404(PagesaFondi, pk=pk)
+    nr = pagese.nr_fatures
+
+    return _fshirje_3hap(
+        request,
+        çelësi=f'fond_{pk}',
+        fshi_fn=lambda: pagese.delete(),
+        redirect_sukses=reverse('lista_pagesa_fondi'),
+        info={
+            'lloji':     'Donacion Fondi',
+            'emri':      pagese.nr_fatures,
+            'detaje':    f'{pagese.emri_donatorit} {pagese.mbiemri_donatorit} — {pagese.shuma}€',
+            'url_anulo': reverse('detaje_pagesa_fondi', args=[pk]),
+        },
+        mesazh_sukses=f'Donacioni {nr} u fshi me sukses.',
+    )
 
 
 # ─── Kategoritë ─────────────────────────────────────────────────────────────

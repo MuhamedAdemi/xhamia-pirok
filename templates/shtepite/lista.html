@@ -67,6 +67,7 @@
               <a href="{% url 'detaje_shtepia' sh.pk %}" class="btn-dytësor btn-sm">Shih</a>
               {% if request.user.profili.është_admin %}
               <a href="{% url 'edito_shtepi' sh.pk %}" class="btn-dytësor btn-sm">Edito</a>
+              <a href="{% url 'fshi_shtepi' sh.pk %}" class="btn-rrezik btn-sm">Çaktivizo</a>
               {% endif %}
             </div>
           </td>
@@ -83,3 +84,4 @@
   </div>
 </div>
 {% endblock %}
+
