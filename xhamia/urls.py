@@ -42,4 +42,12 @@ urlpatterns = [
     path('kategoritë/', views.lista_kategorive, name='lista_kategorive'),
     path('kategoritë/shto/', views.shto_kategori, name='shto_kategori'),
     path('kategoritë/<int:pk>/edito/', views.edito_kategori, name='edito_kategori'),
+
+    # Portali i Shtëpive
+    path('portali/', views.portali_shtepi, name='portali_shtepi'),
+    path('portali/ndrysho-fjalekalim/', views.ndrysho_fjalekalim_shtepi, name='ndrysho_fjalekalim_shtepi'),
+
+    # Admin: menaxhim llogarive të shtëpive
+    path('shtepite/<int:pk>/llogaria/', views.shto_llogari_shtepi, name='shto_llogari_shtepi'),
+    path('shtepite/<int:pk>/llogaria/fshi/', views.fshi_llogari_shtepi, name='fshi_llogari_shtepi'),
 ]

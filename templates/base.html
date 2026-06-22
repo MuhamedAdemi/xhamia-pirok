@@ -12,6 +12,31 @@
 <body>
 
 <!-- Sidebar -->
+{% if portali_shtepi %}
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <h1>🕌 Xhamia Pirok</h1>
+    <p>Portali Juaj</p>
+  </div>
+  <div class="sidebar-nav">
+    <div class="nav-section-label">Llogaria Ime</div>
+    <a href="{% url 'portali_shtepi' %}" class="aktive">
+      <span class="ikona">🏠</span> Pagesat e Antarësisë
+    </a>
+  </div>
+  <div class="sidebar-fund">
+    <div class="user-card">
+      <div class="user-avatar">{{ request.user.first_name|first }}{{ request.user.last_name|first }}</div>
+      <div class="user-info">
+        <p>{{ request.user.get_full_name }}</p>
+        <span>Shtëpia #{{ request.user.profili_shtepi.shtepia.nr_shtepise }}</span>
+      </div>
+    </div>
+    <a href="{% url 'ndrysho_fjalekalim_shtepi' %}" class="btn-logout" style="background:rgba(107,68,35,0.1); color:var(--kafe); margin-bottom:6px;">🔑 Ndrysho Fjalëkalimin</a>
+    <a href="{% url 'logout' %}" class="btn-logout">⬅ Dil nga sistemi</a>
+  </div>
+</nav>
+{% else %}
 <nav class="sidebar">
   <div class="sidebar-logo">
     <h1>🕌 Xhamia Pirok</h1>
@@ -62,6 +87,7 @@
     <a href="{% url 'logout' %}" class="btn-logout">⬅ Dil nga sistemi</a>
   </div>
 </nav>
+{% endif %}
 
 <!-- Kontent -->
 <main class="main-content">

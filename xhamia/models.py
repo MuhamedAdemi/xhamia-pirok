@@ -90,6 +90,23 @@ class Shtepia(models.Model):
         return f"{self.emri_kryefamiljarit} {self.mbiemri_kryefamiljarit}"
 
 
+class ProfilShtepi(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profili_shtepi')
+    shtepia = models.OneToOneField('Shtepia', on_delete=models.CASCADE, related_name='llogaria')
+    krijuar_nga = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='llogarite_shtepive_krijuara'
+    )
+    data_krijimit = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Llogari Shtëpie'
+        verbose_name_plural = 'Llogaritë e Shtëpive'
+
+    def __str__(self):
+        return f"sh{self.shtepia.nr_shtepise} — {self.shtepia.emri_kryefamiljarit} {self.shtepia.mbiemri_kryefamiljarit}"
+
+
 def gjenero_nr_fature_antaresi():
     viti = timezone.now().year
     prefix = f"XP-ANT-{viti}-"

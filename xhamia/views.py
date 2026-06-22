@@ -14,7 +14,7 @@ import json
 import random
 import string
 
-from .models import ProfilStafi, Kategoria, Shtepia, PagesaAntaresia, PagesaFondi
+from .models import ProfilStafi, ProfilShtepi, Kategoria, Shtepia, PagesaAntaresia, PagesaFondi
 from .forms import (
     LoginForm, StafForm, KategoriaForm, ShtepiaForm,
     PagesaAntaresiaForm, PagesaFondiForm
@@ -94,9 +94,11 @@ def login_view(request):
                 if not user.profili.është_aktiv:
                     messages.error(request, 'Llogaria juaj është çaktivizuar.')
                     return render(request, 'auth/login.html', {'form': form})
-            except ProfilStafi.DoesNotExist:
+            except Exception:
                 pass
             login(request, user)
+            if hasattr(user, 'profili_shtepi'):
+                return redirect('portali_shtepi')
             return redirect('dashboard')
         messages.error(request, 'Emri i përdoruesit ose fjalëkalimi është i gabuar.')
     return render(request, 'auth/login.html', {'form': form})
@@ -640,3 +642,123 @@ def edito_kategori(request, pk):
     return render(request, 'kategoritë/forma.html', {
         'form': form, 'titulli': f'Edito: {kat.emri}', 'faqja_aktive': 'kategoritë'
     })
+
+
+# ─── Portali i Shtëpive ─────────────────────────────────────────────────────
+
+@login_required
+def portali_shtepi(request):
+    try:
+        profili = request.user.profili_shtepi
+    except Exception:
+        return redirect('dashboard')
+
+    shtepi = profili.shtepia
+    viti = int(request.GET.get('viti', timezone.now().year))
+    vitit_lista = list(range(2020, timezone.now().year + 2))
+
+    pagesat_te_gjitha = shtepi.pagesat.select_related('arktar', 'kategoria_pageses').order_by('-viti', '-data_pageses')
+    pagesat_vitit = pagesat_te_gjitha.filter(viti=viti)
+
+    paguar_kete_vit = pagesat_vitit.aggregate(s=Sum('shuma_paguar'))['s'] or 0
+    duhet_paguar = shtepi.kategoria.shuma_vjetore
+    ka_paguar_plote = float(paguar_kete_vit) >= float(duhet_paguar)
+    borxhi = max(0, float(duhet_paguar) - float(paguar_kete_vit))
+
+    total_gjithsej = pagesat_te_gjitha.aggregate(s=Sum('shuma_paguar'))['s'] or 0
+    pagesa_e_fundit = pagesat_te_gjitha.first()
+
+    return render(request, 'portali_shtepi/dashboard.html', {
+        'shtepi': shtepi,
+        'viti': viti,
+        'vitit_lista': vitit_lista,
+        'pagesat_vitit': pagesat_vitit,
+        'pagesat_te_gjitha': pagesat_te_gjitha,
+        'paguar_kete_vit': paguar_kete_vit,
+        'duhet_paguar': duhet_paguar,
+        'ka_paguar_plote': ka_paguar_plote,
+        'borxhi': borxhi,
+        'total_gjithsej': total_gjithsej,
+        'pagesa_e_fundit': pagesa_e_fundit,
+        'portali_shtepi': True,
+    })
+
+
+@login_required
+def ndrysho_fjalekalim_shtepi(request):
+    if not hasattr(request.user, 'profili_shtepi'):
+        return redirect('dashboard')
+
+    if request.method == 'POST':
+        fjalëkalim_vjetër = request.POST.get('fjalëkalim_vjetër', '')
+        fjalëkalim_ri     = request.POST.get('fjalëkalim_ri', '').strip()
+        konfirmimi        = request.POST.get('konfirmimi', '').strip()
+
+        if not request.user.check_password(fjalëkalim_vjetër):
+            messages.error(request, 'Fjalëkalimi aktual është i gabuar.')
+        elif fjalëkalim_ri != konfirmimi:
+            messages.error(request, 'Fjalëkalimet e reja nuk përputhen.')
+        elif len(fjalëkalim_ri) < 6:
+            messages.error(request, 'Fjalëkalimi duhet të ketë të paktën 6 karaktere.')
+        else:
+            request.user.set_password(fjalëkalim_ri)
+            request.user.save()
+            from django.contrib.auth import update_session_auth_hash
+            update_session_auth_hash(request, request.user)
+            messages.success(request, 'Fjalëkalimi u ndryshua me sukses.')
+            return redirect('portali_shtepi')
+
+    return render(request, 'portali_shtepi/ndrysho_fjalekalim.html', {'portali_shtepi': True})
+
+
+@login_required
+def shto_llogari_shtepi(request, pk):
+    if not është_admin(request.user):
+        messages.error(request, 'Nuk keni leje.')
+        return redirect('lista_shtepive')
+    shtepi = get_object_or_404(Shtepia, pk=pk)
+
+    if request.method == 'POST':
+        if hasattr(shtepi, 'llogaria'):
+            fjalëkalimi_ri = request.POST.get('fjalëkalimi_ri', '').strip()
+            if len(fjalëkalimi_ri) < 6:
+                messages.error(request, 'Fjalëkalimi duhet të jetë të paktën 6 karaktere.')
+            else:
+                shtepi.llogaria.user.set_password(fjalëkalimi_ri)
+                shtepi.llogaria.user.save()
+                messages.success(request, f'Fjalëkalimi për sh{shtepi.nr_shtepise} u rivendos.')
+        else:
+            fjalëkalimi = request.POST.get('fjalëkalimi', '').strip()
+            if len(fjalëkalimi) < 6:
+                messages.error(request, 'Fjalëkalimi duhet të jetë të paktën 6 karaktere.')
+            else:
+                username = f'sh{shtepi.nr_shtepise}'
+                if User.objects.filter(username=username).exists():
+                    messages.error(request, f'Username "{username}" ekziston tashmë.')
+                else:
+                    user = User.objects.create_user(
+                        username=username,
+                        password=fjalëkalimi,
+                        first_name=shtepi.emri_kryefamiljarit,
+                        last_name=shtepi.mbiemri_kryefamiljarit,
+                        email=shtepi.email or '',
+                    )
+                    profil = ProfilShtepi(shtepia=shtepi, krijuar_nga=request.user)
+                    profil.user = user
+                    profil.save()
+                    messages.success(request, f'Llogaria u krijua. Username: {username}')
+
+    return redirect('detaje_shtepia', pk=pk)
+
+
+@login_required
+def fshi_llogari_shtepi(request, pk):
+    if not është_admin(request.user):
+        messages.error(request, 'Nuk keni leje.')
+        return redirect('lista_shtepive')
+    shtepi = get_object_or_404(Shtepia, pk=pk)
+    if request.method == 'POST' and hasattr(shtepi, 'llogaria'):
+        username = shtepi.llogaria.user.username
+        shtepi.llogaria.user.delete()
+        messages.success(request, f'Llogaria "{username}" u fshi.')
+    return redirect('detaje_shtepia', pk=pk)

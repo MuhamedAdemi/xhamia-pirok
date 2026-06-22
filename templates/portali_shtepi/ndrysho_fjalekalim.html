@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+{% block titulli %}Ndrysho Fjalëkalimin — Xhamia Pirok{% endblock %}
+
+{% block kontent %}
+<div style="max-width:480px; margin:50px auto;">
+  <div class="card">
+    <div class="card-header"><h5>🔑 Ndrysho Fjalëkalimin</h5></div>
+    <div class="card-body" style="padding:28px;">
+      <form method="post">
+        {% csrf_token %}
+        <div class="forma-grup">
+          <label>Fjalëkalimi aktual</label>
+          <input type="password" name="fjalëkalim_vjetër" required placeholder="Fjalëkalimi i tanishëm..." autofocus>
+        </div>
+        <div class="forma-grup">
+          <label>Fjalëkalimi i ri</label>
+          <input type="password" name="fjalëkalim_ri" required placeholder="Minimum 6 karaktere..." minlength="6">
+        </div>
+        <div class="forma-grup">
+          <label>Konfirmo fjalëkalimin e ri</label>
+          <input type="password" name="konfirmimi" required placeholder="Rishkruaj fjalëkalimin e ri..." minlength="6">
+        </div>
+        <div class="flex gap-3" style="margin-top:20px;">
+          <button type="submit" class="btn-kryesor">💾 Ndrysho Fjalëkalimin</button>
+          <a href="{% url 'portali_shtepi' %}" class="btn-dytësor">Anulo</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -87,6 +87,64 @@
   {% endif %}
 </div>
 
+<!-- Llogaria e Portalit -->
+{% if request.user.profili.është_admin %}
+<div class="card" style="margin-bottom:24px;">
+  <div class="card-header">
+    <h5>🔑 Llogaria e Portalit</h5>
+    {% if shtepi.llogaria %}
+    <span class="badge-gjelbër">Aktive — {{ shtepi.llogaria.user.username }}</span>
+    {% else %}
+    <span class="badge-gri">Nuk ka llogari</span>
+    {% endif %}
+  </div>
+  <div class="card-body">
+    {% if shtepi.llogaria %}
+    <table style="width:100%; border-collapse:collapse; margin-bottom:20px;">
+      <tr>
+        <td style="padding:8px 0; color:var(--tekst-dytësor); font-size:13px; width:35%;">Username</td>
+        <td style="padding:8px 0; font-family:monospace; font-weight:700; font-size:16px;">{{ shtepi.llogaria.user.username }}</td>
+      </tr>
+      <tr>
+        <td style="padding:8px 0; color:var(--tekst-dytësor); font-size:13px;">Krijuar</td>
+        <td style="padding:8px 0;">{{ shtepi.llogaria.data_krijimit|date:"d M Y" }}</td>
+      </tr>
+    </table>
+    <div class="flex gap-3" style="flex-wrap:wrap; align-items:flex-end;">
+      <form method="post" action="{% url 'shto_llogari_shtepi' shtepi.pk %}" style="display:flex; gap:10px; align-items:flex-end; flex:1; min-width:260px;">
+        {% csrf_token %}
+        <div class="forma-grup" style="flex:1; margin:0;">
+          <label style="font-size:13px;">Rivendos fjalëkalimin</label>
+          <input type="password" name="fjalëkalimi_ri" placeholder="Fjalëkalimi i ri..." minlength="6">
+        </div>
+        <button type="submit" class="btn-dytësor">Rivendos →</button>
+      </form>
+      <form method="post" action="{% url 'fshi_llogari_shtepi' shtepi.pk %}" onsubmit="return confirm('A jeni i sigurt? Llogaria do të fshihet.')">
+        {% csrf_token %}
+        <button type="submit" class="btn-rrezik btn-sm">Fshi Llogarinë</button>
+      </form>
+    </div>
+    {% else %}
+    <p style="color:var(--tekst-dytësor); font-size:14px; margin-bottom:16px;">
+      Kjo shtëpi nuk ka llogari portali. Krijo një llogari që familja të mund të shohë pagesat e tyre online.
+    </p>
+    <div style="background:var(--krem-errët); border-radius:10px; padding:12px 16px; margin-bottom:16px; font-size:13px;">
+      Username do të jetë automatikisht:
+      <code style="font-family:monospace; font-weight:700; font-size:15px; background:var(--gjelbër-shumë-i-çelur); color:var(--gjelbër); padding:3px 10px; border-radius:6px; margin-left:6px;">sh{{ shtepi.nr_shtepise }}</code>
+    </div>
+    <form method="post" action="{% url 'shto_llogari_shtepi' shtepi.pk %}" style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap;">
+      {% csrf_token %}
+      <div class="forma-grup" style="flex:1; min-width:220px; margin:0;">
+        <label style="font-size:13px;">Fjalëkalimi fillestar</label>
+        <input type="password" name="fjalëkalimi" placeholder="Minimum 6 karaktere..." minlength="6" required>
+      </div>
+      <button type="submit" class="btn-kryesor">+ Krijo Llogarinë</button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
 <!-- Historia pagesave -->
 <div class="card">
   <div class="card-header">
