@@ -42,6 +42,11 @@
           {% render_field form.nr_antareve_familjes %}
           {% if form.nr_antareve_familjes.errors %}<p class="gabim-fusha">{{ form.nr_antareve_familjes.errors.0 }}</p>{% endif %}
         </div>
+        <div class="forma-grup">
+          <label>{{ form.viti_fillimit_antaresise.label }}</label>
+          {% render_field form.viti_fillimit_antaresise %}
+          <p class="ndihma">Viti nga i cili fillon llogaritja e borxhit të antarësisë. P.sh. 2017 nëse kanë borxh të vjetër, 2026 nëse janë në rregull.</p>
+        </div>
       </div>
     </div>
   </div>

@@ -17,6 +17,7 @@ urlpatterns = [
     path('shtepite/<int:pk>/', views.detaje_shtepia, name='detaje_shtepia'),
     path('shtepite/<int:pk>/edito/', views.edito_shtepi, name='edito_shtepi'),
     path('shtepite/<int:pk>/fshi/', views.fshi_shtepi, name='fshi_shtepi'),
+    path('shtepite/<int:pk>/permbyll/', views.permbyll_antaresia, name='permbyll_antaresia'),
 
     # Pagesat Antaresia
     path('pagesat/antaresia/', views.lista_pagesa_antaresia, name='lista_pagesa_antaresia'),

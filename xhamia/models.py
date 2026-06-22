@@ -63,6 +63,9 @@ class Shtepia(models.Model):
     kategoria = models.ForeignKey(
         Kategoria, on_delete=models.PROTECT, verbose_name='Kategoria e Pagesës'
     )
+    viti_fillimit_antaresise = models.PositiveSmallIntegerField(
+        default=2026, verbose_name='Antarësia Aktive nga Viti'
+    )
     email = models.EmailField(blank=True, verbose_name='Email')
     nr_telefoni_kryesor = models.CharField(max_length=20, blank=True, verbose_name='Nr. Telefoni Kryesor')
     nr_telefoni_sporadik = models.CharField(max_length=20, blank=True, verbose_name='Nr. Telefoni Sporadik')

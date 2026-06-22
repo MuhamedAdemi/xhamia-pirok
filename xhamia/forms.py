@@ -59,11 +59,14 @@ class ShtepiaForm(forms.ModelForm):
         model = Shtepia
         fields = [
             'nr_shtepise', 'emri_kryefamiljarit', 'mbiemri_kryefamiljarit',
-            'nr_antareve_familjes', 'kategoria',
+            'nr_antareve_familjes', 'kategoria', 'viti_fillimit_antaresise',
             'email', 'nr_telefoni_kryesor', 'nr_telefoni_sporadik',
             'kontakt_sporadik_emri', 'kontakt_sporadik_email', 'kontakt_sporadik_telefoni',
             'shenime', 'është_aktiv',
         ]
+        labels = {
+            'viti_fillimit_antaresise': 'Antarësia Aktive nga Viti',
+        }
         widgets = {
             'shenime': forms.Textarea(attrs={'rows': 2}),
         }

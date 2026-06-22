@@ -13,6 +13,7 @@ from xhtml2pdf import pisa
 import json
 import random
 import string
+from decimal import Decimal
 
 from .models import ProfilStafi, ProfilShtepi, Kategoria, Shtepia, PagesaAntaresia, PagesaFondi
 from .forms import (
@@ -286,9 +287,53 @@ def shto_shtepi(request):
 def detaje_shtepia(request, pk):
     shtepi = get_object_or_404(Shtepia, pk=pk)
     pagesat = shtepi.pagesat.select_related('arktar', 'kategoria_pageses').order_by('-viti', '-data_pageses')
+
+    viti_aktual = timezone.now().year
+    viti_fillimit = shtepi.viti_fillimit_antaresise
+    pagesat_per_vit = {}
+    borxhi_total = Decimal('0')
+    for v in range(viti_fillimit, viti_aktual + 1):
+        shuma_paguar = shtepi.pagesat.filter(viti=v).aggregate(
+            s=Sum('shuma_paguar')
+        )['s'] or Decimal('0')
+        shuma_duhet = shtepi.kategoria.shuma_vjetore
+        ka_paguar = shuma_paguar >= shuma_duhet
+        borxh_v = max(Decimal('0'), shuma_duhet - shuma_paguar)
+        borxhi_total += borxh_v
+        pagesat_per_vit[v] = {
+            'shuma_paguar': shuma_paguar,
+            'ka_paguar': ka_paguar,
+            'borxhi': borxh_v,
+        }
+
+    vitit_lista = list(range(2000, viti_aktual + 2))
+
     return render(request, 'shtepite/detaje.html', {
-        'shtepi': shtepi, 'pagesat': pagesat, 'faqja_aktive': 'shtepite'
+        'shtepi': shtepi,
+        'pagesat': pagesat,
+        'pagesat_per_vit': pagesat_per_vit,
+        'borxhi_total': borxhi_total,
+        'viti_aktual': viti_aktual,
+        'vitit_lista': vitit_lista,
+        'faqja_aktive': 'shtepite',
     })
+
+
+@login_required
+def permbyll_antaresia(request, pk):
+    if not është_admin(request.user):
+        messages.error(request, 'Nuk keni leje.')
+        return redirect('lista_shtepive')
+    shtepi = get_object_or_404(Shtepia, pk=pk)
+    if request.method == 'POST':
+        try:
+            viti_i_ri = int(request.POST.get('viti_i_ri', timezone.now().year))
+            shtepi.viti_fillimit_antaresise = viti_i_ri
+            shtepi.save()
+            messages.success(request, f'Antarësia e shtëpisë #{shtepi.nr_shtepise} u permbyll. Llogaritja fillon nga viti {viti_i_ri}.')
+        except (ValueError, TypeError):
+            messages.error(request, 'Viti i zgjedhur nuk është i vlefshëm.')
+    return redirect('detaje_shtepia', pk=pk)
 
 
 @login_required
@@ -658,26 +703,36 @@ def portali_shtepi(request):
     vitit_lista = list(range(2020, timezone.now().year + 2))
 
     pagesat_te_gjitha = shtepi.pagesat.select_related('arktar', 'kategoria_pageses').order_by('-viti', '-data_pageses')
-    pagesat_vitit = pagesat_te_gjitha.filter(viti=viti)
 
-    paguar_kete_vit = pagesat_vitit.aggregate(s=Sum('shuma_paguar'))['s'] or 0
-    duhet_paguar = shtepi.kategoria.shuma_vjetore
-    ka_paguar_plote = float(paguar_kete_vit) >= float(duhet_paguar)
-    borxhi = max(0, float(duhet_paguar) - float(paguar_kete_vit))
+    viti_aktual = timezone.now().year
+    viti_fillimit = shtepi.viti_fillimit_antaresise
+    pagesat_per_vit = {}
+    borxhi_total = Decimal('0')
+    for v in range(viti_fillimit, viti_aktual + 1):
+        shuma_paguar = shtepi.pagesat.filter(viti=v).aggregate(
+            s=Sum('shuma_paguar')
+        )['s'] or Decimal('0')
+        shuma_duhet = shtepi.kategoria.shuma_vjetore
+        ka_paguar = shuma_paguar >= shuma_duhet
+        borxh_v = max(Decimal('0'), shuma_duhet - shuma_paguar)
+        borxhi_total += borxh_v
+        pagesat_per_vit[v] = {
+            'shuma_paguar': shuma_paguar,
+            'ka_paguar': ka_paguar,
+            'borxhi': borxh_v,
+        }
 
-    total_gjithsej = pagesat_te_gjitha.aggregate(s=Sum('shuma_paguar'))['s'] or 0
+    total_gjithsej = pagesat_te_gjitha.aggregate(s=Sum('shuma_paguar'))['s'] or Decimal('0')
     pagesa_e_fundit = pagesat_te_gjitha.first()
 
     return render(request, 'portali_shtepi/dashboard.html', {
         'shtepi': shtepi,
         'viti': viti,
         'vitit_lista': vitit_lista,
-        'pagesat_vitit': pagesat_vitit,
+        'pagesat_per_vit': pagesat_per_vit,
         'pagesat_te_gjitha': pagesat_te_gjitha,
-        'paguar_kete_vit': paguar_kete_vit,
-        'duhet_paguar': duhet_paguar,
-        'ka_paguar_plote': ka_paguar_plote,
-        'borxhi': borxhi,
+        'borxhi_total': borxhi_total,
+        'viti_aktual': viti_aktual,
         'total_gjithsej': total_gjithsej,
         'pagesa_e_fundit': pagesa_e_fundit,
         'portali_shtepi': True,
