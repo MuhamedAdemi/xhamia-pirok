@@ -67,6 +67,27 @@
   </div>
 </div>
 
+<!-- Grafiket vjetore -->
+<div class="grid-2" style="margin-bottom:24px;">
+  <div class="card">
+    <div class="card-header">
+      <h5>📊 Pagesa — 3 Vitet e Fundit (€)</h5>
+    </div>
+    <div class="card-body">
+      <canvas id="grafiku3Vite" height="220"></canvas>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-header">
+      <h5>📈 Shtëpi që Paguan — 10 Vitet e Fundit</h5>
+      <span style="font-size:12px; color:var(--tekst-dytësor);">Aktuale + historike</span>
+    </div>
+    <div class="card-body">
+      <canvas id="grafiku10Vite" height="220"></canvas>
+    </div>
+  </div>
+</div>
+
 <div class="grid-2">
   <!-- Pagesat e fundit -->
   <div class="card">
@@ -159,6 +180,55 @@ new Chart(document.getElementById('grafikuMujor'), {
     plugins: { legend: { display: false } },
     scales: {
       y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' } },
+      x: { grid: { display: false } }
+    }
+  }
+});
+
+// Grafiket vjetore
+const dataVitet = {{ data_vitet_json|safe }};
+const data3Vite = dataVitet.slice(-3);
+
+new Chart(document.getElementById('grafiku3Vite'), {
+  type: 'bar',
+  data: {
+    labels: data3Vite.map(d => d.viti),
+    datasets: [{
+      label: 'Shuma (€)',
+      data: data3Vite.map(d => d.shuma),
+      backgroundColor: data3Vite.map((d, i) => `rgba(45,90,27,${0.4 + i * 0.3})`),
+      borderRadius: 10,
+      borderWidth: 0,
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { display: false } },
+    scales: {
+      y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { callback: v => v + '€' } },
+      x: { grid: { display: false } }
+    }
+  }
+});
+
+new Chart(document.getElementById('grafiku10Vite'), {
+  type: 'bar',
+  data: {
+    labels: dataVitet.map(d => d.viti),
+    datasets: [{
+      label: 'Shtëpi',
+      data: dataVitet.map(d => d.nr),
+      backgroundColor: 'rgba(107,68,35,0.55)',
+      borderColor: 'rgba(107,68,35,0.9)',
+      borderWidth: 1.5,
+      borderRadius: 6,
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { display: false } },
+    scales: {
+      y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { stepSize: 1 } },
       x: { grid: { display: false } }
     }
   }

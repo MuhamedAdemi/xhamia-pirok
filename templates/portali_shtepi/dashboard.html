@@ -52,6 +52,9 @@
         <div style="font-size:12px; font-weight:600; color:{% if info.ka_paguar %}var(--gjelbër){% else %}var(--gabim){% endif %};">
           {% if info.ka_paguar %}{{ info.shuma_paguar }}€ paguar{% else %}{{ info.borxhi }}€ borxh{% endif %}
         </div>
+        {% if info.historike %}
+        <div style="margin-top:5px; font-size:10px; background:rgba(107,68,35,0.12); color:#6B4423; padding:2px 6px; border-radius:8px; font-weight:600;">Historik</div>
+        {% endif %}
       </div>
       {% endfor %}
     </div>

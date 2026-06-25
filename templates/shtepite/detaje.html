@@ -170,6 +170,9 @@
         <div style="font-size:12px; color:{% if info.ka_paguar %}var(--gjelbër){% else %}var(--gabim){% endif %}; font-weight:600;">
           {% if info.ka_paguar %}{{ info.shuma_paguar }}€{% else %}{{ info.borxhi }}€ borxh{% endif %}
         </div>
+        {% if info.historike %}
+        <div style="margin-top:5px; font-size:10px; background:rgba(107,68,35,0.12); color:#6B4423; padding:2px 6px; border-radius:8px; font-weight:600;">Historik</div>
+        {% endif %}
       </div>
       {% endfor %}
     </div>
@@ -180,20 +183,25 @@
     {% if request.user.profili.është_admin %}
     <div style="border-top:1px solid var(--kufi); padding-top:16px; margin-top:4px;">
       <p style="font-size:13px; color:var(--tekst-dytësor); margin-bottom:10px;">
-        <strong>Permbyllje:</strong> Nëse shtëpia i ka paguar borxhet e vjetra ose bëhet fshirje e borxhit, cakto vitin nga i cili fillon llogaritja e re.
+        <strong>Regjistrim Historik:</strong> Nëse shtëpia ka pagesë të dokumentuara me faturë letre, shëno vitin e fundit deri ku janë paguar. Vitet deri atje do të shfaqen automatikisht si ✅ Paguar (Historik) pa regjistruar fatura individuale.
       </p>
+      {% if shtepi.paguar_deri_viti %}
+      <div style="margin-bottom:12px; padding:10px 14px; background:var(--gjelbër-shumë-i-çelur); border-radius:10px; font-size:13px; color:var(--gjelbër); font-weight:600;">
+        ✅ Aktualisht: paguar deri viti <strong>{{ shtepi.paguar_deri_viti }}</strong>
+      </div>
+      {% endif %}
       <form method="post" action="{% url 'permbyll_antaresia' shtepi.pk %}" style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap;">
         {% csrf_token %}
         <div class="forma-grup" style="margin:0; min-width:200px;">
-          <label style="font-size:13px;">Fillo antarësinë nga viti:</label>
+          <label style="font-size:13px;">Shëno si paguar deri viti:</label>
           <select name="viti_i_ri" style="padding:8px 12px; border:1.5px solid var(--kufi); border-radius:10px; font-size:14px; background:var(--e-bardhë); font-family:'Inter',sans-serif;">
             {% for v in vitit_lista %}
-              <option value="{{ v }}" {% if v == viti_aktual %}selected{% endif %}>{{ v }}</option>
+              <option value="{{ v }}" {% if v == shtepi.paguar_deri_viti %}selected{% endif %}>{{ v }}</option>
             {% endfor %}
           </select>
         </div>
-        <button type="submit" class="btn-dytësor" onclick="return confirm('A jeni i sigurt? Llogaritja e borxhit do të fillojë nga viti i ri.')">
-          Permbyll & Fillo nga Viti i Ri →
+        <button type="submit" class="btn-dytësor" onclick="return confirm('A jeni i sigurt? Vitet deri te ky vit do të shfaqen si të paguara historikisht.')">
+          Shëno Pagesën Historike →
         </button>
       </form>
     </div>

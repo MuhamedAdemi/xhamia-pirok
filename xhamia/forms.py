@@ -60,12 +60,14 @@ class ShtepiaForm(forms.ModelForm):
         fields = [
             'nr_shtepise', 'emri_kryefamiljarit', 'mbiemri_kryefamiljarit',
             'nr_antareve_familjes', 'kategoria', 'viti_fillimit_antaresise',
+            'paguar_deri_viti',
             'email', 'nr_telefoni_kryesor', 'nr_telefoni_sporadik',
             'kontakt_sporadik_emri', 'kontakt_sporadik_email', 'kontakt_sporadik_telefoni',
             'shenime', 'është_aktiv',
         ]
         labels = {
             'viti_fillimit_antaresise': 'Antarësia Aktive nga Viti',
+            'paguar_deri_viti': 'Paguar Deri Viti (Historik)',
         }
         widgets = {
             'shenime': forms.Textarea(attrs={'rows': 2}),

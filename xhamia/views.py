@@ -123,7 +123,14 @@ def dashboard_antaresia(request):
     vitit_lista = list(range(2020, timezone.now().year + 2))
 
     total_shtepite = Shtepia.objects.filter(është_aktiv=True).count()
-    kane_paguar = PagesaAntaresia.objects.filter(viti=viti_zgjedhur).values('shtepia').distinct().count()
+
+    # Shtëpitë që kanë paguar: actual records + historike (paguar_deri_viti)
+    actual_ids = set(PagesaAntaresia.objects.filter(viti=viti_zgjedhur).values_list('shtepia_id', flat=True))
+    historical_ids = set(Shtepia.objects.filter(
+        paguar_deri_viti__gte=viti_zgjedhur, është_aktiv=True
+    ).values_list('id', flat=True))
+    paguar_ids = actual_ids | historical_ids
+    kane_paguar = len(paguar_ids)
     nuk_kane_paguar = total_shtepite - kane_paguar
 
     total_mbledhur = PagesaAntaresia.objects.filter(viti=viti_zgjedhur).aggregate(
@@ -149,12 +156,23 @@ def dashboard_antaresia(request):
     # Pagesat e fundit
     pagesat_e_fundit = PagesaAntaresia.objects.select_related('shtepia', 'arktar').order_by('-data_regjistrimit')[:10]
 
-    # Shtëpitë pa pagesë
+    # Shtëpitë pa pagesë (as actual as historical)
     shtepite_pa_pagese = Shtepia.objects.filter(
         është_aktiv=True
     ).exclude(
-        pagesat__viti=viti_zgjedhur
+        id__in=paguar_ids
     ).select_related('kategoria')[:20]
+
+    # Të dhënat 10-vjeçare për grafiket (shtëpi që kanë paguar = actual + historike)
+    viti_aktual = timezone.now().year
+    data_vitet = []
+    for v in range(viti_aktual - 9, viti_aktual + 1):
+        shuma_v = PagesaAntaresia.objects.filter(viti=v).aggregate(s=Sum('shuma_paguar'))['s'] or 0
+        act_v = set(PagesaAntaresia.objects.filter(viti=v).values_list('shtepia_id', flat=True))
+        hist_v = set(Shtepia.objects.filter(
+            paguar_deri_viti__gte=v, viti_fillimit_antaresise__lte=v, është_aktiv=True
+        ).values_list('id', flat=True))
+        data_vitet.append({'viti': v, 'shuma': float(shuma_v), 'nr': len(act_v | hist_v)})
 
     konteksti = {
         'viti_zgjedhur': viti_zgjedhur,
@@ -168,6 +186,7 @@ def dashboard_antaresia(request):
         'sipas_kategorise_json': json.dumps(sipas_kategorise),
         'pagesat_e_fundit': pagesat_e_fundit,
         'shtepite_pa_pagese': shtepite_pa_pagese,
+        'data_vitet_json': json.dumps(data_vitet),
         'faqja_aktive': 'dashboard',
     }
     return render(request, 'dashboard/antaresia.html', konteksti)
@@ -290,21 +309,31 @@ def detaje_shtepia(request, pk):
 
     viti_aktual = timezone.now().year
     viti_fillimit = shtepi.viti_fillimit_antaresise
+    paguar_deri = shtepi.paguar_deri_viti
     pagesat_per_vit = {}
     borxhi_total = Decimal('0')
     for v in range(viti_fillimit, viti_aktual + 1):
-        shuma_paguar = shtepi.pagesat.filter(viti=v).aggregate(
-            s=Sum('shuma_paguar')
-        )['s'] or Decimal('0')
         shuma_duhet = shtepi.kategoria.shuma_vjetore
-        ka_paguar = shuma_paguar >= shuma_duhet
-        borxh_v = max(Decimal('0'), shuma_duhet - shuma_paguar)
-        borxhi_total += borxh_v
-        pagesat_per_vit[v] = {
-            'shuma_paguar': shuma_paguar,
-            'ka_paguar': ka_paguar,
-            'borxhi': borxh_v,
-        }
+        if paguar_deri and v <= paguar_deri:
+            pagesat_per_vit[v] = {
+                'shuma_paguar': shuma_duhet,
+                'ka_paguar': True,
+                'borxhi': Decimal('0'),
+                'historike': True,
+            }
+        else:
+            shuma_paguar = shtepi.pagesat.filter(viti=v).aggregate(
+                s=Sum('shuma_paguar')
+            )['s'] or Decimal('0')
+            ka_paguar = shuma_paguar >= shuma_duhet
+            borxh_v = max(Decimal('0'), shuma_duhet - shuma_paguar)
+            borxhi_total += borxh_v
+            pagesat_per_vit[v] = {
+                'shuma_paguar': shuma_paguar,
+                'ka_paguar': ka_paguar,
+                'borxhi': borxh_v,
+                'historike': False,
+            }
 
     vitit_lista = list(range(2000, viti_aktual + 2))
 
@@ -328,9 +357,9 @@ def permbyll_antaresia(request, pk):
     if request.method == 'POST':
         try:
             viti_i_ri = int(request.POST.get('viti_i_ri', timezone.now().year))
-            shtepi.viti_fillimit_antaresise = viti_i_ri
+            shtepi.paguar_deri_viti = viti_i_ri
             shtepi.save()
-            messages.success(request, f'Antarësia e shtëpisë #{shtepi.nr_shtepise} u permbyll. Llogaritja fillon nga viti {viti_i_ri}.')
+            messages.success(request, f'Shtëpia #{shtepi.nr_shtepise}: shënuar si e paguar deri viti {viti_i_ri}.')
         except (ValueError, TypeError):
             messages.error(request, 'Viti i zgjedhur nuk është i vlefshëm.')
     return redirect('detaje_shtepia', pk=pk)
@@ -706,21 +735,31 @@ def portali_shtepi(request):
 
     viti_aktual = timezone.now().year
     viti_fillimit = shtepi.viti_fillimit_antaresise
+    paguar_deri = shtepi.paguar_deri_viti
     pagesat_per_vit = {}
     borxhi_total = Decimal('0')
     for v in range(viti_fillimit, viti_aktual + 1):
-        shuma_paguar = shtepi.pagesat.filter(viti=v).aggregate(
-            s=Sum('shuma_paguar')
-        )['s'] or Decimal('0')
         shuma_duhet = shtepi.kategoria.shuma_vjetore
-        ka_paguar = shuma_paguar >= shuma_duhet
-        borxh_v = max(Decimal('0'), shuma_duhet - shuma_paguar)
-        borxhi_total += borxh_v
-        pagesat_per_vit[v] = {
-            'shuma_paguar': shuma_paguar,
-            'ka_paguar': ka_paguar,
-            'borxhi': borxh_v,
-        }
+        if paguar_deri and v <= paguar_deri:
+            pagesat_per_vit[v] = {
+                'shuma_paguar': shuma_duhet,
+                'ka_paguar': True,
+                'borxhi': Decimal('0'),
+                'historike': True,
+            }
+        else:
+            shuma_paguar = shtepi.pagesat.filter(viti=v).aggregate(
+                s=Sum('shuma_paguar')
+            )['s'] or Decimal('0')
+            ka_paguar = shuma_paguar >= shuma_duhet
+            borxh_v = max(Decimal('0'), shuma_duhet - shuma_paguar)
+            borxhi_total += borxh_v
+            pagesat_per_vit[v] = {
+                'shuma_paguar': shuma_paguar,
+                'ka_paguar': ka_paguar,
+                'borxhi': borxh_v,
+                'historike': False,
+            }
 
     total_gjithsej = pagesat_te_gjitha.aggregate(s=Sum('shuma_paguar'))['s'] or Decimal('0')
     pagesa_e_fundit = pagesat_te_gjitha.first()

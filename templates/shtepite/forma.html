@@ -45,7 +45,12 @@
         <div class="forma-grup">
           <label>{{ form.viti_fillimit_antaresise.label }}</label>
           {% render_field form.viti_fillimit_antaresise %}
-          <p class="ndihma">Viti nga i cili fillon llogaritja e borxhit të antarësisë. P.sh. 2017 nëse kanë borxh të vjetër, 2026 nëse janë në rregull.</p>
+          <p class="ndihma">Viti nga i cili fillon llogaritja e antarësisë. P.sh. 2017 nëse kanë borxh të vjetër.</p>
+        </div>
+        <div class="forma-grup">
+          <label>{{ form.paguar_deri_viti.label }}</label>
+          {% render_field form.paguar_deri_viti placeholder="p.sh. 2023" %}
+          <p class="ndihma">Lëre bosh nëse nuk ka. Vendos vitin e fundit kur kjo shtëpi ka paguar plotësisht antarësinë — bazuar në regjistrat me letër. P.sh. "2023" do të shfaqë çdo vit deri 2023 si ✅ automatikisht.</p>
         </div>
       </div>
     </div>
@@ -61,11 +66,11 @@
         </div>
         <div class="forma-grup">
           <label>{{ form.nr_telefoni_kryesor.label }}</label>
-          {% render_field form.nr_telefoni_kryesor placeholder="+383..." %}
+          {% render_field form.nr_telefoni_kryesor placeholder="+389..." %}
         </div>
         <div class="forma-grup">
           <label>{{ form.nr_telefoni_sporadik.label }}</label>
-          {% render_field form.nr_telefoni_sporadik placeholder="+383..." %}
+          {% render_field form.nr_telefoni_sporadik placeholder="+389..." %}
         </div>
       </div>
     </div>
@@ -85,7 +90,7 @@
         </div>
         <div class="forma-grup">
           <label>{{ form.kontakt_sporadik_telefoni.label }}</label>
-          {% render_field form.kontakt_sporadik_telefoni placeholder="+383..." %}
+          {% render_field form.kontakt_sporadik_telefoni placeholder="+389..." %}
         </div>
       </div>
     </div>
