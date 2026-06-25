@@ -51,6 +51,11 @@
     <a href="{% url 'dashboard_fondi' %}" class="{% if faqja_aktive == 'dashboard_fondi' %}aktive{% endif %}">
       <span class="ikona">💰</span> Fondi i Xhamisë
     </a>
+    {% if request.user.profili.është_admin %}
+    <a href="{% url 'dashboard_buxheti' %}" class="{% if faqja_aktive == 'buxheti' %}aktive{% endif %}">
+      <span class="ikona">💼</span> Buxheti
+    </a>
+    {% endif %}
 
     <div class="nav-section-label">Antarësia</div>
     <a href="{% url 'lista_shtepive' %}" class="{% if faqja_aktive == 'shtepite' %}aktive{% endif %}">
@@ -66,6 +71,14 @@
     </a>
 
     {% if request.user.profili.është_admin %}
+    <div class="nav-section-label">Harxhimet</div>
+    <a href="{% url 'shto_harxhim' %}" class="{% if faqja_aktive == 'harxhimet' and request.path == '/harxhimet/shto/' %}aktive{% endif %}">
+      <span class="ikona">📤</span> Regjistro Harxhim
+    </a>
+    <a href="{% url 'lista_harxhimeve' %}" class="{% if faqja_aktive == 'harxhimet' %}aktive{% endif %}">
+      <span class="ikona">📋</span> Lista Harxhimeve
+    </a>
+
     <div class="nav-section-label">Administrata</div>
     <a href="{% url 'lista_stafit' %}" class="{% if faqja_aktive == 'stafi' %}aktive{% endif %}">
       <span class="ikona">👥</span> Stafi

@@ -15,10 +15,10 @@ import random
 import string
 from decimal import Decimal
 
-from .models import ProfilStafi, ProfilShtepi, Kategoria, Shtepia, PagesaAntaresia, PagesaFondi
+from .models import ProfilStafi, ProfilShtepi, Kategoria, Shtepia, PagesaAntaresia, PagesaFondi, Harxhimi
 from .forms import (
     LoginForm, StafForm, KategoriaForm, ShtepiaForm,
-    PagesaAntaresiaForm, PagesaFondiForm
+    PagesaAntaresiaForm, PagesaFondiForm, HarxhimiForm
 )
 from .utils import dërgo_email_antaresia, dërgo_email_fondi
 
@@ -415,11 +415,7 @@ def shto_pagese_antaresia(request):
         pagese = form.save(commit=False)
         pagese.arktar = request.user
         pagese.save()
-        try:
-            dërgo_email_antaresia(pagese, request)
-            messages.success(request, f'Pagesa {pagese.nr_fatures} u regjistrua dhe emaili u dërgua me sukses.')
-        except Exception as e:
-            messages.warning(request, f'Pagesa u regjistrua, por emaili nuk u dërgua: {e}')
+        messages.success(request, f'Pagesa {pagese.nr_fatures} u regjistrua me sukses.')
         return redirect('detaje_pagesa_antaresia', pk=pagese.pk)
     return render(request, 'pagesat/antaresia/forma.html', {
         'form': form, 'titulli': 'Regjistro Pagesë Antarësia', 'faqja_aktive': 'pagesat_antaresia'
@@ -477,11 +473,7 @@ def shto_pagese_fondi(request):
         pagese = form.save(commit=False)
         pagese.arktar = request.user
         pagese.save()
-        try:
-            dërgo_email_fondi(pagese, request)
-            messages.success(request, f'Pagesa {pagese.nr_fatures} u regjistrua dhe emaili u dërgua me sukses.')
-        except Exception as e:
-            messages.warning(request, f'Pagesa u regjistrua, por emaili nuk u dërgua: {e}')
+        messages.success(request, f'Pagesa {pagese.nr_fatures} u regjistrua me sukses.')
         return redirect('detaje_pagesa_fondi', pk=pagese.pk)
     return render(request, 'pagesat/fondi/forma.html', {
         'form': form, 'titulli': 'Regjistro Pagesë Fondi', 'faqja_aktive': 'pagesat_fondi'
@@ -505,6 +497,179 @@ def fatura_fondi_pdf(request, pk):
     response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
     response['Content-Disposition'] = f'inline; filename="fatura-{pagese.nr_fatures}.pdf"'
     return response
+
+
+# ─── Email manual dërgim ────────────────────────────────────────────────────
+
+@login_required
+def dergo_email_antaresia(request, pk):
+    if not mund_regjistrojë(request.user):
+        messages.error(request, 'Nuk keni leje.')
+        return redirect('lista_pagesa_antaresia')
+    pagese = get_object_or_404(PagesaAntaresia, pk=pk)
+    if request.method == 'POST':
+        if not pagese.shtepia.email:
+            messages.warning(request, 'Kjo shtëpi nuk ka email të regjistruar.')
+        else:
+            try:
+                dërgo_email_antaresia(pagese, request)
+                messages.success(request, f'Emaili u dërgua me sukses te {pagese.shtepia.email}.')
+            except Exception as e:
+                messages.error(request, f'Emaili nuk u dërgua: {e}')
+    return redirect('detaje_pagesa_antaresia', pk=pk)
+
+
+@login_required
+def dergo_email_fondi_view(request, pk):
+    if not mund_regjistrojë(request.user):
+        messages.error(request, 'Nuk keni leje.')
+        return redirect('lista_pagesa_fondi')
+    pagese = get_object_or_404(PagesaFondi, pk=pk)
+    if request.method == 'POST':
+        if not pagese.email_donatorit:
+            messages.warning(request, 'Ky donacion nuk ka email të regjistruar.')
+        else:
+            try:
+                dërgo_email_fondi(pagese, request)
+                messages.success(request, f'Emaili u dërgua me sukses te {pagese.email_donatorit}.')
+            except Exception as e:
+                messages.error(request, f'Emaili nuk u dërgua: {e}')
+    return redirect('detaje_pagesa_fondi', pk=pk)
+
+
+# ─── Harxhimet ───────────────────────────────────────────────────────────────
+
+@login_required
+def lista_harxhimeve(request):
+    if not është_admin(request.user):
+        messages.error(request, 'Aksesi i refuzuar.')
+        return redirect('dashboard')
+    viti = int(request.GET.get('viti', timezone.now().year))
+    lloji = request.GET.get('lloji', '')
+    harxhimet = Harxhimi.objects.select_related('stafi', 'arktar').filter(viti=viti)
+    if lloji:
+        harxhimet = harxhimet.filter(lloji=lloji)
+    total = harxhimet.aggregate(s=Sum('shuma_eur'))['s'] or 0
+    return render(request, 'harxhimet/lista.html', {
+        'harxhimet': harxhimet, 'viti': viti, 'lloji': lloji,
+        'total': total,
+        'vitit_lista': list(range(2015, timezone.now().year + 2)),
+        'lloji_choices': Harxhimi.LLOJI_CHOICES,
+        'faqja_aktive': 'harxhimet',
+    })
+
+
+@login_required
+def shto_harxhim(request):
+    if not është_admin(request.user):
+        messages.error(request, 'Nuk keni leje.')
+        return redirect('dashboard_buxheti')
+    form = HarxhimiForm(request.POST or None)
+    if request.method == 'POST' and form.is_valid():
+        harxhim = form.save(commit=False)
+        harxhim.burimi = 'ANTARESIA' if harxhim.lloji == 'RROGE' else 'FONDI'
+        harxhim.arktar = request.user
+        harxhim.save()
+        messages.success(request, f'Harxhimi {harxhim.nr_fatures} u regjistrua me sukses.')
+        return redirect('detaje_harxhimi', pk=harxhim.pk)
+    return render(request, 'harxhimet/forma.html', {
+        'form': form, 'titulli': 'Regjistro Harxhim', 'faqja_aktive': 'harxhimet',
+    })
+
+
+@login_required
+def detaje_harxhimi(request, pk):
+    if not është_admin(request.user):
+        messages.error(request, 'Aksesi i refuzuar.')
+        return redirect('dashboard')
+    harxhim = get_object_or_404(Harxhimi, pk=pk)
+    return render(request, 'harxhimet/detaje.html', {
+        'harxhim': harxhim, 'faqja_aktive': 'harxhimet',
+    })
+
+
+@login_required
+def fshi_harxhimin(request, pk):
+    if not është_admin(request.user):
+        messages.error(request, 'Nuk keni leje.')
+        return redirect('lista_harxhimeve')
+    harxhim = get_object_or_404(Harxhimi, pk=pk)
+    info = f'{harxhim.nr_fatures} — {harxhim.get_lloji_display()} — {harxhim.shuma_eur}€'
+    return _fshirje_3hap(
+        request,
+        çelësi=f'hrx_{pk}',
+        fshi_fn=harxhim.delete,
+        redirect_sukses='lista_harxhimeve',
+        info=info,
+        mesazh_sukses=f'Harxhimi {harxhim.nr_fatures} u fshi me sukses.',
+    )
+
+
+# ─── Dashboard Buxheti ───────────────────────────────────────────────────────
+
+@login_required
+def dashboard_buxheti(request):
+    if not është_admin(request.user):
+        messages.error(request, 'Aksesi i refuzuar.')
+        return redirect('dashboard')
+    viti_aktual = timezone.now().year
+    viti_zgjedhur = int(request.GET.get('viti', viti_aktual))
+    vitit_lista = list(range(2015, viti_aktual + 2))
+
+    hyra_antaresia = PagesaAntaresia.objects.filter(
+        viti=viti_zgjedhur
+    ).aggregate(s=Sum('shuma_paguar'))['s'] or Decimal('0')
+
+    hyra_fondi = PagesaFondi.objects.filter(
+        data_pageses__year=viti_zgjedhur
+    ).aggregate(s=Sum('shuma'))['s'] or Decimal('0')
+
+    sh_rrogash = Harxhimi.objects.filter(
+        viti=viti_zgjedhur, burimi='ANTARESIA'
+    ).aggregate(s=Sum('shuma_eur'))['s'] or Decimal('0')
+
+    sh_tjera = Harxhimi.objects.filter(
+        viti=viti_zgjedhur, burimi='FONDI'
+    ).aggregate(s=Sum('shuma_eur'))['s'] or Decimal('0')
+
+    total_hyra = hyra_antaresia + hyra_fondi
+    total_shpenzime = sh_rrogash + sh_tjera
+    balanca_total = total_hyra - total_shpenzime
+
+    harxhimet_e_fundit = Harxhimi.objects.select_related(
+        'stafi', 'arktar'
+    ).filter(viti=viti_zgjedhur).order_by('-data_pageses')[:8]
+
+    sipas_llojit = []
+    for lloji_val, emri in Harxhimi.LLOJI_CHOICES:
+        shuma = Harxhimi.objects.filter(
+            viti=viti_zgjedhur, lloji=lloji_val
+        ).aggregate(s=Sum('shuma_eur'))['s'] or 0
+        if shuma > 0:
+            sipas_llojit.append({'lloji': emri, 'shuma': float(shuma)})
+
+    data_10_vjet = []
+    for v in range(viti_aktual - 9, viti_aktual + 1):
+        h = float(PagesaAntaresia.objects.filter(viti=v).aggregate(s=Sum('shuma_paguar'))['s'] or 0) + \
+            float(PagesaFondi.objects.filter(data_pageses__year=v).aggregate(s=Sum('shuma'))['s'] or 0)
+        sh = float(Harxhimi.objects.filter(viti=v).aggregate(s=Sum('shuma_eur'))['s'] or 0)
+        data_10_vjet.append({'viti': v, 'hyra': h, 'shpenzime': sh})
+
+    return render(request, 'dashboard/buxheti.html', {
+        'viti_zgjedhur': viti_zgjedhur,
+        'vitit_lista': vitit_lista,
+        'hyra_antaresia': hyra_antaresia,
+        'hyra_fondi': hyra_fondi,
+        'total_hyra': total_hyra,
+        'sh_rrogash': sh_rrogash,
+        'sh_tjera': sh_tjera,
+        'total_shpenzime': total_shpenzime,
+        'balanca_total': balanca_total,
+        'harxhimet_e_fundit': harxhimet_e_fundit,
+        'sipas_llojit_json': json.dumps(sipas_llojit),
+        'data_10_vjet_json': json.dumps(data_10_vjet),
+        'faqja_aktive': 'buxheti',
+    })
 
 
 # ─── Stafi ──────────────────────────────────────────────────────────────────

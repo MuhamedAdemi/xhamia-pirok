@@ -10,6 +10,7 @@ urlpatterns = [
     path('', views.redirect_dashboard, name='home'),
     path('dashboard/', views.dashboard_antaresia, name='dashboard'),
     path('dashboard/fondi/', views.dashboard_fondi, name='dashboard_fondi'),
+    path('dashboard/buxheti/', views.dashboard_buxheti, name='dashboard_buxheti'),
 
     # Shtepite
     path('shtepite/', views.lista_shtepive, name='lista_shtepive'),
@@ -25,6 +26,7 @@ urlpatterns = [
     path('pagesat/antaresia/<int:pk>/', views.detaje_pagesa_antaresia, name='detaje_pagesa_antaresia'),
     path('pagesat/antaresia/<int:pk>/fatura/', views.fatura_antaresia_pdf, name='fatura_antaresia_pdf'),
     path('pagesat/antaresia/<int:pk>/fshi/', views.fshi_pagese_antaresia, name='fshi_pagese_antaresia'),
+    path('pagesat/antaresia/<int:pk>/email/', views.dergo_email_antaresia, name='dergo_email_antaresia'),
 
     # Pagesat Fondi
     path('pagesat/fondi/', views.lista_pagesa_fondi, name='lista_pagesa_fondi'),
@@ -32,6 +34,13 @@ urlpatterns = [
     path('pagesat/fondi/<int:pk>/', views.detaje_pagesa_fondi, name='detaje_pagesa_fondi'),
     path('pagesat/fondi/<int:pk>/fatura/', views.fatura_fondi_pdf, name='fatura_fondi_pdf'),
     path('pagesat/fondi/<int:pk>/fshi/', views.fshi_pagese_fondi, name='fshi_pagese_fondi'),
+    path('pagesat/fondi/<int:pk>/email/', views.dergo_email_fondi_view, name='dergo_email_fondi'),
+
+    # Harxhimet
+    path('harxhimet/', views.lista_harxhimeve, name='lista_harxhimeve'),
+    path('harxhimet/shto/', views.shto_harxhim, name='shto_harxhim'),
+    path('harxhimet/<int:pk>/', views.detaje_harxhimi, name='detaje_harxhimi'),
+    path('harxhimet/<int:pk>/fshi/', views.fshi_harxhimin, name='fshi_harxhimin'),
 
     # Stafi
     path('stafi/', views.lista_stafit, name='lista_stafit'),

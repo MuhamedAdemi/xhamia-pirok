@@ -1,0 +1,170 @@
+{% extends 'base.html' %}
+{% load widget_tweaks %}
+{% block titulli %}Regjistro Harxhim — Xhamia Pirok{% endblock %}
+
+{% block kontent %}
+<div class="page-header">
+  <div class="flex items-center gap-3">
+    <a href="{% url 'lista_harxhimeve' %}" class="btn-dytësor btn-sm">← Kthehu</a>
+    <h2>📤 Regjistro Harxhim</h2>
+  </div>
+</div>
+
+<form method="post" style="max-width:680px;">
+  {% csrf_token %}
+
+  <div class="card" style="margin-bottom:20px;">
+    <div class="card-header"><h5>📋 Lloji i Harxhimit</h5></div>
+    <div class="card-body">
+      <div class="forma-grup">
+        <label>{{ form.lloji.label }}</label>
+        {% render_field form.lloji id="id_lloji" %}
+        {% if form.lloji.errors %}<p class="gabim-fusha">{{ form.lloji.errors.0 }}</p>{% endif %}
+      </div>
+
+      <!-- Vetëm për rroge -->
+      <div id="seksioniRroge" style="display:none;">
+        <div class="grid-2" style="margin-top:16px;">
+          <div class="forma-grup">
+            <label>{{ form.stafi.label }}</label>
+            {% render_field form.stafi %}
+            {% if form.stafi.errors %}<p class="gabim-fusha">{{ form.stafi.errors.0 }}</p>{% endif %}
+          </div>
+          <div class="forma-grup">
+            <label>{{ form.muaji.label }}</label>
+            {% render_field form.muaji %}
+          </div>
+        </div>
+      </div>
+
+      <!-- Vetëm për harxhime të tjera -->
+      <div id="seksioniTjeter" style="margin-top:16px;">
+        <div class="forma-grup">
+          <label>{{ form.pershkrimi.label }}</label>
+          {% render_field form.pershkrimi placeholder="p.sh. Pagesa e rrymës elektrike — Janar 2026, blerja e carpet-it..." %}
+          {% if form.pershkrimi.errors %}<p class="gabim-fusha">{{ form.pershkrimi.errors.0 }}</p>{% endif %}
+        </div>
+      </div>
+
+      <div style="margin-top:12px; padding:10px 14px; border-radius:10px; font-size:13px;" id="buxhetiInfo">
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:20px;">
+    <div class="card-header"><h5>💶 Shuma & Data</h5></div>
+    <div class="card-body">
+      <div class="grid-2">
+        <div class="forma-grup">
+          <label>{{ form.shuma_eur.label }}</label>
+          {% render_field form.shuma_eur id="id_shuma_eur_hrx" placeholder="0.00" %}
+          {% if form.shuma_eur.errors %}<p class="gabim-fusha">{{ form.shuma_eur.errors.0 }}</p>{% endif %}
+        </div>
+        <div class="forma-grup">
+          <label>{{ form.viti.label }}</label>
+          {% render_field form.viti %}
+          {% if form.viti.errors %}<p class="gabim-fusha">{{ form.viti.errors.0 }}</p>{% endif %}
+        </div>
+        <div class="forma-grup">
+          <label>{{ form.data_pageses.label }}</label>
+          {% render_field form.data_pageses %}
+          {% if form.data_pageses.errors %}<p class="gabim-fusha">{{ form.data_pageses.errors.0 }}</p>{% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:20px;">
+    <div class="card-header">
+      <h5>🪙 Pagesa në Denar MKD (Opsionale)</h5>
+      <span id="kursiStatus" style="font-size:12px; color:var(--tekst-dytësor);">Duke ngarkuar kursin...</span>
+    </div>
+    <div class="card-body">
+      <div class="grid-2">
+        <div class="forma-grup">
+          <label>{{ form.shuma_mkd.label }}</label>
+          {% render_field form.shuma_mkd id="id_shuma_mkd_hrx" placeholder="0.00" %}
+        </div>
+        <div class="forma-grup">
+          <label>{{ form.kursi_denar.label }}</label>
+          {% render_field form.kursi_denar id="id_kursi_hrx" placeholder="61.50" %}
+        </div>
+      </div>
+      <div id="mkdInfo" style="display:none; padding:10px 14px; background:var(--krem-errët); border-radius:10px; font-size:13px; color:var(--tekst-dytësor);">
+        <strong>Kursi aktuall:</strong> 1 EUR = <span id="kursiVlera">—</span> MKD &nbsp;|&nbsp;
+        Shuma e plotë: <strong><span id="mkdEquiv">—</span> MKD</strong>
+      </div>
+    </div>
+  </div>
+
+  <div class="flex gap-3">
+    <button type="submit" class="btn-rrezik">📤 Regjistro Harxhimin</button>
+    <a href="{% url 'lista_harxhimeve' %}" class="btn-dytësor">Anulo</a>
+  </div>
+</form>
+{% endblock %}
+
+{% block skripte %}
+<script>
+const llojiSelect = document.getElementById('id_lloji');
+const seksioniRroge = document.getElementById('seksioniRroge');
+const seksioniTjeter = document.getElementById('seksioniTjeter');
+const buxhetiInfo = document.getElementById('buxhetiInfo');
+
+const infoBuxheti = {
+  'RROGE': { tekst: '💼 Rroga paguhet nga buxheti i <strong>Antarësisë</strong>.', bg: 'rgba(52,199,89,0.08)', color: 'var(--gjelbër)' },
+  'MIREMBAJTJE': { tekst: '🏛️ Mirëmbajtja paguhet nga <strong>Fondi</strong> i xhamisë.', bg: 'rgba(107,68,35,0.08)', color: 'var(--kafe)' },
+  'RRYME': { tekst: '⚡ Rrymë elektrike — nga <strong>Fondi</strong>.', bg: 'rgba(107,68,35,0.08)', color: 'var(--kafe)' },
+  'UJI': { tekst: '💧 Ujë — nga <strong>Fondi</strong>.', bg: 'rgba(107,68,35,0.08)', color: 'var(--kafe)' },
+  'NXEMJE': { tekst: '🔥 Nxemje / Naftë — nga <strong>Fondi</strong>.', bg: 'rgba(107,68,35,0.08)', color: 'var(--kafe)' },
+  'INTERNET': { tekst: '🌐 Internet — nga <strong>Fondi</strong>.', bg: 'rgba(107,68,35,0.08)', color: 'var(--kafe)' },
+  'TJETER': { tekst: '📌 Harxhim tjetër — nga <strong>Fondi</strong>.', bg: 'rgba(107,68,35,0.08)', color: 'var(--kafe)' },
+};
+
+function updateLloji() {
+  const v = llojiSelect.value;
+  seksioniRroge.style.display = v === 'RROGE' ? 'block' : 'none';
+  seksioniTjeter.style.display = v === 'RROGE' ? 'none' : 'block';
+  if (infoBuxheti[v]) {
+    buxhetiInfo.style.background = infoBuxheti[v].bg;
+    buxhetiInfo.style.color = infoBuxheti[v].color;
+    buxhetiInfo.innerHTML = infoBuxheti[v].tekst;
+    buxhetiInfo.style.display = 'block';
+  }
+}
+llojiSelect.addEventListener('change', updateLloji);
+updateLloji();
+
+// MKD konvertor
+const shumaInput = document.getElementById('id_shuma_eur_hrx');
+const shumaMkdInput = document.getElementById('id_shuma_mkd_hrx');
+const kursiInput = document.getElementById('id_kursi_hrx');
+const mkdInfo = document.getElementById('mkdInfo');
+const kursiStatus = document.getElementById('kursiStatus');
+let kursAktual = 0;
+
+fetch('https://api.frankfurter.app/latest?from=EUR&to=MKD')
+  .then(r => r.json())
+  .then(data => {
+    kursAktual = data.rates.MKD;
+    kursiInput.value = kursAktual.toFixed(4);
+    document.getElementById('kursiVlera').textContent = kursAktual.toFixed(2);
+    kursiStatus.textContent = `1 EUR = ${kursAktual.toFixed(2)} MKD (${data.date})`;
+    mkdInfo.style.display = 'block';
+    calcMKD();
+  })
+  .catch(() => { kursiStatus.textContent = 'Kursi nuk u ngarku (offline)'; });
+
+function calcMKD() {
+  const eur = parseFloat(shumaInput.value) || 0;
+  const kurs = parseFloat(kursiInput.value) || kursAktual;
+  if (eur > 0 && kurs > 0) {
+    const mkd = (eur * kurs).toFixed(2);
+    document.getElementById('mkdEquiv').textContent = mkd;
+    if (!shumaMkdInput.value) shumaMkdInput.value = mkd;
+  }
+}
+shumaInput.addEventListener('input', calcMKD);
+kursiInput.addEventListener('input', calcMKD);
+</script>
+{% endblock %}

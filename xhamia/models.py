@@ -165,6 +165,8 @@ class PagesaAntaresia(models.Model):
         verbose_name='Arktar'
     )
     shenime = models.TextField(blank=True, verbose_name='Shënime')
+    shuma_mkd = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, verbose_name='Shuma (MKD)')
+    kursi_denar = models.DecimalField(max_digits=8, decimal_places=4, null=True, blank=True, verbose_name='Kursi EUR/MKD')
     data_regjistrimit = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -193,6 +195,8 @@ class PagesaFondi(models.Model):
         verbose_name='Arktar'
     )
     shenime = models.TextField(blank=True, verbose_name='Shënime')
+    shuma_mkd = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, verbose_name='Shuma (MKD)')
+    kursi_denar = models.DecimalField(max_digits=8, decimal_places=4, null=True, blank=True, verbose_name='Kursi EUR/MKD')
     data_regjistrimit = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -202,3 +206,79 @@ class PagesaFondi(models.Model):
 
     def __str__(self):
         return f"{self.nr_fatures} — {self.emri_donatorit} {self.mbiemri_donatorit} — {self.shuma}€"
+
+
+def gjenero_nr_fature_harxhim():
+    viti = timezone.now().year
+    prefix = f"XP-HRX-{viti}-"
+    last = Harxhimi.objects.filter(nr_fatures__startswith=prefix).order_by('nr_fatures').last()
+    if last:
+        nr = int(last.nr_fatures.split('-')[-1]) + 1
+    else:
+        nr = 1
+    return f"{prefix}{nr:04d}"
+
+
+class Harxhimi(models.Model):
+    LLOJI_CHOICES = [
+        ('RROGE', 'Rroge Stafi'),
+        ('MIREMBAJTJE', 'Mirëmbajtje'),
+        ('RRYME', 'Rrymë Elektrike'),
+        ('UJI', 'Ujë'),
+        ('NXEMJE', 'Nxemje / Naftë'),
+        ('INTERNET', 'Internet'),
+        ('TJETER', 'Tjetër'),
+    ]
+    BURIMI_CHOICES = [
+        ('ANTARESIA', 'Antarësia (Rrogat)'),
+        ('FONDI', 'Fondi i Xhamisë'),
+    ]
+    MUAJT_MAP = {
+        1: 'Janar', 2: 'Shkurt', 3: 'Mars', 4: 'Prill',
+        5: 'Maj', 6: 'Qershor', 7: 'Korrik', 8: 'Gusht',
+        9: 'Shtator', 10: 'Tetor', 11: 'Nëntor', 12: 'Dhjetor',
+    }
+
+    nr_fatures = models.CharField(
+        max_length=25, unique=True, default=gjenero_nr_fature_harxhim,
+        verbose_name='Nr. Dokumentit'
+    )
+    lloji = models.CharField(max_length=20, choices=LLOJI_CHOICES, verbose_name='Lloji')
+    burimi = models.CharField(
+        max_length=20, choices=BURIMI_CHOICES, default='FONDI',
+        verbose_name='Buxheti'
+    )
+    stafi = models.ForeignKey(
+        User, null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='rrogat_e_marra', verbose_name='Stafi (rroge)'
+    )
+    pershkrimi = models.TextField(blank=True, verbose_name='Përshkrimi')
+    shuma_eur = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='Shuma (€)')
+    shuma_mkd = models.DecimalField(
+        max_digits=12, decimal_places=2, null=True, blank=True,
+        verbose_name='Shuma (MKD)'
+    )
+    kursi_denar = models.DecimalField(
+        max_digits=8, decimal_places=4, null=True, blank=True,
+        verbose_name='Kursi EUR/MKD'
+    )
+    muaji = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name='Muaji')
+    viti = models.PositiveSmallIntegerField(verbose_name='Viti')
+    data_pageses = models.DateField(verbose_name='Data')
+    arktar = models.ForeignKey(
+        User, on_delete=models.PROTECT,
+        related_name='harxhimet_regjistruara', verbose_name='Regjistruar nga'
+    )
+    data_regjistrimit = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-data_pageses']
+        verbose_name = 'Harxhim'
+        verbose_name_plural = 'Harxhimet'
+
+    def __str__(self):
+        return f"{self.nr_fatures} — {self.get_lloji_display()} — {self.shuma_eur}€"
+
+    @property
+    def emri_muajit(self):
+        return self.MUAJT_MAP.get(self.muaji, '') if self.muaji else ''

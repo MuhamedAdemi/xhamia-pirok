@@ -10,8 +10,14 @@
       <p>Pagesë Antarësia — {{ pagese.shtepia }}</p>
     </div>
   </div>
-  <div class="flex gap-3">
+  <div class="flex gap-3" style="flex-wrap:wrap;">
     <a href="{% url 'fatura_antaresia_pdf' pagese.pk %}" class="btn-kryesor" target="_blank">🖨️ Shiko Faturën PDF</a>
+    {% if pagese.shtepia.email %}
+    <form method="post" action="{% url 'dergo_email_antaresia' pagese.pk %}" style="display:inline;">
+      {% csrf_token %}
+      <button type="submit" class="btn-dytësor">📧 Dërgo Email</button>
+    </form>
+    {% endif %}
     {% if request.user.profili.është_admin %}
     <a href="{% url 'fshi_pagese_antaresia' pagese.pk %}" class="btn-rrezik">Fshi</a>
     {% endif %}
@@ -42,7 +48,12 @@
         </tr>
         <tr>
           <td style="padding:10px 0; color:var(--tekst-dytësor); font-size:13px;">Shuma</td>
-          <td style="padding:10px 0; font-size:22px; font-weight:700; color:var(--gjelbër);">{{ pagese.shuma_paguar }}€</td>
+          <td style="padding:10px 0;">
+            <span style="font-size:22px; font-weight:700; color:var(--gjelbër);">{{ pagese.shuma_paguar }}€</span>
+            {% if pagese.shuma_mkd %}
+            <span style="font-size:13px; color:var(--tekst-dytësor); margin-left:8px;">≈ {{ pagese.shuma_mkd }} MKD{% if pagese.kursi_denar %} (1€={{ pagese.kursi_denar }} MKD){% endif %}</span>
+            {% endif %}
+          </td>
         </tr>
         <tr>
           <td style="padding:10px 0; color:var(--tekst-dytësor); font-size:13px;">Periudha</td>

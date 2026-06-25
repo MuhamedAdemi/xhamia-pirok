@@ -1,6 +1,6 @@
 from django import forms
 from django.contrib.auth.models import User
-from .models import ProfilStafi, Kategoria, Shtepia, PagesaAntaresia, PagesaFondi
+from .models import ProfilStafi, Kategoria, Shtepia, PagesaAntaresia, PagesaFondi, Harxhimi
 
 
 MUAJT = [
@@ -95,7 +95,7 @@ class PagesaAntaresiaForm(forms.ModelForm):
         fields = [
             'shtepia', 'kategoria_pageses', 'shuma_paguar',
             'periudha', 'viti', 'muaji_fillimit', 'muaji_mbarimit',
-            'data_pageses', 'shenime',
+            'data_pageses', 'shenime', 'shuma_mkd', 'kursi_denar',
         ]
         widgets = {
             'data_pageses': forms.DateInput(attrs={'type': 'date'}),
@@ -109,6 +109,8 @@ class PagesaAntaresiaForm(forms.ModelForm):
             'viti': 'Viti',
             'data_pageses': 'Data e Pagesës',
             'shenime': 'Shënime',
+            'shuma_mkd': 'Shuma (MKD)',
+            'kursi_denar': 'Kursi EUR/MKD',
         }
 
 
@@ -119,6 +121,7 @@ class PagesaFondiForm(forms.ModelForm):
             'emri_donatorit', 'mbiemri_donatorit',
             'email_donatorit', 'nr_telefoni',
             'shuma', 'data_pageses', 'arsyeja', 'shenime',
+            'shuma_mkd', 'kursi_denar',
         ]
         widgets = {
             'data_pageses': forms.DateInput(attrs={'type': 'date'}),
@@ -134,4 +137,50 @@ class PagesaFondiForm(forms.ModelForm):
             'data_pageses': 'Data e Pagesës',
             'arsyeja': 'Arsyeja / Qëllimi',
             'shenime': 'Shënime',
+            'shuma_mkd': 'Shuma (MKD)',
+            'kursi_denar': 'Kursi EUR/MKD',
+        }
+
+
+class HarxhimiForm(forms.ModelForm):
+    muaji = forms.ChoiceField(
+        choices=[('', '—')] + list(MUAJT),
+        required=False, label='Muaji (vetëm për rroge)'
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['stafi'].queryset = User.objects.filter(
+            profili__isnull=False, profili__është_aktiv=True
+        ).order_by('last_name', 'first_name')
+        self.fields['stafi'].required = False
+        self.fields['shuma_mkd'].required = False
+        self.fields['kursi_denar'].required = False
+
+    def clean_muaji(self):
+        val = self.cleaned_data.get('muaji')
+        return int(val) if val else None
+
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get('lloji') == 'RROGE' and not cleaned.get('stafi'):
+            self.add_error('stafi', 'Zgjidhni stafin për pagesën e rrogës.')
+        return cleaned
+
+    class Meta:
+        model = Harxhimi
+        fields = [
+            'lloji', 'stafi', 'muaji', 'viti', 'data_pageses',
+            'pershkrimi', 'shuma_eur', 'shuma_mkd', 'kursi_denar',
+        ]
+        widgets = {
+            'pershkrimi': forms.Textarea(attrs={'rows': 3}),
+            'data_pageses': forms.DateInput(attrs={'type': 'date'}),
+        }
+        labels = {
+            'lloji': 'Lloji i Harxhimit',
+            'stafi': 'Stafi (vetëm për rroge)',
+            'shuma_eur': 'Shuma (€)',
+            'shuma_mkd': 'Shuma (MKD) — Opsionale',
+            'kursi_denar': 'Kursi EUR/MKD',
         }

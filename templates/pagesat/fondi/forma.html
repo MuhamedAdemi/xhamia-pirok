@@ -65,10 +65,73 @@
     </div>
   </div>
 
+  <div class="card" style="margin-bottom:20px;">
+    <div class="card-header">
+      <h5>🪙 Pagesa në Denar MKD (Opsionale)</h5>
+      <span id="kursiStatus" style="font-size:12px; color:var(--tekst-dytësor);">Duke ngarkuar kursin...</span>
+    </div>
+    <div class="card-body">
+      <div class="grid-2">
+        <div class="forma-grup">
+          <label>{{ form.shuma_mkd.label }}</label>
+          {% render_field form.shuma_mkd id="id_shuma_mkd_fond" placeholder="0.00" %}
+          <p class="ndihma">Lëre bosh nëse pagesa u bë në Euro direkt.</p>
+        </div>
+        <div class="forma-grup">
+          <label>{{ form.kursi_denar.label }}</label>
+          {% render_field form.kursi_denar id="id_kursi_fond" placeholder="61.50" %}
+          <p class="ndihma">Kursi i ditës nga Banka Qendrore.</p>
+        </div>
+      </div>
+      <div id="mkdInfo" style="display:none; padding:10px 14px; background:var(--krem-errët); border-radius:10px; font-size:13px; color:var(--tekst-dytësor);">
+        <strong>Kursi aktuall:</strong> 1 EUR = <span id="kursiVlera">—</span> MKD &nbsp;|&nbsp;
+        Shuma e plotë: <strong><span id="mkdEquiv">—</span> MKD</strong>
+      </div>
+    </div>
+  </div>
+
   <div class="flex gap-3">
-    <button type="submit" class="btn-kryesor">✅ Regjistro & Dërgo Email</button>
+    <button type="submit" class="btn-kryesor">✅ Regjistro Donacionin</button>
     <a href="{% url 'lista_pagesa_fondi' %}" class="btn-dytësor">Anulo</a>
   </div>
 </form>
+{% endblock %}
+
+{% block skripte %}
+<script>
+const shumaInput = document.querySelector('[name="shuma"]');
+const shumaMkdInput = document.getElementById('id_shuma_mkd_fond');
+const kursiInput = document.getElementById('id_kursi_fond');
+const mkdInfo = document.getElementById('mkdInfo');
+const kursiVlera = document.getElementById('kursiVlera');
+const mkdEquiv = document.getElementById('mkdEquiv');
+const kursiStatus = document.getElementById('kursiStatus');
+
+let kursAktual = 0;
+
+fetch('https://api.frankfurter.app/latest?from=EUR&to=MKD')
+  .then(r => r.json())
+  .then(data => {
+    kursAktual = data.rates.MKD;
+    kursiInput.value = kursAktual.toFixed(4);
+    kursiVlera.textContent = kursAktual.toFixed(2);
+    kursiStatus.textContent = `1 EUR = ${kursAktual.toFixed(2)} MKD (${data.date})`;
+    mkdInfo.style.display = 'block';
+    calcMKD();
+  })
+  .catch(() => { kursiStatus.textContent = 'Kursi nuk u ngarku (offline)'; });
+
+function calcMKD() {
+  const eur = parseFloat(shumaInput.value) || 0;
+  const kurs = parseFloat(kursiInput.value) || kursAktual;
+  if (eur > 0 && kurs > 0) {
+    const mkd = (eur * kurs).toFixed(2);
+    mkdEquiv.textContent = mkd;
+    if (!shumaMkdInput.value) shumaMkdInput.value = mkd;
+  }
+}
+shumaInput.addEventListener('input', calcMKD);
+kursiInput.addEventListener('input', calcMKD);
+</script>
 {% endblock %}
 

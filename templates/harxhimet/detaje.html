@@ -1,0 +1,84 @@
+{% extends 'base.html' %}
+{% block titulli %}{{ harxhim.nr_fatures }} — Xhamia Pirok{% endblock %}
+
+{% block kontent %}
+<div class="page-header">
+  <div class="flex items-center gap-3">
+    <a href="{% url 'lista_harxhimeve' %}" class="btn-dytësor btn-sm">← Kthehu</a>
+    <div>
+      <h2>{{ harxhim.nr_fatures }}</h2>
+      <p>{{ harxhim.get_lloji_display }} — {{ harxhim.data_pageses|date:"d F Y" }}</p>
+    </div>
+  </div>
+  <div class="flex gap-3">
+    <a href="{% url 'fshi_harxhimin' harxhim.pk %}" class="btn-rrezik">Fshi</a>
+  </div>
+</div>
+
+<div style="max-width:640px;">
+  <div class="card">
+    <div class="card-header"><h5>📤 Detajet e Harxhimit</h5></div>
+    <div class="card-body">
+      <table style="width:100%; border-collapse:collapse;">
+        <tr>
+          <td style="padding:10px 0; color:var(--tekst-dytësor); font-size:13px; width:35%;">Nr. Dokumentit</td>
+          <td style="padding:10px 0; font-family:monospace; font-weight:700; color:var(--gabim);">{{ harxhim.nr_fatures }}</td>
+        </tr>
+        <tr>
+          <td style="padding:10px 0; color:var(--tekst-dytësor); font-size:13px;">Lloji</td>
+          <td style="padding:10px 0;"><span class="badge-gri">{{ harxhim.get_lloji_display }}</span></td>
+        </tr>
+        <tr>
+          <td style="padding:10px 0; color:var(--tekst-dytësor); font-size:13px;">Buxheti</td>
+          <td style="padding:10px 0;">
+            {% if harxhim.burimi == 'ANTARESIA' %}
+            <span class="badge-gjelbër">Antarësia (Rrogat)</span>
+            {% else %}
+            <span style="background:rgba(107,68,35,0.1); color:var(--kafe); padding:3px 10px; border-radius:20px; font-size:12px; font-weight:600;">Fondi i Xhamisë</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% if harxhim.stafi %}
+        <tr>
+          <td style="padding:10px 0; color:var(--tekst-dytësor); font-size:13px;">Stafi</td>
+          <td style="padding:10px 0; font-weight:600;">{{ harxhim.stafi.get_full_name }}</td>
+        </tr>
+        {% endif %}
+        {% if harxhim.emri_muajit %}
+        <tr>
+          <td style="padding:10px 0; color:var(--tekst-dytësor); font-size:13px;">Muaji</td>
+          <td style="padding:10px 0; font-weight:600;">{{ harxhim.emri_muajit }} {{ harxhim.viti }}</td>
+        </tr>
+        {% endif %}
+        {% if harxhim.pershkrimi %}
+        <tr>
+          <td style="padding:10px 0; color:var(--tekst-dytësor); font-size:13px;">Përshkrimi</td>
+          <td style="padding:10px 0;">{{ harxhim.pershkrimi }}</td>
+        </tr>
+        {% endif %}
+        <tr>
+          <td style="padding:10px 0; color:var(--tekst-dytësor); font-size:13px;">Shuma</td>
+          <td style="padding:10px 0;">
+            <span style="font-size:26px; font-weight:800; color:var(--gabim);">{{ harxhim.shuma_eur }}€</span>
+            {% if harxhim.shuma_mkd %}
+            <span style="font-size:13px; color:var(--tekst-dytësor); margin-left:8px;">≈ {{ harxhim.shuma_mkd }} MKD{% if harxhim.kursi_denar %} (1€={{ harxhim.kursi_denar }} MKD){% endif %}</span>
+            {% endif %}
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:10px 0; color:var(--tekst-dytësor); font-size:13px;">Data</td>
+          <td style="padding:10px 0; font-weight:600;">{{ harxhim.data_pageses|date:"d F Y" }}</td>
+        </tr>
+        <tr>
+          <td style="padding:10px 0; color:var(--tekst-dytësor); font-size:13px;">Regjistruar nga</td>
+          <td style="padding:10px 0;">{{ harxhim.arktar.get_full_name }}</td>
+        </tr>
+        <tr>
+          <td style="padding:10px 0; color:var(--tekst-dytësor); font-size:13px;">Regjistruar më</td>
+          <td style="padding:10px 0; color:var(--tekst-dytësor);">{{ harxhim.data_regjistrimit|date:"d M Y, H:i" }}</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
