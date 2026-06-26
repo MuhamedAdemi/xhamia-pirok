@@ -15,7 +15,7 @@ import random
 import string
 from decimal import Decimal
 
-from .models import ProfilStafi, ProfilShtepi, Kategoria, Shtepia, PagesaAntaresia, PagesaFondi, Harxhimi
+from .models import ProfilStafi, ProfilShtepi, Kategoria, Shtepia, PagesaAntaresia, PagesaFondi, Harxhimi, gjenero_nr_shtepi
 from .forms import (
     LoginForm, StafForm, KategoriaForm, ShtepiaForm,
     PagesaAntaresiaForm, PagesaFondiForm, HarxhimiForm
@@ -292,14 +292,21 @@ def shto_shtepi(request):
     if not është_admin(request.user):
         messages.error(request, 'Nuk keni leje për këtë veprim.')
         return redirect('lista_shtepive')
-    form = ShtepiaForm(request.POST or None)
+    nr_i_ri = gjenero_nr_shtepi()
+    if request.method == 'POST':
+        form = ShtepiaForm(request.POST)
+    else:
+        form = ShtepiaForm(initial={'nr_shtepise': nr_i_ri})
     if request.method == 'POST' and form.is_valid():
         shtepi = form.save(commit=False)
         shtepi.regjistruar_nga = request.user
         shtepi.save()
         messages.success(request, f'Shtëpia #{shtepi.nr_shtepise} u regjistrua me sukses.')
         return redirect('detaje_shtepia', pk=shtepi.pk)
-    return render(request, 'shtepite/forma.html', {'form': form, 'titulli': 'Shto Shtëpi të Re', 'faqja_aktive': 'shtepite'})
+    return render(request, 'shtepite/forma.html', {
+        'form': form, 'titulli': 'Shto Shtëpi të Re',
+        'nr_i_ri': nr_i_ri, 'faqja_aktive': 'shtepite',
+    })
 
 
 @login_required
@@ -616,58 +623,70 @@ def dashboard_buxheti(request):
     viti_zgjedhur = int(request.GET.get('viti', viti_aktual))
     vitit_lista = list(range(2015, viti_aktual + 2))
 
-    hyra_antaresia = PagesaAntaresia.objects.filter(
+    # ── Antarësia ──
+    hyra_ant = PagesaAntaresia.objects.filter(
         viti=viti_zgjedhur
     ).aggregate(s=Sum('shuma_paguar'))['s'] or Decimal('0')
-
-    hyra_fondi = PagesaFondi.objects.filter(
-        data_pageses__year=viti_zgjedhur
-    ).aggregate(s=Sum('shuma'))['s'] or Decimal('0')
-
-    sh_rrogash = Harxhimi.objects.filter(
+    sh_ant = Harxhimi.objects.filter(
         viti=viti_zgjedhur, burimi='ANTARESIA'
     ).aggregate(s=Sum('shuma_eur'))['s'] or Decimal('0')
+    balanca_ant = hyra_ant - sh_ant
 
-    sh_tjera = Harxhimi.objects.filter(
+    rrogat_e_fundit = Harxhimi.objects.select_related('stafi').filter(
+        viti=viti_zgjedhur, burimi='ANTARESIA'
+    ).order_by('-data_pageses')[:6]
+
+    data_10_ant = []
+    for v in range(viti_aktual - 9, viti_aktual + 1):
+        h = float(PagesaAntaresia.objects.filter(viti=v).aggregate(s=Sum('shuma_paguar'))['s'] or 0)
+        sh = float(Harxhimi.objects.filter(viti=v, burimi='ANTARESIA').aggregate(s=Sum('shuma_eur'))['s'] or 0)
+        data_10_ant.append({'viti': v, 'hyra': h, 'shpenzime': sh})
+
+    # ── Fondi ──
+    hyra_fond = PagesaFondi.objects.filter(
+        data_pageses__year=viti_zgjedhur
+    ).aggregate(s=Sum('shuma'))['s'] or Decimal('0')
+    sh_fond = Harxhimi.objects.filter(
         viti=viti_zgjedhur, burimi='FONDI'
     ).aggregate(s=Sum('shuma_eur'))['s'] or Decimal('0')
+    balanca_fond = hyra_fond - sh_fond
 
-    total_hyra = hyra_antaresia + hyra_fondi
-    total_shpenzime = sh_rrogash + sh_tjera
-    balanca_total = total_hyra - total_shpenzime
+    shpenzimet_e_fundit = Harxhimi.objects.filter(
+        viti=viti_zgjedhur, burimi='FONDI'
+    ).order_by('-data_pageses')[:6]
 
-    harxhimet_e_fundit = Harxhimi.objects.select_related(
-        'stafi', 'arktar'
-    ).filter(viti=viti_zgjedhur).order_by('-data_pageses')[:8]
-
-    sipas_llojit = []
+    sipas_llojit_fond = []
     for lloji_val, emri in Harxhimi.LLOJI_CHOICES:
+        if lloji_val == 'RROGE':
+            continue
         shuma = Harxhimi.objects.filter(
-            viti=viti_zgjedhur, lloji=lloji_val
+            viti=viti_zgjedhur, lloji=lloji_val, burimi='FONDI'
         ).aggregate(s=Sum('shuma_eur'))['s'] or 0
         if shuma > 0:
-            sipas_llojit.append({'lloji': emri, 'shuma': float(shuma)})
+            sipas_llojit_fond.append({'lloji': emri, 'shuma': float(shuma)})
 
-    data_10_vjet = []
+    data_10_fond = []
     for v in range(viti_aktual - 9, viti_aktual + 1):
-        h = float(PagesaAntaresia.objects.filter(viti=v).aggregate(s=Sum('shuma_paguar'))['s'] or 0) + \
-            float(PagesaFondi.objects.filter(data_pageses__year=v).aggregate(s=Sum('shuma'))['s'] or 0)
-        sh = float(Harxhimi.objects.filter(viti=v).aggregate(s=Sum('shuma_eur'))['s'] or 0)
-        data_10_vjet.append({'viti': v, 'hyra': h, 'shpenzime': sh})
+        h = float(PagesaFondi.objects.filter(data_pageses__year=v).aggregate(s=Sum('shuma'))['s'] or 0)
+        sh = float(Harxhimi.objects.filter(viti=v, burimi='FONDI').aggregate(s=Sum('shuma_eur'))['s'] or 0)
+        data_10_fond.append({'viti': v, 'hyra': h, 'shpenzime': sh})
 
     return render(request, 'dashboard/buxheti.html', {
         'viti_zgjedhur': viti_zgjedhur,
         'vitit_lista': vitit_lista,
-        'hyra_antaresia': hyra_antaresia,
-        'hyra_fondi': hyra_fondi,
-        'total_hyra': total_hyra,
-        'sh_rrogash': sh_rrogash,
-        'sh_tjera': sh_tjera,
-        'total_shpenzime': total_shpenzime,
-        'balanca_total': balanca_total,
-        'harxhimet_e_fundit': harxhimet_e_fundit,
-        'sipas_llojit_json': json.dumps(sipas_llojit),
-        'data_10_vjet_json': json.dumps(data_10_vjet),
+        # Antarësia
+        'hyra_ant': hyra_ant,
+        'sh_ant': sh_ant,
+        'balanca_ant': balanca_ant,
+        'rrogat_e_fundit': rrogat_e_fundit,
+        'data_10_ant_json': json.dumps(data_10_ant),
+        # Fondi
+        'hyra_fond': hyra_fond,
+        'sh_fond': sh_fond,
+        'balanca_fond': balanca_fond,
+        'shpenzimet_e_fundit': shpenzimet_e_fundit,
+        'sipas_llojit_fond_json': json.dumps(sipas_llojit_fond),
+        'data_10_fond_json': json.dumps(data_10_fond),
         'faqja_aktive': 'buxheti',
     })
 

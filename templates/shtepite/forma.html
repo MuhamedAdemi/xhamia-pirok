@@ -21,6 +21,11 @@
           <label>{{ form.nr_shtepise.label }}</label>
           {% render_field form.nr_shtepise placeholder="p.sh. 0001" %}
           {% if form.nr_shtepise.errors %}<p class="gabim-fusha">{{ form.nr_shtepise.errors.0 }}</p>{% endif %}
+          {% if nr_i_ri %}
+          <p class="ndihma" style="margin-top:4px;">
+            ✅ Nr. <strong>{{ nr_i_ri }}</strong> u gjenerua automatikisht. Mund ta ndryshoni nëse nevojitet.
+          </p>
+          {% endif %}
         </div>
         <div class="forma-grup">
           <label>{{ form.kategoria.label }}</label>

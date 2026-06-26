@@ -113,6 +113,16 @@ class ProfilShtepi(models.Model):
         return f"sh{self.shtepia.nr_shtepise} — {self.shtepia.emri_kryefamiljarit} {self.shtepia.mbiemri_kryefamiljarit}"
 
 
+def gjenero_nr_shtepi():
+    numrat = []
+    for nr in Shtepia.objects.values_list('nr_shtepise', flat=True):
+        try:
+            numrat.append(int(nr))
+        except (ValueError, TypeError):
+            pass
+    return f"{(max(numrat) + 1) if numrat else 1:04d}"
+
+
 def gjenero_nr_fature_antaresi():
     viti = timezone.now().year
     prefix = f"XP-ANT-{viti}-"

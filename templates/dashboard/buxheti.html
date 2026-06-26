@@ -5,7 +5,7 @@
 <div class="page-header">
   <div>
     <h2>💼 Dashboard Buxheti</h2>
-    <p>Pasqyra e të hyrave dhe shpenzimeve</p>
+    <p>Pasqyra financiare — Antarësia dhe Fondi veçmas</p>
   </div>
   <div class="flex items-center gap-3">
     <form method="get" style="display:flex; gap:10px; align-items:center;">
@@ -19,101 +19,176 @@
   </div>
 </div>
 
-<!-- Balanca kryesore -->
-<div style="padding:20px 28px; border-radius:20px; margin-bottom:24px;
-  background:{% if balanca_total >= 0 %}var(--gjelbër-shumë-i-çelur){% else %}rgba(255,59,48,0.06){% endif %};
-  border:2px solid {% if balanca_total >= 0 %}var(--gjelbër){% else %}var(--gabim){% endif %};">
-  <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
-    <div style="font-size:48px;">{% if balanca_total >= 0 %}✅{% else %}⚠️{% endif %}</div>
-    <div>
-      <div style="font-size:13px; color:var(--tekst-dytësor); font-weight:500;">BALANCA TOTALE {{ viti_zgjedhur }}</div>
-      <div style="font-size:34px; font-weight:800; color:{% if balanca_total >= 0 %}var(--gjelbër){% else %}var(--gabim){% endif %};">
-        {% if balanca_total >= 0 %}+{% endif %}{{ balanca_total }}€
+<!-- ══════════════════════════════════════════════════ -->
+<!-- BUXHETI ANTARËSISË -->
+<!-- ══════════════════════════════════════════════════ -->
+<div style="border:2px solid var(--gjelbër); border-radius:20px; overflow:hidden; margin-bottom:32px;">
+
+  <!-- Titulli i seksionit -->
+  <div style="background:var(--gjelbër-shumë-i-çelur); padding:16px 24px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;">
+    <div style="display:flex; align-items:center; gap:12px;">
+      <span style="font-size:28px;">🟢</span>
+      <div>
+        <div style="font-size:18px; font-weight:800; color:var(--gjelbër);">Buxheti i Antarësisë</div>
+        <div style="font-size:12px; color:var(--tekst-dytësor);">Të hyrat nga anëtarësia · Shpenzime: Rrogat e stafit</div>
+      </div>
+    </div>
+    <div style="text-align:right;">
+      <div style="font-size:11px; color:var(--tekst-dytësor); font-weight:500; text-transform:uppercase; letter-spacing:.5px;">Balanca {{ viti_zgjedhur }}</div>
+      <div style="font-size:28px; font-weight:800; color:{% if balanca_ant >= 0 %}var(--gjelbër){% else %}var(--gabim){% endif %};">
+        {% if balanca_ant >= 0 %}+{% endif %}{{ balanca_ant }}€
+      </div>
+    </div>
+  </div>
+
+  <div style="padding:20px 24px;">
+    <!-- 3 stat cards -->
+    <div class="grid-3" style="margin-bottom:20px;">
+      <div class="stat-card gjelbër">
+        <div class="stat-label">Të Hyrat Antarësia {{ viti_zgjedhur }}</div>
+        <div class="stat-vlera gjelbër">{{ hyra_ant }}€</div>
+        <div class="stat-nën">Pagesat e anëtarësisë</div>
+      </div>
+      <div class="stat-card" style="background:rgba(255,59,48,0.04); border-color:rgba(255,59,48,0.15);">
+        <div class="stat-label">Rrogat e Stafit {{ viti_zgjedhur }}</div>
+        <div class="stat-vlera" style="color:var(--gabim);">{{ sh_ant }}€</div>
+        <div class="stat-nën">Nga buxheti i antarësisë</div>
+      </div>
+      <div class="stat-card" style="background:{% if balanca_ant >= 0 %}var(--gjelbër-shumë-i-çelur){% else %}rgba(255,59,48,0.04){% endif %}; border-color:{% if balanca_ant >= 0 %}var(--gjelbër){% else %}var(--gabim){% endif %};">
+        <div class="stat-label">Balanca Antarësia</div>
+        <div class="stat-vlera" style="color:{% if balanca_ant >= 0 %}var(--gjelbër){% else %}var(--gabim){% endif %};">
+          {% if balanca_ant >= 0 %}+{% endif %}{{ balanca_ant }}€
+        </div>
+        <div class="stat-nën">Pas pagimit të rrogave</div>
+      </div>
+    </div>
+
+    <!-- Grafiku + rrogat e fundit -->
+    <div class="grid-2">
+      <div class="card" style="border:1.5px solid rgba(45,90,27,0.2);">
+        <div class="card-header"><h5>📊 Antarësia 10 Vjet</h5></div>
+        <div class="card-body">
+          <canvas id="grafikuAnt" height="220"></canvas>
+        </div>
+      </div>
+      <div class="card" style="border:1.5px solid rgba(45,90,27,0.2);">
+        <div class="card-header">
+          <h5>👔 Rrogat e Fundit — {{ viti_zgjedhur }}</h5>
+          <a href="{% url 'lista_harxhimeve' %}?viti={{ viti_zgjedhur }}&lloji=RROGE" class="btn-dytësor btn-sm">Shih të gjitha</a>
+        </div>
+        <div style="overflow-x:auto;">
+          <table class="tabela-xhami">
+            <thead>
+              <tr><th>Nr. Dok.</th><th>Stafi</th><th>Muaji</th><th>Shuma</th></tr>
+            </thead>
+            <tbody>
+              {% for h in rrogat_e_fundit %}
+              <tr>
+                <td><a href="{% url 'detaje_harxhimi' h.pk %}" style="font-family:monospace; font-size:12px; color:var(--gabim); font-weight:700;">{{ h.nr_fatures }}</a></td>
+                <td>{% if h.stafi %}{{ h.stafi.get_full_name }}{% else %}—{% endif %}</td>
+                <td class="tekst-dytësor">{% if h.emri_muajit %}{{ h.emri_muajit }} {{ h.viti }}{% else %}—{% endif %}</td>
+                <td style="font-weight:700; color:var(--gabim);">{{ h.shuma_eur }}€</td>
+              </tr>
+              {% empty %}
+              <tr><td colspan="4" style="text-align:center; padding:20px; color:var(--tekst-dytësor); font-size:13px;">Nuk ka rrogë të regjistruar.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   </div>
 </div>
 
-<!-- Statistikat -->
-<div class="grid-4" style="margin-bottom:24px;">
-  <div class="stat-card gjelbër">
-    <div class="stat-label">Të Hyrat {{ viti_zgjedhur }}</div>
-    <div class="stat-vlera gjelbër">{{ total_hyra }}€</div>
-    <div class="stat-nën">Ant. {{ hyra_antaresia }}€ + Fond. {{ hyra_fondi }}€</div>
-  </div>
-  <div class="stat-card" style="background:rgba(255,59,48,0.04); border-color:rgba(255,59,48,0.15);">
-    <div class="stat-label">Harxhimet {{ viti_zgjedhur }}</div>
-    <div class="stat-vlera" style="color:var(--gabim);">{{ total_shpenzime }}€</div>
-    <div class="stat-nën">Rroga {{ sh_rrogash }}€ + Tjera {{ sh_tjera }}€</div>
-  </div>
-  <div class="stat-card gjelbër">
-    <div class="stat-label">Balanca Antarësia</div>
-    <div class="stat-vlera {% if hyra_antaresia >= sh_rrogash %}gjelbër{% else %}" style="color:var(--gabim){% endif %};">
-      {{ hyra_antaresia|floatformat:2 }}€ − {{ sh_rrogash }}€
-    </div>
-    <div class="stat-nën">Pas pagimit të rrogave</div>
-  </div>
-  <div class="stat-card kafe">
-    <div class="stat-label">Balanca Fondi</div>
-    <div class="stat-vlera kafe">{{ hyra_fondi|floatformat:2 }}€ − {{ sh_tjera }}€</div>
-    <div class="stat-nën">Pas shpenzimeve të mirëmbajtjes</div>
-  </div>
-</div>
 
-<!-- Grafiket -->
-<div class="grid-2" style="margin-bottom:24px;">
-  <div class="card">
-    <div class="card-header"><h5>📊 Të Hyrat vs Harxhimet (10 Vjet)</h5></div>
-    <div class="card-body">
-      <canvas id="grafikuBuxheti" height="250"></canvas>
+<!-- ══════════════════════════════════════════════════ -->
+<!-- BUXHETI I FONDIT -->
+<!-- ══════════════════════════════════════════════════ -->
+<div style="border:2px solid var(--kafe); border-radius:20px; overflow:hidden; margin-bottom:32px;">
+
+  <!-- Titulli i seksionit -->
+  <div style="background:rgba(107,68,35,0.06); padding:16px 24px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;">
+    <div style="display:flex; align-items:center; gap:12px;">
+      <span style="font-size:28px;">🟤</span>
+      <div>
+        <div style="font-size:18px; font-weight:800; color:var(--kafe);">Buxheti i Fondit</div>
+        <div style="font-size:12px; color:var(--tekst-dytësor);">Të hyrat nga donacionet · Shpenzime: Mirëmbajtja, Rrymë, Ujë, Nxemje…</div>
+      </div>
     </div>
-  </div>
-  <div class="card">
-    <div class="card-header"><h5>🔴 Sipas Llojit të Harxhimit {{ viti_zgjedhur }}</h5></div>
-    <div class="card-body">
-      <canvas id="grafikuLloji" height="250"></canvas>
-      <div id="asnjeLloji" style="display:none; text-align:center; padding:40px; color:var(--tekst-dytësor); font-size:14px;">
-        Nuk ka harxhime të regjistruara për {{ viti_zgjedhur }}.
+    <div style="text-align:right;">
+      <div style="font-size:11px; color:var(--tekst-dytësor); font-weight:500; text-transform:uppercase; letter-spacing:.5px;">Balanca {{ viti_zgjedhur }}</div>
+      <div style="font-size:28px; font-weight:800; color:{% if balanca_fond >= 0 %}var(--kafe){% else %}var(--gabim){% endif %};">
+        {% if balanca_fond >= 0 %}+{% endif %}{{ balanca_fond }}€
       </div>
     </div>
   </div>
-</div>
 
-<!-- Harxhimet e fundit -->
-<div class="card">
-  <div class="card-header">
-    <h5>🕐 Harxhimet e Fundit — {{ viti_zgjedhur }}</h5>
-    <a href="{% url 'lista_harxhimeve' %}?viti={{ viti_zgjedhur }}" class="btn-dytësor btn-sm">Shih të gjitha</a>
-  </div>
-  <div style="overflow-x:auto;">
-    <table class="tabela-xhami">
-      <thead>
-        <tr>
-          <th>Nr. Dok.</th>
-          <th>Lloji</th>
-          <th>Stafi / Përshkrimi</th>
-          <th>Shuma</th>
-          <th>Data</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for h in harxhimet_e_fundit %}
-        <tr>
-          <td><a href="{% url 'detaje_harxhimi' h.pk %}" style="font-family:monospace; font-weight:700; color:var(--gabim);">{{ h.nr_fatures }}</a></td>
-          <td><span class="badge-gri">{{ h.get_lloji_display }}</span></td>
-          <td>
-            {% if h.stafi %}{{ h.stafi.get_full_name }}{% if h.emri_muajit %} — {{ h.emri_muajit }}{% endif %}
-            {% elif h.pershkrimi %}{{ h.pershkrimi|truncatechars:40 }}
-            {% else %}—{% endif %}
-          </td>
-          <td style="font-weight:700; color:var(--gabim);">{{ h.shuma_eur }}€</td>
-          <td class="tekst-dytësor">{{ h.data_pageses|date:"d M Y" }}</td>
-        </tr>
-        {% empty %}
-        <tr><td colspan="5" style="text-align:center; padding:30px; color:var(--tekst-dytësor);">Nuk ka harxhime.</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
+  <div style="padding:20px 24px;">
+    <!-- 3 stat cards -->
+    <div class="grid-3" style="margin-bottom:20px;">
+      <div class="stat-card kafe">
+        <div class="stat-label">Të Hyrat Fondi {{ viti_zgjedhur }}</div>
+        <div class="stat-vlera kafe">{{ hyra_fond }}€</div>
+        <div class="stat-nën">Donacionet e xhamisë</div>
+      </div>
+      <div class="stat-card" style="background:rgba(255,59,48,0.04); border-color:rgba(255,59,48,0.15);">
+        <div class="stat-label">Shpenzimet Fondi {{ viti_zgjedhur }}</div>
+        <div class="stat-vlera" style="color:var(--gabim);">{{ sh_fond }}€</div>
+        <div class="stat-nën">Mirëmbajtja dhe shërbimet</div>
+      </div>
+      <div class="stat-card" style="background:{% if balanca_fond >= 0 %}rgba(107,68,35,0.06){% else %}rgba(255,59,48,0.04){% endif %}; border-color:{% if balanca_fond >= 0 %}var(--kafe){% else %}var(--gabim){% endif %};">
+        <div class="stat-label">Balanca Fondi</div>
+        <div class="stat-vlera" style="color:{% if balanca_fond >= 0 %}var(--kafe){% else %}var(--gabim){% endif %};">
+          {% if balanca_fond >= 0 %}+{% endif %}{{ balanca_fond }}€
+        </div>
+        <div class="stat-nën">Pas shpenzimeve të fondit</div>
+      </div>
+    </div>
+
+    <!-- Grafiku + shpenzimet e fundit -->
+    <div class="grid-2">
+      <div class="card" style="border:1.5px solid rgba(107,68,35,0.2);">
+        <div class="card-header"><h5>📊 Fondi 10 Vjet</h5></div>
+        <div class="card-body">
+          <canvas id="grafikuFond" height="220"></canvas>
+        </div>
+      </div>
+      <div class="card" style="border:1.5px solid rgba(107,68,35,0.2);">
+        <div class="card-header">
+          <h5>🏛️ Shpenzimet e Fundit — {{ viti_zgjedhur }}</h5>
+          <a href="{% url 'lista_harxhimeve' %}?viti={{ viti_zgjedhur }}" class="btn-dytësor btn-sm">Shih të gjitha</a>
+        </div>
+        <div style="overflow-x:auto;">
+          <table class="tabela-xhami">
+            <thead>
+              <tr><th>Nr. Dok.</th><th>Lloji</th><th>Shuma</th><th>Data</th></tr>
+            </thead>
+            <tbody>
+              {% for h in shpenzimet_e_fundit %}
+              <tr>
+                <td><a href="{% url 'detaje_harxhimi' h.pk %}" style="font-family:monospace; font-size:12px; color:var(--gabim); font-weight:700;">{{ h.nr_fatures }}</a></td>
+                <td><span class="badge-gri">{{ h.get_lloji_display }}</span></td>
+                <td style="font-weight:700; color:var(--gabim);">{{ h.shuma_eur }}€</td>
+                <td class="tekst-dytësor">{{ h.data_pageses|date:"d M Y" }}</td>
+              </tr>
+              {% empty %}
+              <tr><td colspan="4" style="text-align:center; padding:20px; color:var(--tekst-dytësor); font-size:13px;">Nuk ka shpenzime të regjistruara.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Grafiku sipas llojit -->
+    {% if sipas_llojit_fond_json != '[]' %}
+    <div class="card" style="margin-top:20px; border:1.5px solid rgba(107,68,35,0.2);">
+      <div class="card-header"><h5>🔴 Shpenzimet Fondi Sipas Llojit — {{ viti_zgjedhur }}</h5></div>
+      <div class="card-body" style="max-width:400px; margin:0 auto;">
+        <canvas id="grafikuLlojiFond" height="250"></canvas>
+      </div>
+    </div>
+    {% endif %}
   </div>
 </div>
 {% endblock %}
@@ -121,35 +196,32 @@
 {% block skripte %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script>
-const data10Vjet = {{ data_10_vjet_json|safe }};
-const llojitData = {{ sipas_llojit_json|safe }};
+const data10Ant = {{ data_10_ant_json|safe }};
+const data10Fond = {{ data_10_fond_json|safe }};
+const llojitFond = {{ sipas_llojit_fond_json|safe }};
 
-new Chart(document.getElementById('grafikuBuxheti'), {
+new Chart(document.getElementById('grafikuAnt'), {
   type: 'bar',
   data: {
-    labels: data10Vjet.map(d => d.viti),
+    labels: data10Ant.map(d => d.viti),
     datasets: [
       {
-        label: 'Të Hyrat (€)',
-        data: data10Vjet.map(d => d.hyra),
+        label: 'Të Hyrat Antarësia (€)',
+        data: data10Ant.map(d => d.hyra),
         backgroundColor: 'rgba(45,90,27,0.65)',
-        borderRadius: 6,
-        borderWidth: 0,
+        borderRadius: 6, borderWidth: 0,
       },
       {
-        label: 'Harxhimet (€)',
-        data: data10Vjet.map(d => d.shpenzime),
+        label: 'Rrogat (€)',
+        data: data10Ant.map(d => d.shpenzime),
         backgroundColor: 'rgba(255,59,48,0.55)',
-        borderRadius: 6,
-        borderWidth: 0,
+        borderRadius: 6, borderWidth: 0,
       }
     ]
   },
   options: {
     responsive: true,
-    plugins: {
-      legend: { position: 'top', labels: { font: { family: 'Inter', size: 13 }, padding: 14 } }
-    },
+    plugins: { legend: { position: 'top', labels: { font: { family: 'Inter', size: 12 }, padding: 12 } } },
     scales: {
       y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { callback: v => v + '€' } },
       x: { grid: { display: false } }
@@ -157,16 +229,44 @@ new Chart(document.getElementById('grafikuBuxheti'), {
   }
 });
 
-if (llojitData.length > 0) {
-  new Chart(document.getElementById('grafikuLloji'), {
+new Chart(document.getElementById('grafikuFond'), {
+  type: 'bar',
+  data: {
+    labels: data10Fond.map(d => d.viti),
+    datasets: [
+      {
+        label: 'Të Hyrat Fondi (€)',
+        data: data10Fond.map(d => d.hyra),
+        backgroundColor: 'rgba(107,68,35,0.65)',
+        borderRadius: 6, borderWidth: 0,
+      },
+      {
+        label: 'Shpenzimet (€)',
+        data: data10Fond.map(d => d.shpenzime),
+        backgroundColor: 'rgba(255,59,48,0.55)',
+        borderRadius: 6, borderWidth: 0,
+      }
+    ]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { position: 'top', labels: { font: { family: 'Inter', size: 12 }, padding: 12 } } },
+    scales: {
+      y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { callback: v => v + '€' } },
+      x: { grid: { display: false } }
+    }
+  }
+});
+
+if (llojitFond.length > 0) {
+  new Chart(document.getElementById('grafikuLlojiFond'), {
     type: 'doughnut',
     data: {
-      labels: llojitData.map(d => d.lloji),
+      labels: llojitFond.map(d => d.lloji),
       datasets: [{
-        data: llojitData.map(d => d.shuma),
-        backgroundColor: ['#FF3B30', '#FF9500', '#007AFF', '#5856D6', '#34C759', '#6B4423', '#FF6B6B'],
-        borderWidth: 2,
-        borderColor: '#fff',
+        data: llojitFond.map(d => d.shuma),
+        backgroundColor: ['#FF9500', '#007AFF', '#5856D6', '#34C759', '#6B4423', '#FF6B6B'],
+        borderWidth: 2, borderColor: '#fff',
       }]
     },
     options: {
@@ -178,9 +278,6 @@ if (llojitData.length > 0) {
       cutout: '60%',
     }
   });
-} else {
-  document.getElementById('grafikuLloji').style.display = 'none';
-  document.getElementById('asnjeLloji').style.display = 'block';
 }
 </script>
 {% endblock %}
