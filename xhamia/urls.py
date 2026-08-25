@@ -1,10 +1,30 @@
 from django.urls import path
+from django.contrib.auth import views as auth_views
 from . import views
 
 urlpatterns = [
     # Auth
     path('login/', views.login_view, name='login'),
     path('logout/', views.logout_view, name='logout'),
+
+    # Rikuperimi i fjalëkalimit (me email)
+    path('fjalekalimi/rivendos/', auth_views.PasswordResetView.as_view(
+        template_name='auth/password_reset.html',
+        email_template_name='email/password_reset_email.txt',
+        html_email_template_name='email/password_reset_email.html',
+        subject_template_name='email/password_reset_subject.txt',
+        success_url='/fjalekalimi/rivendos/dergu/',
+    ), name='password_reset'),
+    path('fjalekalimi/rivendos/dergu/', auth_views.PasswordResetDoneView.as_view(
+        template_name='auth/password_reset_done.html',
+    ), name='password_reset_done'),
+    path('fjalekalimi/rivendos/<uidb64>/<token>/', auth_views.PasswordResetConfirmView.as_view(
+        template_name='auth/password_reset_confirm.html',
+        success_url='/fjalekalimi/rivendos/perfundoi/',
+    ), name='password_reset_confirm'),
+    path('fjalekalimi/rivendos/perfundoi/', auth_views.PasswordResetCompleteView.as_view(
+        template_name='auth/password_reset_complete.html',
+    ), name='password_reset_complete'),
 
     # Dashboard
     path('', views.redirect_dashboard, name='home'),
