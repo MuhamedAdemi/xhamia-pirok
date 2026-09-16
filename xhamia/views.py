@@ -10,6 +10,7 @@ from django.template.loader import render_to_string
 from django.urls import reverse
 from io import BytesIO
 from xhtml2pdf import pisa
+from openpyxl import Workbook
 import json
 import random
 import string
@@ -18,7 +19,7 @@ from decimal import Decimal
 from .models import ProfilStafi, ProfilShtepi, Kategoria, Shtepia, PagesaAntaresia, PagesaFondi, Harxhimi, gjenero_nr_shtepi
 from .forms import (
     LoginForm, StafForm, KategoriaForm, ShtepiaForm,
-    PagesaAntaresiaForm, PagesaFondiForm, HarxhimiForm
+    PagesaAntaresiaForm, PagesaFondiForm, HarxhimiForm, MUAJT
 )
 from .utils import dërgo_email_antaresia, dërgo_email_fondi
 
@@ -78,6 +79,31 @@ def mund_regjistrojë(user):
         return False
 
 
+def _shtepite_paguara_ids(viti):
+    """ID-të e shtëpive që e kanë paguar antarësinë e vitit — pagesa reale + shënimi historik (paguar_deri_viti)."""
+    actual = set(PagesaAntaresia.objects.filter(viti=viti).values_list('shtepia_id', flat=True))
+    historike = set(Shtepia.objects.filter(
+        paguar_deri_viti__gte=viti, është_aktiv=True
+    ).values_list('id', flat=True))
+    return actual | historike
+
+
+def _pergjigje_excel(emri_skedarit, koka, rreshtat):
+    wb = Workbook()
+    ws = wb.active
+    ws.append(koka)
+    for r in rreshtat:
+        ws.append(r)
+    buffer = BytesIO()
+    wb.save(buffer)
+    resp = HttpResponse(
+        buffer.getvalue(),
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    resp['Content-Disposition'] = f'attachment; filename="{emri_skedarit}"'
+    return resp
+
+
 # ─── Auth ───────────────────────────────────────────────────────────────────
 
 def login_view(request):
@@ -125,11 +151,7 @@ def dashboard_antaresia(request):
     total_shtepite = Shtepia.objects.filter(është_aktiv=True).count()
 
     # Shtëpitë që kanë paguar: actual records + historike (paguar_deri_viti)
-    actual_ids = set(PagesaAntaresia.objects.filter(viti=viti_zgjedhur).values_list('shtepia_id', flat=True))
-    historical_ids = set(Shtepia.objects.filter(
-        paguar_deri_viti__gte=viti_zgjedhur, është_aktiv=True
-    ).values_list('id', flat=True))
-    paguar_ids = actual_ids | historical_ids
+    paguar_ids = _shtepite_paguara_ids(viti_zgjedhur)
     kane_paguar = len(paguar_ids)
     nuk_kane_paguar = total_shtepite - kane_paguar
 
@@ -249,7 +271,8 @@ def lista_shtepive(request):
     kerkimi = request.GET.get('kerkimi', '')
     kategoria_id = request.GET.get('kategoria', '')
     statusi = request.GET.get('statusi', 'aktive')
-    viti_pageses = request.GET.get('viti_pageses', '')
+    viti = request.GET.get('viti', '')
+    pagesa_statusi = request.GET.get('pagesa_statusi', '')
 
     shtepite = Shtepia.objects.select_related('kategoria', 'regjistruar_nga')
 
@@ -262,19 +285,38 @@ def lista_shtepive(request):
         shtepite = shtepite.filter(
             Q(nr_shtepise__icontains=kerkimi) |
             Q(emri_kryefamiljarit__icontains=kerkimi) |
-            Q(mbiemri_kryefamiljarit__icontains=kerkimi)
+            Q(mbiemri_kryefamiljarit__icontains=kerkimi) |
+            Q(nr_telefoni_kryesor__icontains=kerkimi) |
+            Q(email__icontains=kerkimi)
         )
 
     if kategoria_id:
         shtepite = shtepite.filter(kategoria_id=kategoria_id)
 
-    if viti_pageses:
-        viti_pageses = int(viti_pageses)
-        pa_pagese = request.GET.get('pa_pagese', '')
-        if pa_pagese:
-            shtepite = shtepite.exclude(pagesat__viti=viti_pageses)
-        else:
-            shtepite = shtepite.filter(pagesat__viti=viti_pageses)
+    if viti and pagesa_statusi:
+        viti_int = int(viti)
+        paguar_ids = _shtepite_paguara_ids(viti_int)
+        if pagesa_statusi == 'papaguar':
+            shtepite = shtepite.exclude(id__in=paguar_ids)
+        elif pagesa_statusi == 'paguar':
+            shtepite = shtepite.filter(id__in=paguar_ids)
+
+    if request.GET.get('eksporto') == 'excel':
+        paguar_ids = _shtepite_paguara_ids(int(viti)) if viti else None
+        koka = ['Nr.', 'Emri', 'Mbiemri', 'Anëtarë', 'Kategoria', 'Telefoni', 'Email', 'Statusi']
+        if viti:
+            koka.append(f'Ka Paguar ({viti})')
+        rreshtat = []
+        for sh in shtepite:
+            rreshti = [
+                sh.nr_shtepise, sh.emri_kryefamiljarit, sh.mbiemri_kryefamiljarit,
+                sh.nr_antareve_familjes, sh.kategoria.emri, sh.nr_telefoni_kryesor,
+                sh.email, 'Aktive' if sh.është_aktiv else 'Joaktive',
+            ]
+            if viti:
+                rreshti.append('Po' if sh.id in paguar_ids else 'Jo')
+            rreshtat.append(rreshti)
+        return _pergjigje_excel(f'shtepite_{timezone.now().date()}.xlsx', koka, rreshtat)
 
     konteksti = {
         'shtepite': shtepite,
@@ -282,6 +324,9 @@ def lista_shtepive(request):
         'kerkimi': kerkimi,
         'kategoria_id': kategoria_id,
         'statusi': statusi,
+        'viti': viti,
+        'pagesa_statusi': pagesa_statusi,
+        'vitit_lista': list(range(2020, timezone.now().year + 2)),
         'faqja_aktive': 'shtepite',
     }
     return render(request, 'shtepite/lista.html', konteksti)
@@ -395,6 +440,10 @@ def edito_shtepi(request, pk):
 def lista_pagesa_antaresia(request):
     viti = request.GET.get('viti', timezone.now().year)
     kerkimi = request.GET.get('kerkimi', '')
+    kategoria_id = request.GET.get('kategoria', '')
+    periudha = request.GET.get('periudha', '')
+    muaji_fillimit = request.GET.get('muaji_fillimit', '')
+
     pagesat = PagesaAntaresia.objects.select_related('shtepia', 'arktar', 'kategoria_pageses')
     if viti:
         pagesat = pagesat.filter(viti=viti)
@@ -405,8 +454,31 @@ def lista_pagesa_antaresia(request):
             Q(shtepia__mbiemri_kryefamiljarit__icontains=kerkimi) |
             Q(shtepia__nr_shtepise__icontains=kerkimi)
         )
+    if kategoria_id:
+        pagesat = pagesat.filter(kategoria_pageses_id=kategoria_id)
+    if periudha:
+        pagesat = pagesat.filter(periudha=periudha)
+    if muaji_fillimit:
+        pagesat = pagesat.filter(muaji_fillimit=muaji_fillimit)
+
+    if request.GET.get('eksporto') == 'excel':
+        koka = ['Nr. Faturës', 'Shtëpia', 'Kategoria', 'Shuma (€)', 'Periudha', 'Viti', 'Data', 'Arktar']
+        rreshtat = [
+            [
+                p.nr_fatures, f'#{p.shtepia.nr_shtepise} {p.shtepia.emri_kryefamiljarit} {p.shtepia.mbiemri_kryefamiljarit}',
+                p.kategoria_pageses.emri, float(p.shuma_paguar), p.get_periudha_display(),
+                p.viti, p.data_pageses.strftime('%d.%m.%Y'), p.arktar.get_full_name(),
+            ]
+            for p in pagesat
+        ]
+        return _pergjigje_excel(f'pagesat_antaresia_{timezone.now().date()}.xlsx', koka, rreshtat)
+
     return render(request, 'pagesat/antaresia/lista.html', {
         'pagesat': pagesat, 'viti': viti, 'kerkimi': kerkimi,
+        'kategoria_id': kategoria_id, 'periudha': periudha, 'muaji_fillimit': muaji_fillimit,
+        'kategoritë': Kategoria.objects.filter(është_aktiv=True),
+        'periudha_choices': PagesaAntaresia.PERIUDHA_CHOICES,
+        'muajt': MUAJT,
         'vitit_lista': list(range(2020, timezone.now().year + 2)),
         'faqja_aktive': 'pagesat_antaresia',
     })

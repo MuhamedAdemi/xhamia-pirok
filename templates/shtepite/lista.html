@@ -8,13 +8,13 @@
     <p>{{ shtepite.count }} shtëpi të regjistruara</p>
   </div>
   {% if request.user.profili.është_admin %}
-  <a href="{% url 'shto_shtepi' %}" class="btn-kryesor">+ Shto Shtëpi</a>
+  <a href="{% url 'shto_shtepi' %}" class="btn-kryesor no-print">+ Shto Shtëpi</a>
   {% endif %}
 </div>
 
 <div class="card">
-  <form method="get" class="filtrat">
-    <input type="text" name="kerkimi" value="{{ kerkimi }}" placeholder="Kërko nr., emër, mbiemër...">
+  <form method="get" class="filtrat no-print">
+    <input type="text" name="kerkimi" value="{{ kerkimi }}" placeholder="Kërko nr., emër, telefon, email...">
     <select name="kategoria">
       <option value="">Të gjitha kategoritë</option>
       {% for k in kategoritë %}
@@ -26,7 +26,20 @@
       <option value="te_gjitha" {% if statusi == 'te_gjitha' %}selected{% endif %}>Të gjitha</option>
       <option value="joaktive" {% if statusi == 'joaktive' %}selected{% endif %}>Joaktive</option>
     </select>
+    <select name="viti">
+      <option value="">Viti i pagesës</option>
+      {% for v in vitit_lista %}
+        <option value="{{ v }}" {% if viti == v|stringformat:'s' %}selected{% endif %}>{{ v }}</option>
+      {% endfor %}
+    </select>
+    <select name="pagesa_statusi">
+      <option value="">Statusi i pagesës</option>
+      <option value="paguar" {% if pagesa_statusi == 'paguar' %}selected{% endif %}>Ka Paguar</option>
+      <option value="papaguar" {% if pagesa_statusi == 'papaguar' %}selected{% endif %}>S'ka Paguar</option>
+    </select>
     <button type="submit" class="btn-kryesor btn-sm">Kërko</button>
+    <button type="submit" name="eksporto" value="excel" class="btn-dytësor btn-sm">⬇️ Excel</button>
+    <button type="button" class="btn-dytësor btn-sm" onclick="window.print()">🖨️ Printo</button>
     <a href="{% url 'lista_shtepive' %}" class="btn-dytësor btn-sm">Pastro</a>
   </form>
 
@@ -40,7 +53,7 @@
           <th>Kategoria</th>
           <th>Telefoni</th>
           <th>Statusi</th>
-          <th></th>
+          <th class="no-print"></th>
         </tr>
       </thead>
       <tbody>
@@ -62,7 +75,7 @@
               <span class="badge-gri">Joaktive</span>
             {% endif %}
           </td>
-          <td>
+          <td class="no-print">
             <div class="flex gap-3">
               <a href="{% url 'detaje_shtepia' sh.pk %}" class="btn-dytësor btn-sm">Shih</a>
               {% if request.user.profili.është_admin %}

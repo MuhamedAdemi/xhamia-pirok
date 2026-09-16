@@ -544,3 +544,11 @@ a:hover { text-decoration: underline; }
   font-weight: 700;
   letter-spacing: 0.5px;
 }
+
+/* ── Printim ── */
+@media print {
+  .no-print { display: none !important; }
+  .sidebar { display: none !important; }
+  .main-content { margin-left: 0 !important; padding: 0 !important; }
+  .card { box-shadow: none !important; border: none !important; }
+}

@@ -8,19 +8,39 @@
     <p>{{ pagesat.count }} pagesa të gjetura</p>
   </div>
   {% if request.user.profili.mund_regjistrojë_pagesa or request.user.profili.është_admin %}
-  <a href="{% url 'shto_pagese_antaresia' %}" class="btn-kryesor">+ Regjistro Pagesë</a>
+  <a href="{% url 'shto_pagese_antaresia' %}" class="btn-kryesor no-print">+ Regjistro Pagesë</a>
   {% endif %}
 </div>
 
 <div class="card">
-  <form method="get" class="filtrat">
+  <form method="get" class="filtrat no-print">
     <input type="text" name="kerkimi" value="{{ kerkimi }}" placeholder="Nr. fature, emër...">
     <select name="viti">
       {% for v in vitit_lista %}
         <option value="{{ v }}" {% if v|stringformat:'s' == viti|stringformat:'s' %}selected{% endif %}>{{ v }}</option>
       {% endfor %}
     </select>
+    <select name="kategoria">
+      <option value="">Të gjitha kategoritë</option>
+      {% for k in kategoritë %}
+        <option value="{{ k.pk }}" {% if kategoria_id == k.pk|stringformat:'s' %}selected{% endif %}>{{ k.emri }}</option>
+      {% endfor %}
+    </select>
+    <select name="periudha">
+      <option value="">Të gjitha periudhat</option>
+      {% for val, etiketa in periudha_choices %}
+        <option value="{{ val }}" {% if periudha == val %}selected{% endif %}>{{ etiketa }}</option>
+      {% endfor %}
+    </select>
+    <select name="muaji_fillimit">
+      <option value="">Çdo muaj fillimi</option>
+      {% for num, emri in muajt %}
+        <option value="{{ num }}" {% if muaji_fillimit == num|stringformat:'s' %}selected{% endif %}>{{ emri }}</option>
+      {% endfor %}
+    </select>
     <button type="submit" class="btn-kryesor btn-sm">Filtro</button>
+    <button type="submit" name="eksporto" value="excel" class="btn-dytësor btn-sm">⬇️ Excel</button>
+    <button type="button" class="btn-dytësor btn-sm" onclick="window.print()">🖨️ Printo</button>
     <a href="{% url 'lista_pagesa_antaresia' %}" class="btn-dytësor btn-sm">Pastro</a>
   </form>
 
@@ -36,7 +56,7 @@
           <th>Viti</th>
           <th>Data</th>
           <th>Arktar</th>
-          <th></th>
+          <th class="no-print"></th>
         </tr>
       </thead>
       <tbody>
@@ -55,7 +75,7 @@
           <td class="font-semibold">{{ p.viti }}</td>
           <td class="tekst-dytësor">{{ p.data_pageses|date:"d M Y" }}</td>
           <td class="tekst-dytësor">{{ p.arktar.get_full_name }}</td>
-          <td>
+          <td class="no-print">
             <div class="flex gap-3">
               <a href="{% url 'fatura_antaresia_pdf' p.pk %}" class="btn-dytësor btn-sm" target="_blank">🖨️</a>
               {% if request.user.profili.është_admin %}
