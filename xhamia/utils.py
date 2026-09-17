@@ -5,12 +5,15 @@ from .models import ProfilStafi
 
 
 def _marrësit_email():
-    """Merr emailet e stafit që kanë aktivizuar njoftimet."""
-    return list(
-        ProfilStafi.objects.filter(
-            merr_email_pagese=True, është_aktiv=True
-        ).values_list('user__email', flat=True)
-    )
+    """Merr emailet e stafit që kanë aktivizuar njoftimet.
+
+    Përdor email_njoftimesh (email zyrtar) nëse është caktuar, përndryshe
+    bie mbrapa te emaili i llogarisë së përdoruesit.
+    """
+    rreshtat = ProfilStafi.objects.filter(
+        merr_email_pagese=True, është_aktiv=True
+    ).values_list('email_njoftimesh', 'user__email')
+    return [zyrtar or personal for zyrtar, personal in rreshtat]
 
 
 def dërgo_email_antaresia(pagese, request):

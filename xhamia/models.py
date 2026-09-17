@@ -15,6 +15,10 @@ class ProfilStafi(models.Model):
     rol = models.CharField(max_length=10, choices=ROL_CHOICES, default='STAF')
     mund_regjistrojë_pagesa = models.BooleanField(default=False, verbose_name='Mund të regjistrojë pagesa')
     merr_email_pagese = models.BooleanField(default=True, verbose_name='Merr email për çdo pagesë')
+    email_njoftimesh = models.EmailField(
+        blank=True, verbose_name='Email zyrtar për njoftime',
+        help_text='Nëse plotësohet, njoftimet e pagesave dërgohen këtu në vend të emailit të llogarisë.'
+    )
     është_aktiv = models.BooleanField(default=True)
     shtuar_nga = models.ForeignKey(
         User, on_delete=models.SET_NULL, null=True, blank=True,
