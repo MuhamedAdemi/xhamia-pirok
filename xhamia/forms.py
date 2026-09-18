@@ -27,12 +27,11 @@ class StafForm(forms.ModelForm):
 
     class Meta:
         model = ProfilStafi
-        fields = ['nr_telefoni', 'pozita', 'rol', 'mund_regjistrojë_pagesa', 'merr_email_pagese', 'email_njoftimesh']
+        fields = ['nr_telefoni', 'pozita', 'rol', 'mund_regjistrojë_pagesa', 'merr_email_pagese']
         labels = {
             'nr_telefoni': 'Nr. Telefoni',
             'pozita': 'Pozita në Xhami',
             'rol': 'Roli',
-            'email_njoftimesh': 'Email Zyrtar për Njoftime',
         }
 
 

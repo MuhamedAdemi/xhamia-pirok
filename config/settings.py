@@ -97,7 +97,14 @@ EMAIL_USE_TLS = True
 EMAIL_HOST_USER = 'xhamijapirok@gmail.com'
 EMAIL_HOST_PASSWORD = os.environ.get('GMAIL_APP_PASSWORD', '')
 DEFAULT_FROM_EMAIL = 'Xhamia Pirok <xhamijapirok@gmail.com>'
-EMAIL_ZYRTAR = 'xhamijapirok@gmail.com'  # merr çdo njoftim pagese, pavarësisht konfigurimit të stafit
+
+# Arkivi zyrtar i faturave — çdo faturë (anëtarësi ose fond) shkon gjithmonë
+# këtu, e pavarur nga cilido staf, si regjistër kundër manipulimit/falsifikimit.
+EMAILET_ZYRTARE = [
+    'xhamijapirok@gmail.com',
+    'kryetarikshillit@gmail.com',
+    'imami.xhamispirok@gmail.com',
+]
 
 # Local settings override (gitignored - contains passwords)
 try:

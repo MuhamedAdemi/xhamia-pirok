@@ -70,12 +70,6 @@
         {% render_field form.merr_email_pagese %}
         <span>Merr email automatik për çdo pagesë të regjistruar</span>
       </label>
-      <div class="forma-grup" style="margin-top:12px;">
-        <label>{{ form.email_njoftimesh.label }}</label>
-        {% render_field form.email_njoftimesh placeholder="xhamijapirok@gmail.com" %}
-        <p class="ndihma">Nëse plotësohet, njoftimet e pagesave dërgohen këtu (jo te emaili i llogarisë më lart).</p>
-        {% if form.email_njoftimesh.errors %}<p class="gabim-fusha">{{ form.email_njoftimesh.errors.0 }}</p>{% endif %}
-      </div>
     </div>
   </div>
 
