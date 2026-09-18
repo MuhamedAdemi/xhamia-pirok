@@ -18,6 +18,7 @@ def _marrësit_email():
 
 def dërgo_email_antaresia(pagese, request):
     marrësit = _marrësit_email()
+    marrësit.append(settings.EMAIL_ZYRTAR)
     if pagese.shtepia.email:
         marrësit.append(pagese.shtepia.email)
     marrësit = list(set(filter(None, marrësit)))
@@ -37,6 +38,7 @@ def dërgo_email_antaresia(pagese, request):
 
 def dërgo_email_fondi(pagese, request):
     marrësit = _marrësit_email()
+    marrësit.append(settings.EMAIL_ZYRTAR)
     if pagese.email_donatorit:
         marrësit.append(pagese.email_donatorit)
     marrësit = list(set(filter(None, marrësit)))

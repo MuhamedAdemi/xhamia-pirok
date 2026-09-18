@@ -97,6 +97,7 @@ EMAIL_USE_TLS = True
 EMAIL_HOST_USER = 'xhamijapirok@gmail.com'
 EMAIL_HOST_PASSWORD = os.environ.get('GMAIL_APP_PASSWORD', '')
 DEFAULT_FROM_EMAIL = 'Xhamia Pirok <xhamijapirok@gmail.com>'
+EMAIL_ZYRTAR = 'xhamijapirok@gmail.com'  # merr çdo njoftim pagese, pavarësisht konfigurimit të stafit
 
 # Local settings override (gitignored - contains passwords)
 try:
