@@ -12,6 +12,31 @@
   {% endif %}
 </div>
 
+<div class="grid-4 no-print" style="margin-bottom:20px;">
+  <div class="stat-card gjelbër">
+    <div class="stat-label">Total në Listë</div>
+    <div class="stat-vlera gjelbër">{{ total_ne_liste }}</div>
+    <div class="stat-nën">sipas filtrave aktualë</div>
+  </div>
+  <div class="stat-card blu">
+    <div class="stat-label">Kanë Paguar ({{ viti_status }})</div>
+    <div class="stat-vlera" style="color:#007AFF;">{{ kane_paguar_ne_liste }}</div>
+    <div class="stat-nën">antarësia e vitit {{ viti_status }}</div>
+  </div>
+  <div class="stat-card portokalli">
+    <div class="stat-label">Nuk Kanë Paguar ({{ viti_status }})</div>
+    <div class="stat-vlera" style="color:var(--paralajmërim);">{{ nuk_kane_paguar_ne_liste }}</div>
+    <div class="stat-nën">ende pa pagesë</div>
+  </div>
+  <div class="stat-card kafe">
+    <div class="stat-label">Përqindja</div>
+    <div class="stat-vlera kafe">
+      {% if total_ne_liste > 0 %}{% widthratio kane_paguar_ne_liste total_ne_liste 100 %}%{% else %}0%{% endif %}
+    </div>
+    <div class="stat-nën">shkalla e pagesës</div>
+  </div>
+</div>
+
 <div class="card">
   <form method="get" class="filtrat no-print">
     <input type="text" name="kerkimi" value="{{ kerkimi }}" placeholder="Kërko nr., emër, telefon, email...">
@@ -53,6 +78,7 @@
           <th>Kategoria</th>
           <th>Telefoni</th>
           <th>Statusi</th>
+          <th>Pagesa {{ viti_status }}</th>
           <th class="no-print"></th>
         </tr>
       </thead>
@@ -75,6 +101,13 @@
               <span class="badge-gri">Joaktive</span>
             {% endif %}
           </td>
+          <td>
+            {% if sh.id in paguar_ids %}
+              <span class="badge-gjelbër">✅ Paguar</span>
+            {% else %}
+              <span class="badge-portokalli">⚠️ Papaguar</span>
+            {% endif %}
+          </td>
           <td class="no-print">
             <div class="flex gap-3">
               <a href="{% url 'detaje_shtepia' sh.pk %}" class="btn-dytësor btn-sm">Shih</a>
@@ -87,7 +120,7 @@
         </tr>
         {% empty %}
         <tr>
-          <td colspan="7" style="text-align:center; padding:40px; color:var(--tekst-dytësor);">
+          <td colspan="8" style="text-align:center; padding:40px; color:var(--tekst-dytësor);">
             Asnjë shtëpi e gjetur me këto kritere.
           </td>
         </tr>

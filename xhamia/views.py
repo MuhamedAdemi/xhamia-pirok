@@ -159,6 +159,14 @@ def dashboard_antaresia(request):
         s=Sum('shuma_paguar')
     )['s'] or 0
 
+    total_harxhime = Harxhimi.objects.filter(
+        viti=viti_zgjedhur, burimi='ANTARESIA'
+    ).aggregate(s=Sum('shuma_eur'))['s'] or 0
+    bilanci_antaresia = total_mbledhur - total_harxhime
+    harxhimet_e_fundit = Harxhimi.objects.select_related('stafi').filter(
+        viti=viti_zgjedhur, burimi='ANTARESIA'
+    ).order_by('-data_pageses')[:6]
+
     # Pagesat sipas muajit (për grafik)
     pagesat_mujore = []
     muajt_etiketat = ['Jan', 'Shk', 'Mar', 'Pri', 'Maj', 'Qer', 'Kor', 'Gus', 'Sht', 'Tet', 'Nën', 'Dhj']
@@ -209,6 +217,9 @@ def dashboard_antaresia(request):
         'pagesat_e_fundit': pagesat_e_fundit,
         'shtepite_pa_pagese': shtepite_pa_pagese,
         'data_vitet_json': json.dumps(data_vitet),
+        'total_harxhime': total_harxhime,
+        'bilanci_antaresia': bilanci_antaresia,
+        'harxhimet_e_fundit': harxhimet_e_fundit,
         'faqja_aktive': 'dashboard',
     }
     return render(request, 'dashboard/antaresia.html', konteksti)
@@ -293,30 +304,32 @@ def lista_shtepive(request):
     if kategoria_id:
         shtepite = shtepite.filter(kategoria_id=kategoria_id)
 
-    if viti and pagesa_statusi:
-        viti_int = int(viti)
-        paguar_ids = _shtepite_paguara_ids(viti_int)
-        if pagesa_statusi == 'papaguar':
-            shtepite = shtepite.exclude(id__in=paguar_ids)
-        elif pagesa_statusi == 'paguar':
-            shtepite = shtepite.filter(id__in=paguar_ids)
+    viti_status = int(viti) if viti else timezone.now().year
+    paguar_ids = _shtepite_paguara_ids(viti_status)
+
+    if pagesa_statusi == 'papaguar':
+        shtepite = shtepite.exclude(id__in=paguar_ids)
+    elif pagesa_statusi == 'paguar':
+        shtepite = shtepite.filter(id__in=paguar_ids)
 
     if request.GET.get('eksporto') == 'excel':
-        paguar_ids = _shtepite_paguara_ids(int(viti)) if viti else None
-        koka = ['Nr.', 'Emri', 'Mbiemri', 'Anëtarë', 'Kategoria', 'Telefoni', 'Email', 'Statusi']
-        if viti:
-            koka.append(f'Ka Paguar ({viti})')
-        rreshtat = []
-        for sh in shtepite:
-            rreshti = [
+        koka = [
+            'Nr.', 'Emri', 'Mbiemri', 'Anëtarë', 'Kategoria', 'Telefoni', 'Email', 'Statusi',
+            f'Ka Paguar ({viti_status})',
+        ]
+        rreshtat = [
+            [
                 sh.nr_shtepise, sh.emri_kryefamiljarit, sh.mbiemri_kryefamiljarit,
                 sh.nr_antareve_familjes, sh.kategoria.emri, sh.nr_telefoni_kryesor,
                 sh.email, 'Aktive' if sh.është_aktiv else 'Joaktive',
+                'Po' if sh.id in paguar_ids else 'Jo',
             ]
-            if viti:
-                rreshti.append('Po' if sh.id in paguar_ids else 'Jo')
-            rreshtat.append(rreshti)
+            for sh in shtepite
+        ]
         return _pergjigje_excel(f'shtepite_{timezone.now().date()}.xlsx', koka, rreshtat)
+
+    total_ne_liste = shtepite.count()
+    kane_paguar_ne_liste = sum(1 for sh in shtepite if sh.id in paguar_ids)
 
     konteksti = {
         'shtepite': shtepite,
@@ -325,6 +338,11 @@ def lista_shtepive(request):
         'kategoria_id': kategoria_id,
         'statusi': statusi,
         'viti': viti,
+        'viti_status': viti_status,
+        'paguar_ids': paguar_ids,
+        'total_ne_liste': total_ne_liste,
+        'kane_paguar_ne_liste': kane_paguar_ne_liste,
+        'nuk_kane_paguar_ne_liste': total_ne_liste - kane_paguar_ne_liste,
         'pagesa_statusi': pagesa_statusi,
         'vitit_lista': list(range(2020, timezone.now().year + 2)),
         'faqja_aktive': 'shtepite',
