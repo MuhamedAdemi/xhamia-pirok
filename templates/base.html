@@ -11,6 +11,9 @@
 </head>
 <body>
 
+<button type="button" class="meny-shkurtore no-print" id="menyShkurtore" aria-label="Hap menynë">☰</button>
+<div class="sidebar-mbulesë" id="sidebarMbulesë"></div>
+
 <!-- Sidebar -->
 {% if portali_shtepi %}
 <nav class="sidebar">
@@ -113,6 +116,31 @@
 
   {% block kontent %}{% endblock %}
 </main>
+
+<script>
+(function () {
+  var btn = document.getElementById('menyShkurtore');
+  var sidebar = document.querySelector('.sidebar');
+  var mbulesa = document.getElementById('sidebarMbulesë');
+  if (!btn || !sidebar || !mbulesa) return;
+
+  function hap() {
+    sidebar.classList.add('hapur');
+    mbulesa.classList.add('hapur');
+  }
+  function mbyll() {
+    sidebar.classList.remove('hapur');
+    mbulesa.classList.remove('hapur');
+  }
+  btn.addEventListener('click', function () {
+    sidebar.classList.contains('hapur') ? mbyll() : hap();
+  });
+  mbulesa.addEventListener('click', mbyll);
+  sidebar.querySelectorAll('a').forEach(function (a) {
+    a.addEventListener('click', mbyll);
+  });
+})();
+</script>
 
 {% block skripte %}{% endblock %}
 </body>

@@ -507,11 +507,62 @@ body {
 .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 24px; }
 .grid-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 20px; }
 
+/* ── Meny mobile (hamburger) ── */
+.meny-shkurtore {
+  display: none;
+  position: fixed;
+  top: 14px; left: 14px;
+  z-index: 200;
+  width: 44px; height: 44px;
+  border: none; border-radius: var(--rreze);
+  background: var(--gjelbër);
+  color: #fff;
+  font-size: 20px;
+  line-height: 1;
+  box-shadow: var(--hija-e-madhe);
+  cursor: pointer;
+}
+
+.sidebar-mbulesë {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  z-index: 99;
+}
+
 /* ── Responsive ── */
 @media (max-width: 768px) {
-  .sidebar { transform: translateX(-100%); }
-  .main-content { margin-left: 0; padding: 20px; }
+  .meny-shkurtore { display: flex; align-items: center; justify-content: center; }
+
+  .sidebar {
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+    width: 82%;
+    max-width: 300px;
+  }
+  .sidebar.hapur { transform: translateX(0); box-shadow: var(--hija-e-madhe); }
+
+  .sidebar-mbulesë.hapur { display: block; }
+
+  .main-content { margin-left: 0; padding: 20px; padding-top: 72px; }
   .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+
+  .page-header { flex-direction: column; align-items: stretch; gap: 14px; }
+  .page-header h2 { font-size: 20px; }
+  .page-header .flex { flex-wrap: wrap; }
+
+  /* iOS zmadhon faqen automatikisht kur fusha ka font-size < 16px */
+  .forma-grup input, .forma-grup select, .forma-grup textarea,
+  .filtrat input, .filtrat select {
+    font-size: 16px;
+  }
+
+  .filtrat { flex-direction: column; align-items: stretch; }
+  .filtrat input, .filtrat select, .filtrat button, .filtrat a { width: 100%; }
+
+  .login-wrapper { padding: 16px; }
+  .login-card { padding: 36px 24px; }
 }
 
 /* ── Misc ── */
