@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+{% load widget_tweaks %}
+{% block titulli %}Konfigurimi i Varrezave — Xhamia Pirok{% endblock %}
+
+{% block kontent %}
+<div class="page-header">
+  <div class="flex items-center gap-3">
+    <a href="{% url 'dashboard_varrezat' %}" class="btn-dytësor btn-sm">← Kthehu</a>
+    <h2>⚙️ Konfigurimi i Varrezave</h2>
+  </div>
+</div>
+
+<form method="post" style="max-width:620px;">
+  {% csrf_token %}
+  <div class="card" style="margin-bottom:20px;">
+    <div class="card-header"><h5>⚰️ Shuma Fikse Vjetore</h5></div>
+    <div class="card-body">
+      <div class="forma-grup">
+        <label>{{ form.shuma_vjetore.label }}</label>
+        {% render_field form.shuma_vjetore placeholder="0.00" %}
+        <p class="ndihma">Kjo shumë aplikohet automatikisht si parazgjedhje për çdo shtëpi kur regjistrohet një pagesë e re e varrezave. Nuk ndikon te pagesat e regjistruara më herët.</p>
+        {% if form.shuma_vjetore.errors %}<p class="gabim-fusha">{{ form.shuma_vjetore.errors.0 }}</p>{% endif %}
+      </div>
+      <div class="forma-grup">
+        <label>{{ form.pershkrimi.label }}</label>
+        {% render_field form.pershkrimi placeholder="p.sh. emri i kompanisë së mirëmbajtjes, kontrata, etj." %}
+      </div>
+    </div>
+  </div>
+
+  <div class="flex gap-3">
+    <button type="submit" class="btn-kryesor">💾 Ruaj</button>
+    <a href="{% url 'dashboard_varrezat' %}" class="btn-dytësor">Anulo</a>
+  </div>
+</form>
+{% endblock %}

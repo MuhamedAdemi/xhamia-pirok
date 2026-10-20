@@ -14,7 +14,19 @@
   {% csrf_token %}
 
   <div class="card" style="margin-bottom:20px;">
-    <div class="card-header"><h5>👤 Të Dhënat e Donatorit</h5></div>
+    <div class="card-header"><h5>🏷️ Lloji i Pagesës</h5></div>
+    <div class="card-body">
+      <div class="forma-grup" style="margin-bottom:0;">
+        <label>{{ form.lloji.label }}</label>
+        {% render_field form.lloji id="id_lloji_fond" %}
+        {% if form.lloji.errors %}<p class="gabim-fusha">{{ form.lloji.errors.0 }}</p>{% endif %}
+        <p class="ndihma">"Aktivitet" përdoret për raste si ekskursione, iftare, etj. — shëno emrin e aktivitetit te "Arsyeja / Qëllimi" më poshtë.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:20px;">
+    <div class="card-header"><h5>👤 Të Dhënat e Donatorit / Paguesit</h5></div>
     <div class="card-body">
       <div class="grid-2">
         <div class="forma-grup">
@@ -56,7 +68,7 @@
       </div>
       <div class="forma-grup">
         <label>{{ form.arsyeja.label }}</label>
-        {% render_field form.arsyeja placeholder="p.sh. Ndërtimi i çatisë, Blerja e carpet-it..." %}
+        {% render_field form.arsyeja id="id_arsyeja_fond" placeholder="p.sh. Ndërtimi i çatisë, Blerja e carpet-it..." %}
       </div>
       <div class="forma-grup">
         <label>{{ form.shenime.label }}</label>
@@ -99,6 +111,19 @@
 
 {% block skripte %}
 <script>
+const llojiFondSelect = document.getElementById('id_lloji_fond');
+const arsyejaInput = document.getElementById('id_arsyeja_fond');
+
+function updateLlojiFondi() {
+  if (llojiFondSelect.value === 'AKTIVITET') {
+    arsyejaInput.placeholder = 'p.sh. Iftar 2026, Ekskursion...';
+  } else {
+    arsyejaInput.placeholder = 'p.sh. Ndërtimi i çatisë, Blerja e carpet-it...';
+  }
+}
+llojiFondSelect.addEventListener('change', updateLlojiFondi);
+updateLlojiFondi();
+
 const shumaInput = document.querySelector('[name="shuma"]');
 const shumaMkdInput = document.getElementById('id_shuma_mkd_fond');
 const kursiInput = document.getElementById('id_kursi_fond');

@@ -16,10 +16,18 @@
   <div class="card" style="margin-bottom:20px;">
     <div class="card-header"><h5>📋 Lloji i Harxhimit</h5></div>
     <div class="card-body">
-      <div class="forma-grup">
-        <label>{{ form.lloji.label }}</label>
-        {% render_field form.lloji id="id_lloji" %}
-        {% if form.lloji.errors %}<p class="gabim-fusha">{{ form.lloji.errors.0 }}</p>{% endif %}
+      <div class="grid-2">
+        <div class="forma-grup">
+          <label>{{ form.lloji.label }}</label>
+          {% render_field form.lloji id="id_lloji" %}
+          {% if form.lloji.errors %}<p class="gabim-fusha">{{ form.lloji.errors.0 }}</p>{% endif %}
+        </div>
+        <div class="forma-grup">
+          <label>{{ form.burimi.label }}</label>
+          {% render_field form.burimi id="id_burimi" %}
+          {% if form.burimi.errors %}<p class="gabim-fusha">{{ form.burimi.errors.0 }}</p>{% endif %}
+          <p class="ndihma">Zgjidhet automatikisht sipas llojit, por mund ta ndryshoni (p.sh. mirëmbajtja e varrezave paguhet nga Varrezat, jo nga Fondi).</p>
+        </div>
       </div>
 
       <!-- Vetëm për rroge -->
@@ -107,19 +115,23 @@
 {% block skripte %}
 <script>
 const llojiSelect = document.getElementById('id_lloji');
+const burimiSelect = document.getElementById('id_burimi');
 const seksioniRroge = document.getElementById('seksioniRroge');
 const seksioniTjeter = document.getElementById('seksioniTjeter');
 const buxhetiInfo = document.getElementById('buxhetiInfo');
 
 const infoBuxheti = {
-  'RROGE': { tekst: '💼 Rroga paguhet nga buxheti i <strong>Antarësisë</strong>.', bg: 'rgba(52,199,89,0.08)', color: 'var(--gjelbër)' },
-  'MIREMBAJTJE': { tekst: '🏛️ Mirëmbajtja paguhet nga <strong>Fondi</strong> i xhamisë.', bg: 'rgba(107,68,35,0.08)', color: 'var(--kafe)' },
-  'RRYME': { tekst: '⚡ Rrymë elektrike — nga <strong>Fondi</strong>.', bg: 'rgba(107,68,35,0.08)', color: 'var(--kafe)' },
-  'UJI': { tekst: '💧 Ujë — nga <strong>Fondi</strong>.', bg: 'rgba(107,68,35,0.08)', color: 'var(--kafe)' },
-  'NXEMJE': { tekst: '🔥 Nxemje / Naftë — nga <strong>Fondi</strong>.', bg: 'rgba(107,68,35,0.08)', color: 'var(--kafe)' },
-  'INTERNET': { tekst: '🌐 Internet — nga <strong>Fondi</strong>.', bg: 'rgba(107,68,35,0.08)', color: 'var(--kafe)' },
-  'TJETER': { tekst: '📌 Harxhim tjetër — nga <strong>Fondi</strong>.', bg: 'rgba(107,68,35,0.08)', color: 'var(--kafe)' },
+  'RROGE': { burimi: 'ANTARESIA', tekst: '💼 Rroga zakonisht paguhet nga buxheti i <strong>Antarësisë</strong>.', bg: 'rgba(52,199,89,0.08)', color: 'var(--gjelbër)' },
+  'MIREMBAJTJE': { burimi: 'FONDI', tekst: '🏛️ Mirëmbajtja zakonisht paguhet nga <strong>Fondi</strong> i xhamisë — ndryshoje te "Varrezat" nëse është pagesa për kompaninë e mirëmbajtjes së varrezave.', bg: 'rgba(107,68,35,0.08)', color: 'var(--kafe)' },
+  'RRYME': { burimi: 'FONDI', tekst: '⚡ Rrymë elektrike — zakonisht nga <strong>Fondi</strong>.', bg: 'rgba(107,68,35,0.08)', color: 'var(--kafe)' },
+  'UJI': { burimi: 'FONDI', tekst: '💧 Ujë — zakonisht nga <strong>Fondi</strong>.', bg: 'rgba(107,68,35,0.08)', color: 'var(--kafe)' },
+  'NXEMJE': { burimi: 'FONDI', tekst: '🔥 Nxemje / Naftë — zakonisht nga <strong>Fondi</strong>.', bg: 'rgba(107,68,35,0.08)', color: 'var(--kafe)' },
+  'INTERNET': { burimi: 'FONDI', tekst: '🌐 Internet — zakonisht nga <strong>Fondi</strong>.', bg: 'rgba(107,68,35,0.08)', color: 'var(--kafe)' },
+  'TJETER': { burimi: 'FONDI', tekst: '📌 Harxhim tjetër — zakonisht nga <strong>Fondi</strong>.', bg: 'rgba(107,68,35,0.08)', color: 'var(--kafe)' },
 };
+
+let burimiPrekurManualisht = false;
+burimiSelect.addEventListener('change', () => { burimiPrekurManualisht = true; });
 
 function updateLloji() {
   const v = llojiSelect.value;
@@ -130,6 +142,7 @@ function updateLloji() {
     buxhetiInfo.style.color = infoBuxheti[v].color;
     buxhetiInfo.innerHTML = infoBuxheti[v].tekst;
     buxhetiInfo.style.display = 'block';
+    if (!burimiPrekurManualisht) burimiSelect.value = infoBuxheti[v].burimi;
   }
 }
 llojiSelect.addEventListener('change', updateLloji);

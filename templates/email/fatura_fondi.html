@@ -6,12 +6,12 @@
 
   <div style="background:#6B4423; padding:28px 32px; color:#fff;">
     <h1 style="font-size:20px; margin:0;">🕌 Xhamia Pirok</h1>
-    <p style="margin:4px 0 0; opacity:0.8; font-size:13px;">Konfirmim Donacioni — Fondi i Xhamisë</p>
+    <p style="margin:4px 0 0; opacity:0.8; font-size:13px;">{% if pagese.lloji == 'AKTIVITET' %}Konfirmim Pagese — Aktivitet{% else %}Konfirmim Donacioni — Fondi i Xhamisë{% endif %}</p>
   </div>
 
   <div style="padding:28px 32px;">
     <p style="font-size:15px; margin-bottom:8px;">
-      Faleminderit për kontributin tuaj! Donacioni u regjistrua me sukses.
+      {% if pagese.lloji == 'AKTIVITET' %}Pagesa për aktivitetin u regjistrua me sukses.{% else %}Faleminderit për kontributin tuaj! Donacioni u regjistrua me sukses.{% endif %}
     </p>
 
     <table style="width:100%; border-collapse:collapse; font-size:14px; margin-top:16px;">
@@ -20,7 +20,7 @@
         <td style="padding:10px 14px; font-weight:700; font-family:monospace; color:#6B4423;">{{ pagese.nr_fatures }}</td>
       </tr>
       <tr>
-        <td style="padding:10px 14px; color:#6E6E73; font-size:12px; text-transform:uppercase;">Donatori</td>
+        <td style="padding:10px 14px; color:#6E6E73; font-size:12px; text-transform:uppercase;">{% if pagese.lloji == 'AKTIVITET' %}Pagues{% else %}Donatori{% endif %}</td>
         <td style="padding:10px 14px; font-weight:700;">{{ pagese.emri_donatorit }} {{ pagese.mbiemri_donatorit }}</td>
       </tr>
       <tr style="background:#F7F3ED;">

@@ -30,6 +30,7 @@ urlpatterns = [
     path('', views.redirect_dashboard, name='home'),
     path('dashboard/', views.dashboard_antaresia, name='dashboard'),
     path('dashboard/fondi/', views.dashboard_fondi, name='dashboard_fondi'),
+    path('dashboard/varrezat/', views.dashboard_varrezat, name='dashboard_varrezat'),
     path('dashboard/buxheti/', views.dashboard_buxheti, name='dashboard_buxheti'),
 
     # Shtepite
@@ -39,6 +40,7 @@ urlpatterns = [
     path('shtepite/<int:pk>/edito/', views.edito_shtepi, name='edito_shtepi'),
     path('shtepite/<int:pk>/fshi/', views.fshi_shtepi, name='fshi_shtepi'),
     path('shtepite/<int:pk>/permbyll/', views.permbyll_antaresia, name='permbyll_antaresia'),
+    path('shtepite/<int:pk>/permbyll-varrezat/', views.permbyll_varrezat, name='permbyll_varrezat'),
 
     # Pagesat Antaresia
     path('pagesat/antaresia/', views.lista_pagesa_antaresia, name='lista_pagesa_antaresia'),
@@ -55,6 +57,15 @@ urlpatterns = [
     path('pagesat/fondi/<int:pk>/fatura/', views.fatura_fondi_pdf, name='fatura_fondi_pdf'),
     path('pagesat/fondi/<int:pk>/fshi/', views.fshi_pagese_fondi, name='fshi_pagese_fondi'),
     path('pagesat/fondi/<int:pk>/email/', views.dergo_email_fondi_view, name='dergo_email_fondi'),
+
+    # Pagesat Varrezave
+    path('pagesat/varrezat/', views.lista_pagesa_varrezave, name='lista_pagesa_varrezave'),
+    path('pagesat/varrezat/shto/', views.shto_pagese_varrezat, name='shto_pagese_varrezat'),
+    path('pagesat/varrezat/<int:pk>/', views.detaje_pagesa_varrezat, name='detaje_pagesa_varrezat'),
+    path('pagesat/varrezat/<int:pk>/fatura/', views.fatura_varrezat_pdf, name='fatura_varrezat_pdf'),
+    path('pagesat/varrezat/<int:pk>/fshi/', views.fshi_pagese_varrezat, name='fshi_pagese_varrezat'),
+    path('pagesat/varrezat/<int:pk>/email/', views.dergo_email_varrezat_view, name='dergo_email_varrezat'),
+    path('varrezat/konfigurimi/', views.konfigurimi_varrezave, name='konfigurimi_varrezave'),
 
     # Harxhimet
     path('harxhimet/', views.lista_harxhimeve, name='lista_harxhimeve'),

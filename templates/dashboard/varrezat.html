@@ -1,0 +1,151 @@
+{% extends 'base.html' %}
+{% block titulli %}Dashboard Varrezat — Xhamia Pirok{% endblock %}
+
+{% block kontent %}
+<div class="page-header">
+  <div>
+    <h2>⚰️ Dashboard Varrezat</h2>
+    <p>Fondi për mirëmbajtjen e varrezave — {{ konfigurimi.shuma_vjetore }}€/vit për çdo shtëpi</p>
+  </div>
+  <div class="flex items-center gap-3">
+    <form method="get" style="display:flex; gap:10px; align-items:center;">
+      <select name="viti" onchange="this.form.submit()" style="padding:8px 13px; border:1.5px solid var(--kufi); border-radius:10px; font-family:'Inter',sans-serif; font-size:14px; background:var(--e-bardhë);">
+        {% for v in vitit_lista %}
+          <option value="{{ v }}" {% if v == viti_zgjedhur %}selected{% endif %}>{{ v }}</option>
+        {% endfor %}
+      </select>
+    </form>
+    {% if request.user.profili.është_admin %}
+    <a href="{% url 'konfigurimi_varrezave' %}" class="btn-dytësor">⚙️ Konfigurimi</a>
+    {% endif %}
+    <a href="{% url 'shto_pagese_varrezat' %}" class="btn-kryesor">+ Regjistro Pagesë</a>
+  </div>
+</div>
+
+<!-- Statistikat -->
+<div class="grid-4" style="margin-bottom:24px;">
+  <div class="stat-card gjelbër">
+    <div class="stat-label">Total Mbledhur {{ viti_zgjedhur }}</div>
+    <div class="stat-vlera gjelbër">{{ total_mbledhur }}€</div>
+    <div class="stat-nën">nga pagesat e varrezave</div>
+  </div>
+  <div class="stat-card blu">
+    <div class="stat-label">Kanë Paguar</div>
+    <div class="stat-vlera" style="color:#007AFF;">{{ kane_paguar }}</div>
+    <div class="stat-nën">shtëpi nga {{ total_shtepite }} gjithsej</div>
+  </div>
+  <div class="stat-card portokalli">
+    <div class="stat-label">Nuk Kanë Paguar</div>
+    <div class="stat-vlera" style="color:var(--paralajmërim);">{{ nuk_kane_paguar }}</div>
+    <div class="stat-nën">shtëpi ende pa pagesë</div>
+  </div>
+  <div class="stat-card kafe">
+    <div class="stat-label">Përqindja</div>
+    <div class="stat-vlera kafe">
+      {% if total_shtepite > 0 %}{% widthratio kane_paguar total_shtepite 100 %}%{% else %}0%{% endif %}
+    </div>
+    <div class="stat-nën">shkalla e pagesës</div>
+  </div>
+</div>
+
+<!-- Harxhimet -->
+<div class="grid-4" style="margin-bottom:24px;">
+  <div class="stat-card portokalli">
+    <div class="stat-label">Harxhimet {{ viti_zgjedhur }}</div>
+    <div class="stat-vlera" style="color:var(--paralajmërim);">{{ total_harxhime }}€</div>
+    <div class="stat-nën">pagesa te kompania e mirëmbajtjes</div>
+  </div>
+  <div class="stat-card {% if bilanci >= 0 %}gjelbër{% else %}portokalli{% endif %}">
+    <div class="stat-label">Bilanci {{ viti_zgjedhur }}</div>
+    <div class="stat-vlera" style="color:{% if bilanci >= 0 %}#2D5A1B{% else %}var(--paralajmërim){% endif %};">{{ bilanci }}€</div>
+    <div class="stat-nën">mbledhur − harxhime</div>
+  </div>
+</div>
+
+<div class="grid-2" style="margin-bottom:24px;">
+  <!-- Pagesat e fundit -->
+  <div class="card">
+    <div class="card-header">
+      <h5>🕐 Pagesat e Fundit</h5>
+      <a href="{% url 'lista_pagesa_varrezave' %}" class="btn-dytësor btn-sm">Shih të gjitha</a>
+    </div>
+    <div style="overflow-x:auto;">
+      <table class="tabela-xhami">
+        <thead>
+          <tr>
+            <th>Fatura</th>
+            <th>Shtëpia</th>
+            <th>Shuma</th>
+            <th>Data</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in pagesat_e_fundit %}
+          <tr>
+            <td><a href="{% url 'detaje_pagesa_varrezat' p.pk %}">{{ p.nr_fatures }}</a></td>
+            <td>
+              <span class="nr-shtepi">{{ p.shtepia.nr_shtepise }}</span>
+              {{ p.shtepia.emri_kryefamiljarit }} {{ p.shtepia.mbiemri_kryefamiljarit }}
+            </td>
+            <td class="tekst-gjelbër font-semibold">{{ p.shuma_paguar }}€</td>
+            <td class="tekst-dytësor">{{ p.data_pageses|date:"d M Y" }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="4" style="text-align:center; padding:24px; color:var(--tekst-dytësor);">Asnjë pagesë ende.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Shtëpitë pa pagesë -->
+  <div class="card">
+    <div class="card-header">
+      <h5>⚠️ Shtëpi pa Pagesë ({{ viti_zgjedhur }})</h5>
+    </div>
+    <div style="overflow-x:auto;">
+      <table class="tabela-xhami">
+        <thead>
+          <tr><th>Nr.</th><th>Kryefamiljari</th></tr>
+        </thead>
+        <tbody>
+          {% for sh in shtepite_pa_pagese %}
+          <tr>
+            <td><span class="nr-shtepi">{{ sh.nr_shtepise }}</span></td>
+            <td><a href="{% url 'detaje_shtepia' sh.pk %}">{{ sh.emri_kryefamiljarit }} {{ sh.mbiemri_kryefamiljarit }}</a></td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="2" style="text-align:center; padding:24px; color:var(--tekst-dytësor);">✅ Të gjitha shtëpitë kanë paguar!</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <h5>💸 Harxhimet e Fundit — Mirëmbajtja e Varrezave ({{ viti_zgjedhur }})</h5>
+    <a href="{% url 'lista_harxhimeve' %}?viti={{ viti_zgjedhur }}" class="btn-dytësor btn-sm">Shih të gjitha</a>
+  </div>
+  <div style="overflow-x:auto;">
+    <table class="tabela-xhami">
+      <thead>
+        <tr><th>Dokumenti</th><th>Lloji</th><th>Shuma</th><th>Data</th></tr>
+      </thead>
+      <tbody>
+        {% for h in harxhimet_e_fundit %}
+        <tr>
+          <td><a href="{% url 'detaje_harxhimi' h.pk %}">{{ h.nr_fatures }}</a></td>
+          <td><span class="badge-gri">{{ h.get_lloji_display }}</span></td>
+          <td class="font-semibold" style="color:var(--paralajmërim);">{{ h.shuma_eur }}€</td>
+          <td class="tekst-dytësor">{{ h.data_pageses|date:"d M Y" }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="4" style="text-align:center; padding:24px; color:var(--tekst-dytësor);">Asnjë harxhim ende për {{ viti_zgjedhur }}.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

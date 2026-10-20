@@ -61,7 +61,7 @@
 
   <div class="blloku-info">
     <div class="bllok">
-      <h4>Donatori</h4>
+      <h4>{% if pagese.lloji == 'AKTIVITET' %}Pagues{% else %}Donatori{% endif %}</h4>
       <span class="emri">{{ pagese.emri_donatorit }} {{ pagese.mbiemri_donatorit }}</span>
       {% if pagese.email_donatorit %}<p>{{ pagese.email_donatorit }}</p>{% endif %}
       {% if pagese.nr_telefoni %}<p>{{ pagese.nr_telefoni }}</p>{% endif %}
@@ -86,7 +86,7 @@
     </thead>
     <tbody>
       <tr>
-        <td>Donacion — Fondi i Xhamisë Pirok</td>
+        <td>{% if pagese.lloji == 'AKTIVITET' %}Pagesë Aktiviteti{% else %}Donacion{% endif %} — Xhamia Pirok</td>
         <td>{{ pagese.arsyeja|default:"—" }}</td>
         <td>{{ pagese.data_pageses|date:"d.m.Y" }}</td>
         <td><strong>{{ pagese.shuma }} €</strong></td>
@@ -95,7 +95,7 @@
   </table>
 
   <div class="shuma-total">
-    <div class="etiketa">Shuma e Donacionit</div>
+    <div class="etiketa">{% if pagese.lloji == 'AKTIVITET' %}Shuma e Paguar{% else %}Shuma e Donacionit{% endif %}</div>
     <div class="vlera">{{ pagese.shuma }} €</div>
   </div>
 

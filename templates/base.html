@@ -54,6 +54,9 @@
     <a href="{% url 'dashboard_fondi' %}" class="{% if faqja_aktive == 'dashboard_fondi' %}aktive{% endif %}">
       <span class="ikona">💰</span> Fondi i Xhamisë
     </a>
+    <a href="{% url 'dashboard_varrezat' %}" class="{% if faqja_aktive == 'dashboard_varrezat' %}aktive{% endif %}">
+      <span class="ikona">⚰️</span> Varrezat
+    </a>
     {% if request.user.profili.është_admin %}
     <a href="{% url 'dashboard_buxheti' %}" class="{% if faqja_aktive == 'buxheti' %}aktive{% endif %}">
       <span class="ikona">💼</span> Buxheti
@@ -71,6 +74,11 @@
     <div class="nav-section-label">Fondi</div>
     <a href="{% url 'lista_pagesa_fondi' %}" class="{% if faqja_aktive == 'pagesat_fondi' %}aktive{% endif %}">
       <span class="ikona">🤲</span> Pagesat Fondit
+    </a>
+
+    <div class="nav-section-label">Varrezat</div>
+    <a href="{% url 'lista_pagesa_varrezave' %}" class="{% if faqja_aktive == 'pagesat_varrezat' %}aktive{% endif %}">
+      <span class="ikona">⚰️</span> Pagesat Varrezave
     </a>
 
     {% if request.user.profili.është_admin %}

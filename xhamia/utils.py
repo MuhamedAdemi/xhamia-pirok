@@ -30,9 +30,33 @@ def dërgo_email_fondi(pagese, request):
     if not marrësit:
         return
 
+    if pagese.lloji == 'AKTIVITET':
+        subjekti = f'Fatura {pagese.nr_fatures} — Aktivitet: {pagese.arsyeja or "Xhamia Pirok"}'
+    else:
+        subjekti = f'Fatura {pagese.nr_fatures} — Fondi i Xhamisë Pirok'
+
     html = render_to_string('email/fatura_fondi.html', {'pagese': pagese}, request=request)
     msg = EmailMessage(
-        subject=f'Fatura {pagese.nr_fatures} — Fondi i Xhamisë Pirok',
+        subject=subjekti,
+        body=html,
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        to=marrësit,
+    )
+    msg.content_subtype = 'html'
+    msg.send()
+
+
+def dërgo_email_varrezat(pagese, request):
+    marrësit = list(settings.EMAILET_ZYRTARE)
+    if pagese.shtepia.email:
+        marrësit.append(pagese.shtepia.email)
+    marrësit = list(set(filter(None, marrësit)))
+    if not marrësit:
+        return
+
+    html = render_to_string('email/fatura_varrezat.html', {'pagese': pagese}, request=request)
+    msg = EmailMessage(
+        subject=f'Fatura {pagese.nr_fatures} — Mirëmbajtja e Varrezave — Xhamia Pirok',
         body=html,
         from_email=settings.DEFAULT_FROM_EMAIL,
         to=marrësit,

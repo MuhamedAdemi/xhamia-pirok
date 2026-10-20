@@ -62,6 +62,23 @@
   </div>
 
   <div class="card" style="margin-bottom:20px;">
+    <div class="card-header"><h5>⚰️ Varrezat (Mirëmbajtja)</h5></div>
+    <div class="card-body">
+      <div class="grid-2">
+        <div class="forma-grup">
+          <label>{{ form.viti_fillimit_varrezave.label }}</label>
+          {% render_field form.viti_fillimit_varrezave %}
+        </div>
+        <div class="forma-grup">
+          <label>{{ form.varrezat_paguar_deri_viti.label }}</label>
+          {% render_field form.varrezat_paguar_deri_viti placeholder="p.sh. 2023" %}
+          <p class="ndihma">Lëre bosh nëse nuk ka. Njëlloj si antarësia, por për fondin e varrezave.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:20px;">
     <div class="card-header"><h5>📞 Kontaktet</h5></div>
     <div class="card-body">
       <div class="grid-2">

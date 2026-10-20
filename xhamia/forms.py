@@ -1,6 +1,9 @@
 from django import forms
 from django.contrib.auth.models import User
-from .models import ProfilStafi, Kategoria, Shtepia, PagesaAntaresia, PagesaFondi, Harxhimi
+from .models import (
+    ProfilStafi, Kategoria, Shtepia, PagesaAntaresia, PagesaFondi, Harxhimi,
+    PagesaVarrezave, KonfigurimiVarrezave,
+)
 
 
 MUAJT = [
@@ -61,6 +64,7 @@ class ShtepiaForm(forms.ModelForm):
             'nr_shtepise', 'emri_kryefamiljarit', 'mbiemri_kryefamiljarit',
             'nr_antareve_familjes', 'kategoria', 'viti_fillimit_antaresise',
             'paguar_deri_viti',
+            'viti_fillimit_varrezave', 'varrezat_paguar_deri_viti',
             'email', 'nr_telefoni_kryesor', 'nr_telefoni_sporadik',
             'kontakt_sporadik_emri', 'kontakt_sporadik_email', 'kontakt_sporadik_telefoni',
             'shenime', 'është_aktiv',
@@ -68,6 +72,8 @@ class ShtepiaForm(forms.ModelForm):
         labels = {
             'viti_fillimit_antaresise': 'Antarësia Aktive nga Viti',
             'paguar_deri_viti': 'Paguar Deri Viti (Historik)',
+            'viti_fillimit_varrezave': 'Varrezat Aktive nga Viti',
+            'varrezat_paguar_deri_viti': 'Varrezat — Paguar Deri Viti (Historik)',
         }
         widgets = {
             'shenime': forms.Textarea(attrs={'rows': 2}),
@@ -118,7 +124,7 @@ class PagesaFondiForm(forms.ModelForm):
     class Meta:
         model = PagesaFondi
         fields = [
-            'emri_donatorit', 'mbiemri_donatorit',
+            'lloji', 'emri_donatorit', 'mbiemri_donatorit',
             'email_donatorit', 'nr_telefoni',
             'shuma', 'data_pageses', 'arsyeja', 'shenime',
             'shuma_mkd', 'kursi_denar',
@@ -129,16 +135,52 @@ class PagesaFondiForm(forms.ModelForm):
             'arsyeja': forms.Textarea(attrs={'rows': 2}),
         }
         labels = {
+            'lloji': 'Lloji i Pagesës',
             'emri_donatorit': 'Emri',
             'mbiemri_donatorit': 'Mbiemri',
             'email_donatorit': 'Email',
             'nr_telefoni': 'Nr. Telefoni',
             'shuma': 'Shuma (€)',
             'data_pageses': 'Data e Pagesës',
-            'arsyeja': 'Arsyeja / Qëllimi',
+            'arsyeja': 'Arsyeja / Qëllimi (p.sh. emri i aktivitetit)',
             'shenime': 'Shënime',
             'shuma_mkd': 'Shuma (MKD)',
             'kursi_denar': 'Kursi EUR/MKD',
+        }
+
+
+class PagesaVarrezaveForm(forms.ModelForm):
+    class Meta:
+        model = PagesaVarrezave
+        fields = [
+            'shtepia', 'shuma_paguar', 'viti', 'data_pageses',
+            'shenime', 'shuma_mkd', 'kursi_denar',
+        ]
+        widgets = {
+            'data_pageses': forms.DateInput(attrs={'type': 'date'}),
+            'shenime': forms.Textarea(attrs={'rows': 2}),
+        }
+        labels = {
+            'shtepia': 'Shtëpia',
+            'shuma_paguar': 'Shuma (€)',
+            'viti': 'Viti',
+            'data_pageses': 'Data e Pagesës',
+            'shenime': 'Shënime',
+            'shuma_mkd': 'Shuma (MKD)',
+            'kursi_denar': 'Kursi EUR/MKD',
+        }
+
+
+class KonfigurimiVarrezaveForm(forms.ModelForm):
+    class Meta:
+        model = KonfigurimiVarrezave
+        fields = ['shuma_vjetore', 'pershkrimi']
+        widgets = {
+            'pershkrimi': forms.Textarea(attrs={'rows': 3}),
+        }
+        labels = {
+            'shuma_vjetore': 'Shuma Vjetore (€) — e njëjtë për çdo shtëpi',
+            'pershkrimi': 'Shënime / Përshkrimi i Programit',
         }
 
 
@@ -170,7 +212,7 @@ class HarxhimiForm(forms.ModelForm):
     class Meta:
         model = Harxhimi
         fields = [
-            'lloji', 'stafi', 'muaji', 'viti', 'data_pageses',
+            'lloji', 'burimi', 'stafi', 'muaji', 'viti', 'data_pageses',
             'pershkrimi', 'shuma_eur', 'shuma_mkd', 'kursi_denar',
         ]
         widgets = {
@@ -179,6 +221,7 @@ class HarxhimiForm(forms.ModelForm):
         }
         labels = {
             'lloji': 'Lloji i Harxhimit',
+            'burimi': 'Paguhet nga Buxheti',
             'stafi': 'Stafi (vetëm për rroge)',
             'shuma_eur': 'Shuma (€)',
             'shuma_mkd': 'Shuma (MKD) — Opsionale',

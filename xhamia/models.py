@@ -69,6 +69,12 @@ class Shtepia(models.Model):
     paguar_deri_viti = models.PositiveSmallIntegerField(
         null=True, blank=True, verbose_name='Paguar Deri Viti (Historik)'
     )
+    viti_fillimit_varrezave = models.PositiveSmallIntegerField(
+        default=2026, verbose_name='Varrezat Aktive nga Viti'
+    )
+    varrezat_paguar_deri_viti = models.PositiveSmallIntegerField(
+        null=True, blank=True, verbose_name='Varrezat — Paguar Deri Viti (Historik)'
+    )
     email = models.EmailField(blank=True, verbose_name='Email')
     nr_telefoni_kryesor = models.CharField(max_length=20, blank=True, verbose_name='Nr. Telefoni Kryesor')
     nr_telefoni_sporadik = models.CharField(max_length=20, blank=True, verbose_name='Nr. Telefoni Sporadik')
@@ -189,9 +195,18 @@ class PagesaAntaresia(models.Model):
 
 
 class PagesaFondi(models.Model):
+    LLOJI_CHOICES = [
+        ('DHURATE', 'Dhuratë / Fondi i Përgjithshëm'),
+        ('AKTIVITET', 'Aktivitet'),
+    ]
+
     nr_fatures = models.CharField(
         max_length=20, unique=True, default=gjenero_nr_fature_fondi,
         verbose_name='Nr. Faturës'
+    )
+    lloji = models.CharField(
+        max_length=15, choices=LLOJI_CHOICES, default='DHURATE',
+        verbose_name='Lloji i Pagesës'
     )
     emri_donatorit = models.CharField(max_length=100, verbose_name='Emri')
     mbiemri_donatorit = models.CharField(max_length=100, verbose_name='Mbiemri')
@@ -218,6 +233,68 @@ class PagesaFondi(models.Model):
         return f"{self.nr_fatures} — {self.emri_donatorit} {self.mbiemri_donatorit} — {self.shuma}€"
 
 
+class KonfigurimiVarrezave(models.Model):
+    """Rresht i vetëm (singleton) me shumën vjetore fikse për mirëmbajtjen e varrezave."""
+    shuma_vjetore = models.DecimalField(
+        max_digits=8, decimal_places=2, default=0,
+        verbose_name='Shuma Vjetore (€) — e njëjtë për çdo shtëpi'
+    )
+    pershkrimi = models.TextField(blank=True, verbose_name='Shënime / Përshkrimi i Programit')
+
+    class Meta:
+        verbose_name = 'Konfigurimi i Varrezave'
+        verbose_name_plural = 'Konfigurimi i Varrezave'
+
+    def __str__(self):
+        return f"Shuma vjetore: {self.shuma_vjetore}€"
+
+    @classmethod
+    def merr(cls):
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj
+
+
+def gjenero_nr_fature_varrezat():
+    viti = timezone.now().year
+    prefix = f"XP-VARR-{viti}-"
+    last = PagesaVarrezave.objects.filter(nr_fatures__startswith=prefix).order_by('nr_fatures').last()
+    if last:
+        nr = int(last.nr_fatures.split('-')[-1]) + 1
+    else:
+        nr = 1
+    return f"{prefix}{nr:04d}"
+
+
+class PagesaVarrezave(models.Model):
+    nr_fatures = models.CharField(
+        max_length=20, unique=True, default=gjenero_nr_fature_varrezat,
+        verbose_name='Nr. Faturës'
+    )
+    shtepia = models.ForeignKey(
+        Shtepia, on_delete=models.PROTECT, related_name='pagesat_varrezave',
+        verbose_name='Shtëpia'
+    )
+    shuma_paguar = models.DecimalField(max_digits=8, decimal_places=2, verbose_name='Shuma (€)')
+    viti = models.PositiveSmallIntegerField(verbose_name='Viti', default=timezone.now().year)
+    data_pageses = models.DateField(verbose_name='Data e Pagesës')
+    arktar = models.ForeignKey(
+        User, on_delete=models.PROTECT, related_name='varrezat_regjistruara',
+        verbose_name='Arktar'
+    )
+    shenime = models.TextField(blank=True, verbose_name='Shënime')
+    shuma_mkd = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, verbose_name='Shuma (MKD)')
+    kursi_denar = models.DecimalField(max_digits=8, decimal_places=4, null=True, blank=True, verbose_name='Kursi EUR/MKD')
+    data_regjistrimit = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Pagesë Varrezash'
+        verbose_name_plural = 'Pagesat e Varrezave'
+        ordering = ['-data_pageses']
+
+    def __str__(self):
+        return f"{self.nr_fatures} — {self.shtepia} — {self.shuma_paguar}€"
+
+
 def gjenero_nr_fature_harxhim():
     viti = timezone.now().year
     prefix = f"XP-HRX-{viti}-"
@@ -242,6 +319,7 @@ class Harxhimi(models.Model):
     BURIMI_CHOICES = [
         ('ANTARESIA', 'Antarësia (Rrogat)'),
         ('FONDI', 'Fondi i Xhamisë'),
+        ('VARREZAT', 'Varrezat (Mirëmbajtja)'),
     ]
     MUAJT_MAP = {
         1: 'Janar', 2: 'Shkurt', 3: 'Mars', 4: 'Prill',

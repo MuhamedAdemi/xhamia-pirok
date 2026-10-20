@@ -16,12 +16,16 @@ import random
 import string
 from decimal import Decimal
 
-from .models import ProfilStafi, ProfilShtepi, Kategoria, Shtepia, PagesaAntaresia, PagesaFondi, Harxhimi, gjenero_nr_shtepi
+from .models import (
+    ProfilStafi, ProfilShtepi, Kategoria, Shtepia, PagesaAntaresia, PagesaFondi, Harxhimi,
+    PagesaVarrezave, KonfigurimiVarrezave, gjenero_nr_shtepi,
+)
 from .forms import (
     LoginForm, StafForm, KategoriaForm, ShtepiaForm,
-    PagesaAntaresiaForm, PagesaFondiForm, HarxhimiForm, MUAJT
+    PagesaAntaresiaForm, PagesaFondiForm, HarxhimiForm, MUAJT,
+    PagesaVarrezaveForm, KonfigurimiVarrezaveForm,
 )
-from .utils import dërgo_email_antaresia, dërgo_email_fondi
+from .utils import dërgo_email_antaresia, dërgo_email_fondi, dërgo_email_varrezat
 
 
 def _gjenero_kod():
@@ -84,6 +88,15 @@ def _shtepite_paguara_ids(viti):
     actual = set(PagesaAntaresia.objects.filter(viti=viti).values_list('shtepia_id', flat=True))
     historike = set(Shtepia.objects.filter(
         paguar_deri_viti__gte=viti, është_aktiv=True
+    ).values_list('id', flat=True))
+    return actual | historike
+
+
+def _shtepite_paguara_varrezat_ids(viti):
+    """ID-të e shtëpive që e kanë paguar varrezat e vitit — pagesa reale + shënimi historik."""
+    actual = set(PagesaVarrezave.objects.filter(viti=viti).values_list('shtepia_id', flat=True))
+    historike = set(Shtepia.objects.filter(
+        varrezat_paguar_deri_viti__gte=viti, është_aktiv=True
     ).values_list('id', flat=True))
     return actual | historike
 
@@ -260,11 +273,20 @@ def dashboard_fondi(request):
         total=Sum('shuma')
     ).order_by('-total')[:5]
 
+    total_dhurata = PagesaFondi.objects.filter(
+        data_pageses__year=viti_zgjedhur, lloji='DHURATE'
+    ).aggregate(s=Sum('shuma'))['s'] or 0
+    total_aktivitete = PagesaFondi.objects.filter(
+        data_pageses__year=viti_zgjedhur, lloji='AKTIVITET'
+    ).aggregate(s=Sum('shuma'))['s'] or 0
+
     konteksti = {
         'viti_zgjedhur': viti_zgjedhur,
         'vitit_lista': vitit_lista,
         'total_fondi': total_fondi,
         'total_donator': total_donator,
+        'total_dhurata': total_dhurata,
+        'total_aktivitete': total_aktivitete,
         'pagesat_mujore_json': json.dumps(pagesat_mujore),
         'muajt_etiketat_json': json.dumps(muajt_etiketat),
         'krahasimi_viteve_json': json.dumps(krahasimi_viteve),
@@ -273,6 +295,57 @@ def dashboard_fondi(request):
         'faqja_aktive': 'dashboard_fondi',
     }
     return render(request, 'dashboard/fondi.html', konteksti)
+
+
+@login_required
+def dashboard_varrezat(request):
+    viti_zgjedhur = int(request.GET.get('viti', timezone.now().year))
+    vitit_lista = list(range(2020, timezone.now().year + 2))
+
+    total_shtepite = Shtepia.objects.filter(është_aktiv=True).count()
+
+    paguar_ids = _shtepite_paguara_varrezat_ids(viti_zgjedhur)
+    kane_paguar = len(paguar_ids)
+    nuk_kane_paguar = total_shtepite - kane_paguar
+
+    total_mbledhur = PagesaVarrezave.objects.filter(viti=viti_zgjedhur).aggregate(
+        s=Sum('shuma_paguar')
+    )['s'] or 0
+
+    total_harxhime = Harxhimi.objects.filter(
+        viti=viti_zgjedhur, burimi='VARREZAT'
+    ).aggregate(s=Sum('shuma_eur'))['s'] or 0
+    bilanci = total_mbledhur - total_harxhime
+    harxhimet_e_fundit = Harxhimi.objects.select_related('stafi').filter(
+        viti=viti_zgjedhur, burimi='VARREZAT'
+    ).order_by('-data_pageses')[:6]
+
+    pagesat_e_fundit = PagesaVarrezave.objects.select_related('shtepia', 'arktar').order_by('-data_regjistrimit')[:10]
+
+    shtepite_pa_pagese = Shtepia.objects.filter(
+        është_aktiv=True
+    ).exclude(
+        id__in=paguar_ids
+    ).select_related('kategoria')[:20]
+
+    konfigurimi = KonfigurimiVarrezave.merr()
+
+    konteksti = {
+        'viti_zgjedhur': viti_zgjedhur,
+        'vitit_lista': vitit_lista,
+        'total_shtepite': total_shtepite,
+        'kane_paguar': kane_paguar,
+        'nuk_kane_paguar': nuk_kane_paguar,
+        'total_mbledhur': total_mbledhur,
+        'total_harxhime': total_harxhime,
+        'bilanci': bilanci,
+        'harxhimet_e_fundit': harxhimet_e_fundit,
+        'pagesat_e_fundit': pagesat_e_fundit,
+        'shtepite_pa_pagese': shtepite_pa_pagese,
+        'konfigurimi': konfigurimi,
+        'faqja_aktive': 'dashboard_varrezat',
+    }
+    return render(request, 'dashboard/varrezat.html', konteksti)
 
 
 # ─── Shtëpitë ───────────────────────────────────────────────────────────────
@@ -376,6 +449,7 @@ def shto_shtepi(request):
 def detaje_shtepia(request, pk):
     shtepi = get_object_or_404(Shtepia, pk=pk)
     pagesat = shtepi.pagesat.select_related('arktar', 'kategoria_pageses').order_by('-viti', '-data_pageses')
+    pagesat_varrezave = shtepi.pagesat_varrezave.select_related('arktar').order_by('-viti', '-data_pageses')
 
     viti_aktual = timezone.now().year
     viti_fillimit = shtepi.viti_fillimit_antaresise
@@ -405,6 +479,33 @@ def detaje_shtepia(request, pk):
                 'historike': False,
             }
 
+    shuma_vjetore_varrezat = KonfigurimiVarrezave.merr().shuma_vjetore
+    viti_fillimit_v = shtepi.viti_fillimit_varrezave
+    paguar_deri_v = shtepi.varrezat_paguar_deri_viti
+    pagesat_per_vit_varrezat = {}
+    borxhi_total_varrezat = Decimal('0')
+    for v in range(viti_fillimit_v, viti_aktual + 1):
+        if paguar_deri_v and v <= paguar_deri_v:
+            pagesat_per_vit_varrezat[v] = {
+                'shuma_paguar': shuma_vjetore_varrezat,
+                'ka_paguar': True,
+                'borxhi': Decimal('0'),
+                'historike': True,
+            }
+        else:
+            shuma_paguar = shtepi.pagesat_varrezave.filter(viti=v).aggregate(
+                s=Sum('shuma_paguar')
+            )['s'] or Decimal('0')
+            ka_paguar = shuma_paguar >= shuma_vjetore_varrezat
+            borxh_v = max(Decimal('0'), shuma_vjetore_varrezat - shuma_paguar)
+            borxhi_total_varrezat += borxh_v
+            pagesat_per_vit_varrezat[v] = {
+                'shuma_paguar': shuma_paguar,
+                'ka_paguar': ka_paguar,
+                'borxhi': borxh_v,
+                'historike': False,
+            }
+
     vitit_lista = list(range(2000, viti_aktual + 2))
 
     return render(request, 'shtepite/detaje.html', {
@@ -412,6 +513,9 @@ def detaje_shtepia(request, pk):
         'pagesat': pagesat,
         'pagesat_per_vit': pagesat_per_vit,
         'borxhi_total': borxhi_total,
+        'pagesat_varrezave': pagesat_varrezave,
+        'pagesat_per_vit_varrezat': pagesat_per_vit_varrezat,
+        'borxhi_total_varrezat': borxhi_total_varrezat,
         'viti_aktual': viti_aktual,
         'vitit_lista': vitit_lista,
         'faqja_aktive': 'shtepite',
@@ -430,6 +534,23 @@ def permbyll_antaresia(request, pk):
             shtepi.paguar_deri_viti = viti_i_ri
             shtepi.save()
             messages.success(request, f'Shtëpia #{shtepi.nr_shtepise}: shënuar si e paguar deri viti {viti_i_ri}.')
+        except (ValueError, TypeError):
+            messages.error(request, 'Viti i zgjedhur nuk është i vlefshëm.')
+    return redirect('detaje_shtepia', pk=pk)
+
+
+@login_required
+def permbyll_varrezat(request, pk):
+    if not është_admin(request.user):
+        messages.error(request, 'Nuk keni leje.')
+        return redirect('lista_shtepive')
+    shtepi = get_object_or_404(Shtepia, pk=pk)
+    if request.method == 'POST':
+        try:
+            viti_i_ri = int(request.POST.get('viti_i_ri', timezone.now().year))
+            shtepi.varrezat_paguar_deri_viti = viti_i_ri
+            shtepi.save()
+            messages.success(request, f'Shtëpia #{shtepi.nr_shtepise}: varrezat shënuar si të paguara deri viti {viti_i_ri}.')
         except (ValueError, TypeError):
             messages.error(request, 'Viti i zgjedhur nuk është i vlefshëm.')
     return redirect('detaje_shtepia', pk=pk)
@@ -507,7 +628,9 @@ def shto_pagese_antaresia(request):
     if not mund_regjistrojë(request.user):
         messages.error(request, 'Nuk keni leje për të regjistruar pagesa.')
         return redirect('lista_pagesa_antaresia')
-    form = PagesaAntaresiaForm(request.POST or None)
+    form = PagesaAntaresiaForm(request.POST or None, initial={
+        'shtepia': request.GET.get('shtepi') or None,
+    })
     if request.method == 'POST' and form.is_valid():
         pagese = form.save(commit=False)
         pagese.arktar = request.user
@@ -544,6 +667,7 @@ def fatura_antaresia_pdf(request, pk):
 def lista_pagesa_fondi(request):
     viti = request.GET.get('viti', timezone.now().year)
     kerkimi = request.GET.get('kerkimi', '')
+    lloji = request.GET.get('lloji', '')
     pagesat = PagesaFondi.objects.select_related('arktar')
     if viti:
         pagesat = pagesat.filter(data_pageses__year=viti)
@@ -551,10 +675,26 @@ def lista_pagesa_fondi(request):
         pagesat = pagesat.filter(
             Q(nr_fatures__icontains=kerkimi) |
             Q(emri_donatorit__icontains=kerkimi) |
-            Q(mbiemri_donatorit__icontains=kerkimi)
+            Q(mbiemri_donatorit__icontains=kerkimi) |
+            Q(arsyeja__icontains=kerkimi)
         )
+    if lloji:
+        pagesat = pagesat.filter(lloji=lloji)
+
+    if request.GET.get('eksporto') == 'excel':
+        koka = ['Nr. Faturës', 'Lloji', 'Emri', 'Mbiemri', 'Arsyeja', 'Shuma (€)', 'Data', 'Arktar']
+        rreshtat = [
+            [
+                p.nr_fatures, p.get_lloji_display(), p.emri_donatorit, p.mbiemri_donatorit,
+                p.arsyeja, float(p.shuma), p.data_pageses.strftime('%d.%m.%Y'), p.arktar.get_full_name(),
+            ]
+            for p in pagesat
+        ]
+        return _pergjigje_excel(f'pagesat_fondi_{timezone.now().date()}.xlsx', koka, rreshtat)
+
     return render(request, 'pagesat/fondi/lista.html', {
-        'pagesat': pagesat, 'viti': viti, 'kerkimi': kerkimi,
+        'pagesat': pagesat, 'viti': viti, 'kerkimi': kerkimi, 'lloji': lloji,
+        'lloji_choices': PagesaFondi.LLOJI_CHOICES,
         'vitit_lista': list(range(2020, timezone.now().year + 2)),
         'faqja_aktive': 'pagesat_fondi',
     })
@@ -596,6 +736,123 @@ def fatura_fondi_pdf(request, pk):
     return response
 
 
+# ─── Pagesat Varrezave ───────────────────────────────────────────────────────
+
+@login_required
+def lista_pagesa_varrezave(request):
+    viti = request.GET.get('viti', timezone.now().year)
+    kerkimi = request.GET.get('kerkimi', '')
+
+    pagesat = PagesaVarrezave.objects.select_related('shtepia', 'arktar')
+    if viti:
+        pagesat = pagesat.filter(viti=viti)
+    if kerkimi:
+        pagesat = pagesat.filter(
+            Q(nr_fatures__icontains=kerkimi) |
+            Q(shtepia__emri_kryefamiljarit__icontains=kerkimi) |
+            Q(shtepia__mbiemri_kryefamiljarit__icontains=kerkimi) |
+            Q(shtepia__nr_shtepise__icontains=kerkimi)
+        )
+
+    if request.GET.get('eksporto') == 'excel':
+        koka = ['Nr. Faturës', 'Shtëpia', 'Shuma (€)', 'Viti', 'Data', 'Arktar']
+        rreshtat = [
+            [
+                p.nr_fatures, f'#{p.shtepia.nr_shtepise} {p.shtepia.emri_kryefamiljarit} {p.shtepia.mbiemri_kryefamiljarit}',
+                float(p.shuma_paguar), p.viti, p.data_pageses.strftime('%d.%m.%Y'), p.arktar.get_full_name(),
+            ]
+            for p in pagesat
+        ]
+        return _pergjigje_excel(f'pagesat_varrezave_{timezone.now().date()}.xlsx', koka, rreshtat)
+
+    return render(request, 'pagesat/varrezat/lista.html', {
+        'pagesat': pagesat, 'viti': viti, 'kerkimi': kerkimi,
+        'vitit_lista': list(range(2020, timezone.now().year + 2)),
+        'faqja_aktive': 'pagesat_varrezat',
+    })
+
+
+@login_required
+def shto_pagese_varrezat(request):
+    if not mund_regjistrojë(request.user):
+        messages.error(request, 'Nuk keni leje për të regjistruar pagesa.')
+        return redirect('lista_pagesa_varrezave')
+    shuma_paracaktuar = KonfigurimiVarrezave.merr().shuma_vjetore
+    shtepi_id = request.GET.get('shtepi', '')
+    form = PagesaVarrezaveForm(request.POST or None, initial={
+        'shuma_paguar': shuma_paracaktuar,
+        'shtepia': shtepi_id or None,
+    })
+    if request.method == 'POST' and form.is_valid():
+        pagese = form.save(commit=False)
+        pagese.arktar = request.user
+        pagese.save()
+        messages.success(request, f'Pagesa {pagese.nr_fatures} u regjistrua me sukses.')
+        return redirect('detaje_pagesa_varrezat', pk=pagese.pk)
+    return render(request, 'pagesat/varrezat/forma.html', {
+        'form': form, 'titulli': 'Regjistro Pagesë Varrezash',
+        'shuma_paracaktuar': shuma_paracaktuar, 'faqja_aktive': 'pagesat_varrezat',
+    })
+
+
+@login_required
+def detaje_pagesa_varrezat(request, pk):
+    pagese = get_object_or_404(PagesaVarrezave, pk=pk)
+    return render(request, 'pagesat/varrezat/detaje.html', {
+        'pagese': pagese, 'faqja_aktive': 'pagesat_varrezat'
+    })
+
+
+@login_required
+def fatura_varrezat_pdf(request, pk):
+    pagese = get_object_or_404(PagesaVarrezave, pk=pk)
+    html = render_to_string('pagesat/varrezat/fatura_pdf.html', {'pagese': pagese})
+    buffer = BytesIO()
+    pisa.CreatePDF(html, dest=buffer)
+    response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
+    response['Content-Disposition'] = f'inline; filename="fatura-{pagese.nr_fatures}.pdf"'
+    return response
+
+
+@login_required
+def fshi_pagese_varrezat(request, pk):
+    if not është_admin(request.user):
+        messages.error(request, 'Nuk keni leje.')
+        return redirect('lista_pagesa_varrezave')
+    pagese = get_object_or_404(PagesaVarrezave, pk=pk)
+    nr = pagese.nr_fatures
+
+    return _fshirje_3hap(
+        request,
+        çelësi=f'varr_{pk}',
+        fshi_fn=lambda: pagese.delete(),
+        redirect_sukses=reverse('lista_pagesa_varrezave'),
+        info={
+            'lloji':     'Pagesë Varrezash',
+            'emri':      pagese.nr_fatures,
+            'detaje':    f'{pagese.shtepia} — {pagese.shuma_paguar}€ ({pagese.viti})',
+            'url_anulo': reverse('detaje_pagesa_varrezat', args=[pk]),
+        },
+        mesazh_sukses=f'Pagesa {nr} u fshi me sukses.',
+    )
+
+
+@login_required
+def konfigurimi_varrezave(request):
+    if not është_admin(request.user):
+        messages.error(request, 'Nuk keni leje.')
+        return redirect('dashboard_varrezat')
+    konfigurimi = KonfigurimiVarrezave.merr()
+    form = KonfigurimiVarrezaveForm(request.POST or None, instance=konfigurimi)
+    if request.method == 'POST' and form.is_valid():
+        form.save()
+        messages.success(request, 'Konfigurimi i varrezave u përditësua me sukses.')
+        return redirect('dashboard_varrezat')
+    return render(request, 'varrezat/konfigurimi.html', {
+        'form': form, 'konfigurimi': konfigurimi, 'faqja_aktive': 'dashboard_varrezat',
+    })
+
+
 # ─── Email manual dërgim ────────────────────────────────────────────────────
 
 @login_required
@@ -634,6 +891,24 @@ def dergo_email_fondi_view(request, pk):
     return redirect('detaje_pagesa_fondi', pk=pk)
 
 
+@login_required
+def dergo_email_varrezat_view(request, pk):
+    if not mund_regjistrojë(request.user):
+        messages.error(request, 'Nuk keni leje.')
+        return redirect('lista_pagesa_varrezave')
+    pagese = get_object_or_404(PagesaVarrezave, pk=pk)
+    if request.method == 'POST':
+        if not pagese.shtepia.email:
+            messages.warning(request, 'Kjo shtëpi nuk ka email të regjistruar.')
+        else:
+            try:
+                dërgo_email_varrezat(pagese, request)
+                messages.success(request, f'Emaili u dërgua me sukses te {pagese.shtepia.email}.')
+            except Exception as e:
+                messages.error(request, f'Emaili nuk u dërgua: {e}')
+    return redirect('detaje_pagesa_varrezat', pk=pk)
+
+
 # ─── Harxhimet ───────────────────────────────────────────────────────────────
 
 @login_required
@@ -664,7 +939,6 @@ def shto_harxhim(request):
     form = HarxhimiForm(request.POST or None)
     if request.method == 'POST' and form.is_valid():
         harxhim = form.save(commit=False)
-        harxhim.burimi = 'ANTARESIA' if harxhim.lloji == 'RROGE' else 'FONDI'
         harxhim.arktar = request.user
         harxhim.save()
         messages.success(request, f'Harxhimi {harxhim.nr_fatures} u regjistrua me sukses.')

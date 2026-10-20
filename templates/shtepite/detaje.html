@@ -17,6 +17,7 @@
     <a href="{% url 'edito_shtepi' shtepi.pk %}" class="btn-dytësor">Edito</a>
     <a href="{% url 'fshi_shtepi' shtepi.pk %}" class="btn-rrezik">Çaktivizo</a>
     {% endif %}
+    <a href="{% url 'shto_pagese_varrezat' %}?shtepi={{ shtepi.pk }}" class="btn-dytësor">+ Pagesë Varrezash</a>
     <a href="{% url 'shto_pagese_antaresia' %}?shtepi={{ shtepi.pk }}" class="btn-kryesor">+ Regjistro Pagesë</a>
   </div>
 </div>
@@ -210,9 +211,9 @@
 </div>
 
 <!-- Historia pagesave -->
-<div class="card">
+<div class="card" style="margin-bottom:24px;">
   <div class="card-header">
-    <h5>📋 Historia e Pagesave</h5>
+    <h5>📋 Historia e Pagesave — Antarësia</h5>
     <a href="{% url 'shto_pagese_antaresia' %}?shtepi={{ shtepi.pk }}" class="btn-kryesor btn-sm">+ Pagesë e Re</a>
   </div>
   <div style="overflow-x:auto;">
@@ -244,6 +245,112 @@
         {% empty %}
         <tr>
           <td colspan="7" style="text-align:center; padding:30px; color:var(--tekst-dytësor);">
+            Asnjë pagesë e regjistruar ende.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Gjendja Varrezave sipas Vitit -->
+<div class="card" style="margin-bottom:24px;">
+  <div class="card-header">
+    <h5>⚰️ Gjendja e Varrezave sipas Vitit</h5>
+    <div style="display:flex; align-items:center; gap:12px;">
+      <span style="font-size:13px; color:var(--tekst-dytësor);">nga {{ shtepi.viti_fillimit_varrezave }} deri {{ viti_aktual }}</span>
+      {% if borxhi_total_varrezat > 0 %}
+      <span style="font-size:13px; background:rgba(255,59,48,0.1); color:var(--gabim); padding:4px 10px; border-radius:20px; font-weight:600;">Borxh total: {{ borxhi_total_varrezat }}€</span>
+      {% else %}
+      <span style="font-size:13px; background:var(--gjelbër-shumë-i-çelur); color:var(--gjelbër); padding:4px 10px; border-radius:20px; font-weight:600;">✅ Pa borxh</span>
+      {% endif %}
+    </div>
+  </div>
+  <div class="card-body">
+    {% if pagesat_per_vit_varrezat %}
+    <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(140px, 1fr)); gap:10px; margin-bottom:20px;">
+      {% for vit, info in pagesat_per_vit_varrezat.items %}
+      <div style="border:1.5px solid {% if info.ka_paguar %}var(--gjelbër){% else %}rgba(255,59,48,0.35){% endif %}; border-radius:12px; padding:14px; text-align:center; background:{% if info.ka_paguar %}var(--gjelbër-shumë-i-çelur){% else %}rgba(255,59,48,0.04){% endif %};">
+        <div style="font-size:22px; font-weight:800; color:{% if info.ka_paguar %}var(--gjelbër){% else %}var(--gabim){% endif %}; line-height:1;">
+          {{ vit }}
+        </div>
+        <div style="font-size:20px; margin:6px 0;">{% if info.ka_paguar %}✅{% else %}❌{% endif %}</div>
+        <div style="font-size:12px; color:{% if info.ka_paguar %}var(--gjelbër){% else %}var(--gabim){% endif %}; font-weight:600;">
+          {% if info.ka_paguar %}{{ info.shuma_paguar }}€{% else %}{{ info.borxhi }}€ borxh{% endif %}
+        </div>
+        {% if info.historike %}
+        <div style="margin-top:5px; font-size:10px; background:rgba(107,68,35,0.12); color:#6B4423; padding:2px 6px; border-radius:8px; font-weight:600;">Historik</div>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p style="color:var(--tekst-dytësor); text-align:center; padding:20px 0;">Nuk ka vite për t'u shfaqur.</p>
+    {% endif %}
+
+    {% if request.user.profili.është_admin %}
+    <div style="border-top:1px solid var(--kufi); padding-top:16px; margin-top:4px;">
+      <p style="font-size:13px; color:var(--tekst-dytësor); margin-bottom:10px;">
+        <strong>Regjistrim Historik:</strong> Njëlloj si antarësia — shëno vitin e fundit deri ku janë paguar varrezat.
+      </p>
+      {% if shtepi.varrezat_paguar_deri_viti %}
+      <div style="margin-bottom:12px; padding:10px 14px; background:var(--gjelbër-shumë-i-çelur); border-radius:10px; font-size:13px; color:var(--gjelbër); font-weight:600;">
+        ✅ Aktualisht: paguar deri viti <strong>{{ shtepi.varrezat_paguar_deri_viti }}</strong>
+      </div>
+      {% endif %}
+      <form method="post" action="{% url 'permbyll_varrezat' shtepi.pk %}" style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap;">
+        {% csrf_token %}
+        <div class="forma-grup" style="margin:0; min-width:200px;">
+          <label style="font-size:13px;">Shëno si paguar deri viti:</label>
+          <select name="viti_i_ri" style="padding:8px 12px; border:1.5px solid var(--kufi); border-radius:10px; font-size:14px; background:var(--e-bardhë); font-family:'Inter',sans-serif;">
+            {% for v in vitit_lista %}
+              <option value="{{ v }}" {% if v == shtepi.varrezat_paguar_deri_viti %}selected{% endif %}>{{ v }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <button type="submit" class="btn-dytësor" onclick="return confirm('A jeni i sigurt? Vitet deri te ky vit do të shfaqen si të paguara historikisht.')">
+          Shëno Pagesën Historike →
+        </button>
+      </form>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Historia pagesave varrezat -->
+<div class="card">
+  <div class="card-header">
+    <h5>📋 Historia e Pagesave — Varrezat</h5>
+    <a href="{% url 'shto_pagese_varrezat' %}?shtepi={{ shtepi.pk }}" class="btn-kryesor btn-sm">+ Pagesë e Re</a>
+  </div>
+  <div style="overflow-x:auto;">
+    <table class="tabela-xhami">
+      <thead>
+        <tr>
+          <th>Nr. Faturës</th>
+          <th>Viti</th>
+          <th>Shuma</th>
+          <th>Data</th>
+          <th>Arktar</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in pagesat_varrezave %}
+        <tr>
+          <td><a href="{% url 'detaje_pagesa_varrezat' p.pk %}">{{ p.nr_fatures }}</a></td>
+          <td class="font-semibold">{{ p.viti }}</td>
+          <td class="tekst-gjelbër font-semibold">{{ p.shuma_paguar }}€</td>
+          <td class="tekst-dytësor">{{ p.data_pageses|date:"d M Y" }}</td>
+          <td class="tekst-dytësor">{{ p.arktar.get_full_name }}</td>
+          <td>
+            <a href="{% url 'fatura_varrezat_pdf' p.pk %}" class="btn-dytësor btn-sm" target="_blank">🖨️ Fatura</a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="6" style="text-align:center; padding:30px; color:var(--tekst-dytësor);">
             Asnjë pagesë e regjistruar ende.
           </td>
         </tr>
