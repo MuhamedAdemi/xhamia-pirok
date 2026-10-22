@@ -125,7 +125,7 @@
             <td><a href="{% url 'detaje_pagesa_antaresia' p.pk %}">{{ p.nr_fatures }}</a></td>
             <td>
               <span class="nr-shtepi">{{ p.shtepia.nr_shtepise }}</span>
-              {{ p.shtepia.emri_kryefamiljarit }} {{ p.shtepia.mbiemri_kryefamiljarit }}
+              {{ p.shtepia.emri_i_plote }}
             </td>
             <td class="tekst-gjelbër font-semibold">{{ p.shuma_paguar }}€</td>
             <td class="tekst-dytësor">{{ p.data_pageses|date:"d M Y" }}</td>
@@ -153,7 +153,7 @@
           {% for sh in shtepite_pa_pagese %}
           <tr>
             <td><span class="nr-shtepi">{{ sh.nr_shtepise }}</span></td>
-            <td><a href="{% url 'detaje_shtepia' sh.pk %}">{{ sh.emri_kryefamiljarit }} {{ sh.mbiemri_kryefamiljarit }}</a></td>
+            <td><a href="{% url 'detaje_shtepia' sh.pk %}">{{ sh.emri_i_plote }}</a></td>
             <td><span class="badge-gri">{{ sh.kategoria.emri }}</span></td>
           </tr>
           {% empty %}

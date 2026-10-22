@@ -7,7 +7,7 @@
     <a href="{% url 'lista_shtepive' %}" class="btn-dytësor btn-sm">← Kthehu</a>
     <div>
       <h2><span class="nr-shtepi" style="font-size:18px; width:60px; height:34px;">{{ shtepi.nr_shtepise }}</span>
-        {{ shtepi.emri_kryefamiljarit }} {{ shtepi.mbiemri_kryefamiljarit }}
+        {{ shtepi.emri_i_plote }}
       </h2>
       <p>{{ shtepi.kategoria.emri }} • {{ shtepi.nr_antareve_familjes }} anëtarë familje</p>
     </div>
@@ -29,7 +29,7 @@
       <table style="width:100%; border-collapse:collapse;">
         <tr>
           <td style="padding:8px 0; color:var(--tekst-dytësor); font-size:13px; width:40%;">Emri i plotë</td>
-          <td style="padding:8px 0; font-weight:600;">{{ shtepi.emri_kryefamiljarit }} {{ shtepi.mbiemri_kryefamiljarit }}</td>
+          <td style="padding:8px 0; font-weight:600;">{{ shtepi.emri_i_plote }}</td>
         </tr>
         <tr>
           <td style="padding:8px 0; color:var(--tekst-dytësor); font-size:13px;">Nr. anëtarëve</td>

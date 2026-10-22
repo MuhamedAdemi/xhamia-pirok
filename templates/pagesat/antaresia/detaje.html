@@ -38,7 +38,7 @@
           <td style="padding:10px 0;">
             <a href="{% url 'detaje_shtepia' pagese.shtepia.pk %}">
               <span class="nr-shtepi">{{ pagese.shtepia.nr_shtepise }}</span>
-              {{ pagese.shtepia.emri_kryefamiljarit }} {{ pagese.shtepia.mbiemri_kryefamiljarit }}
+              {{ pagese.shtepia.emri_i_plote }}
             </a>
           </td>
         </tr>
@@ -97,7 +97,7 @@
       <table style="width:100%; border-collapse:collapse;">
         <tr>
           <td style="padding:8px 0; color:var(--tekst-dytësor); font-size:13px; width:40%;">Kryefamiljari</td>
-          <td style="padding:8px 0; font-weight:600;">{{ pagese.shtepia.emri_kryefamiljarit }} {{ pagese.shtepia.mbiemri_kryefamiljarit }}</td>
+          <td style="padding:8px 0; font-weight:600;">{{ pagese.shtepia.emri_i_plote }}</td>
         </tr>
         <tr>
           <td style="padding:8px 0; color:var(--tekst-dytësor); font-size:13px;">Email</td>

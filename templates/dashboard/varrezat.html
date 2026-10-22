@@ -85,7 +85,7 @@
             <td><a href="{% url 'detaje_pagesa_varrezat' p.pk %}">{{ p.nr_fatures }}</a></td>
             <td>
               <span class="nr-shtepi">{{ p.shtepia.nr_shtepise }}</span>
-              {{ p.shtepia.emri_kryefamiljarit }} {{ p.shtepia.mbiemri_kryefamiljarit }}
+              {{ p.shtepia.emri_i_plote }}
             </td>
             <td class="tekst-gjelbër font-semibold">{{ p.shuma_paguar }}€</td>
             <td class="tekst-dytësor">{{ p.data_pageses|date:"d M Y" }}</td>
@@ -112,7 +112,7 @@
           {% for sh in shtepite_pa_pagese %}
           <tr>
             <td><span class="nr-shtepi">{{ sh.nr_shtepise }}</span></td>
-            <td><a href="{% url 'detaje_shtepia' sh.pk %}">{{ sh.emri_kryefamiljarit }} {{ sh.mbiemri_kryefamiljarit }}</a></td>
+            <td><a href="{% url 'detaje_shtepia' sh.pk %}">{{ sh.emri_i_plote }}</a></td>
           </tr>
           {% empty %}
           <tr><td colspan="2" style="text-align:center; padding:24px; color:var(--tekst-dytësor);">✅ Të gjitha shtëpitë kanë paguar!</td></tr>

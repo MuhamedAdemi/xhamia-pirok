@@ -58,6 +58,7 @@ class Shtepia(models.Model):
         max_length=4, unique=True, verbose_name='Nr. Shtëpisë'
     )
     emri_kryefamiljarit = models.CharField(max_length=100, verbose_name='Emri')
+    emri_prindit = models.CharField(max_length=100, blank=True, verbose_name='Emri i Prindit')
     mbiemri_kryefamiljarit = models.CharField(max_length=100, verbose_name='Mbiemri')
     nr_antareve_familjes = models.PositiveSmallIntegerField(default=1, verbose_name='Nr. Anëtarëve')
     kategoria = models.ForeignKey(
@@ -95,11 +96,12 @@ class Shtepia(models.Model):
         ordering = ['nr_shtepise']
 
     def __str__(self):
-        return f"#{self.nr_shtepise} — {self.emri_kryefamiljarit} {self.mbiemri_kryefamiljarit}"
+        return f"#{self.nr_shtepise} — {self.emri_i_plote}"
 
     @property
     def emri_i_plote(self):
-        return f"{self.emri_kryefamiljarit} {self.mbiemri_kryefamiljarit}"
+        pjeset = [self.emri_kryefamiljarit, self.emri_prindit, self.mbiemri_kryefamiljarit]
+        return ' '.join(p for p in pjeset if p)
 
 
 class ProfilShtepi(models.Model):
@@ -116,7 +118,7 @@ class ProfilShtepi(models.Model):
         verbose_name_plural = 'Llogaritë e Shtëpive'
 
     def __str__(self):
-        return f"sh{self.shtepia.nr_shtepise} — {self.shtepia.emri_kryefamiljarit} {self.shtepia.mbiemri_kryefamiljarit}"
+        return f"sh{self.shtepia.nr_shtepise} — {self.shtepia.emri_i_plote}"
 
 
 def gjenero_nr_shtepi():

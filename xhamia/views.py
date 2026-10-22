@@ -369,6 +369,7 @@ def lista_shtepive(request):
         shtepite = shtepite.filter(
             Q(nr_shtepise__icontains=kerkimi) |
             Q(emri_kryefamiljarit__icontains=kerkimi) |
+            Q(emri_prindit__icontains=kerkimi) |
             Q(mbiemri_kryefamiljarit__icontains=kerkimi) |
             Q(nr_telefoni_kryesor__icontains=kerkimi) |
             Q(email__icontains=kerkimi)
@@ -387,12 +388,12 @@ def lista_shtepive(request):
 
     if request.GET.get('eksporto') == 'excel':
         koka = [
-            'Nr.', 'Emri', 'Mbiemri', 'Anëtarë', 'Kategoria', 'Telefoni', 'Email', 'Statusi',
+            'Nr.', 'Emri', 'Emri i Prindit', 'Mbiemri', 'Anëtarë', 'Kategoria', 'Telefoni', 'Email', 'Statusi',
             f'Ka Paguar ({viti_status})',
         ]
         rreshtat = [
             [
-                sh.nr_shtepise, sh.emri_kryefamiljarit, sh.mbiemri_kryefamiljarit,
+                sh.nr_shtepise, sh.emri_kryefamiljarit, sh.emri_prindit, sh.mbiemri_kryefamiljarit,
                 sh.nr_antareve_familjes, sh.kategoria.emri, sh.nr_telefoni_kryesor,
                 sh.email, 'Aktive' if sh.është_aktiv else 'Joaktive',
                 'Po' if sh.id in paguar_ids else 'Jo',
@@ -590,6 +591,7 @@ def lista_pagesa_antaresia(request):
         pagesat = pagesat.filter(
             Q(nr_fatures__icontains=kerkimi) |
             Q(shtepia__emri_kryefamiljarit__icontains=kerkimi) |
+            Q(shtepia__emri_prindit__icontains=kerkimi) |
             Q(shtepia__mbiemri_kryefamiljarit__icontains=kerkimi) |
             Q(shtepia__nr_shtepise__icontains=kerkimi)
         )
@@ -604,7 +606,7 @@ def lista_pagesa_antaresia(request):
         koka = ['Nr. Faturës', 'Shtëpia', 'Kategoria', 'Shuma (€)', 'Periudha', 'Viti', 'Data', 'Arktar']
         rreshtat = [
             [
-                p.nr_fatures, f'#{p.shtepia.nr_shtepise} {p.shtepia.emri_kryefamiljarit} {p.shtepia.mbiemri_kryefamiljarit}',
+                p.nr_fatures, f'#{p.shtepia.nr_shtepise} {p.shtepia.emri_i_plote}',
                 p.kategoria_pageses.emri, float(p.shuma_paguar), p.get_periudha_display(),
                 p.viti, p.data_pageses.strftime('%d.%m.%Y'), p.arktar.get_full_name(),
             ]
@@ -750,6 +752,7 @@ def lista_pagesa_varrezave(request):
         pagesat = pagesat.filter(
             Q(nr_fatures__icontains=kerkimi) |
             Q(shtepia__emri_kryefamiljarit__icontains=kerkimi) |
+            Q(shtepia__emri_prindit__icontains=kerkimi) |
             Q(shtepia__mbiemri_kryefamiljarit__icontains=kerkimi) |
             Q(shtepia__nr_shtepise__icontains=kerkimi)
         )
@@ -758,7 +761,7 @@ def lista_pagesa_varrezave(request):
         koka = ['Nr. Faturës', 'Shtëpia', 'Shuma (€)', 'Viti', 'Data', 'Arktar']
         rreshtat = [
             [
-                p.nr_fatures, f'#{p.shtepia.nr_shtepise} {p.shtepia.emri_kryefamiljarit} {p.shtepia.mbiemri_kryefamiljarit}',
+                p.nr_fatures, f'#{p.shtepia.nr_shtepise} {p.shtepia.emri_i_plote}',
                 float(p.shuma_paguar), p.viti, p.data_pageses.strftime('%d.%m.%Y'), p.arktar.get_full_name(),
             ]
             for p in pagesat
@@ -1173,7 +1176,7 @@ def fshi_shtepi(request, pk):
         info={
             'lloji':     'Shtëpi',
             'emri':      f'Shtëpia #{shtepi.nr_shtepise}',
-            'detaje':    f'{shtepi.emri_kryefamiljarit} {shtepi.mbiemri_kryefamiljarit} — {shtepi.kategoria.emri}',
+            'detaje':    f'{shtepi.emri_i_plote} — {shtepi.kategoria.emri}',
             'url_anulo': reverse('detaje_shtepia', args=[pk]),
         },
         mesazh_sukses=f'Shtëpia #{shtepi.nr_shtepise} u çaktivizua me sukses.',

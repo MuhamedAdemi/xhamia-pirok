@@ -38,6 +38,11 @@
           {% if form.emri_kryefamiljarit.errors %}<p class="gabim-fusha">{{ form.emri_kryefamiljarit.errors.0 }}</p>{% endif %}
         </div>
         <div class="forma-grup">
+          <label>{{ form.emri_prindit.label }}</label>
+          {% render_field form.emri_prindit placeholder="Emri i prindit" %}
+          {% if form.emri_prindit.errors %}<p class="gabim-fusha">{{ form.emri_prindit.errors.0 }}</p>{% endif %}
+        </div>
+        <div class="forma-grup">
           <label>{{ form.mbiemri_kryefamiljarit.label }}</label>
           {% render_field form.mbiemri_kryefamiljarit placeholder="Mbiemri" %}
           {% if form.mbiemri_kryefamiljarit.errors %}<p class="gabim-fusha">{{ form.mbiemri_kryefamiljarit.errors.0 }}</p>{% endif %}

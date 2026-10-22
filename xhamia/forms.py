@@ -61,7 +61,7 @@ class ShtepiaForm(forms.ModelForm):
     class Meta:
         model = Shtepia
         fields = [
-            'nr_shtepise', 'emri_kryefamiljarit', 'mbiemri_kryefamiljarit',
+            'nr_shtepise', 'emri_kryefamiljarit', 'emri_prindit', 'mbiemri_kryefamiljarit',
             'nr_antareve_familjes', 'kategoria', 'viti_fillimit_antaresise',
             'paguar_deri_viti',
             'viti_fillimit_varrezave', 'varrezat_paguar_deri_viti',
