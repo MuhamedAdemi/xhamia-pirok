@@ -11,7 +11,7 @@ import re
 import requests
 from django.conf import settings
 
-from .models import MesazhSMS
+from .models import KonfigurimiSistemit, MesazhSMS
 
 TIMEOUT = 15
 
@@ -45,12 +45,16 @@ def normalizo_numrin(nr):
     return nr
 
 
-def eshte_konfiguruar():
-    return bool(settings.SMS_GATEWAY_USER and settings.SMS_GATEWAY_PASSWORD)
-
-
 def _auth():
+    """Kredencialet nga faqja "SMS & Email"; nëse s'janë vendosur atje, nga settings."""
+    k = KonfigurimiSistemit.merr()
+    if k.sms_username and k.sms_password:
+        return (k.sms_username.strip(), k.sms_password.strip())
     return (settings.SMS_GATEWAY_USER, settings.SMS_GATEWAY_PASSWORD)
+
+
+def eshte_konfiguruar():
+    return all(_auth())
 
 
 def dergo_sms(nr_telefoni, teksti, lloji, dërguar_nga, shtepia=None):
@@ -70,7 +74,7 @@ def dergo_sms(nr_telefoni, teksti, lloji, dërguar_nga, shtepia=None):
         mesazh.gabimi = 'Numri i telefonit nuk është i vlefshëm.'
     elif not eshte_konfiguruar():
         mesazh.statusi = 'DESHTOI'
-        mesazh.gabimi = 'SMS Gateway nuk është konfiguruar (mungon përdoruesi/fjalëkalimi).'
+        mesazh.gabimi = 'SMS Gateway nuk është konfiguruar — plotësoni faqen "SMS & Email".'
     else:
         try:
             r = requests.post(
@@ -79,6 +83,10 @@ def dergo_sms(nr_telefoni, teksti, lloji, dërguar_nga, shtepia=None):
                 auth=_auth(),
                 timeout=TIMEOUT,
             )
+            if r.status_code == 401:
+                raise requests.RequestException(
+                    'Username ose Password i gabuar — kontrolloni faqen "SMS & Email".'
+                )
             r.raise_for_status()
             të_dhënat = r.json()
             mesazh.id_gateway = të_dhënat.get('id', '')

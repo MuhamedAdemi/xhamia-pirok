@@ -1,0 +1,101 @@
+{% extends 'base.html' %}
+{% load widget_tweaks %}
+{% block titulli %}SMS &amp; Email — Xhamia Pirok{% endblock %}
+
+{% block kontent %}
+<div class="page-header">
+  <div>
+    <h2>⚙️ Konfigurimi SMS &amp; Email</h2>
+    <p>Vendosni fjalëkalimet këtu — nuk ka nevojë për PythonAnywhere ose nano.</p>
+  </div>
+</div>
+
+<div style="max-width:720px;">
+
+  <div class="card" style="margin-bottom:20px;">
+    <div class="card-header"><h5>📱 Hapi 1 — Në telefonin Android të xhamisë</h5></div>
+    <div class="card-body" style="line-height:1.7;">
+      <ol style="padding-left:20px; margin:0;">
+        <li>Hapni <strong>Google Play</strong> dhe instaloni <strong>"SMS Gateway for Android"</strong>
+            (ose shkarkojeni nga <a href="https://sms-gate.app" target="_blank">sms-gate.app</a>).</li>
+        <li>Hapeni aplikacionin dhe klikoni <strong>Allow / Lejo</strong> për SMS.</li>
+        <li>Aktivizoni çelësin <strong>Cloud server</strong>, pastaj çelësin kryesor lart (<strong>Offline → Online</strong>).</li>
+        <li>Te seksioni <strong>Cloud Server</strong> shfaqen <strong>Username</strong> dhe <strong>Password</strong> — shkruajini më poshtë te Hapi 2.</li>
+        <li>Te <em>Settings → Apps → SMS Gateway → Battery</em> zgjidhni <strong>Unrestricted / Pa kufizime</strong>, që të mos fiket.</li>
+      </ol>
+    </div>
+  </div>
+
+  <form method="post">
+    {% csrf_token %}
+    <input type="hidden" name="veprimi" value="ruaj">
+
+    <div class="card" style="margin-bottom:20px;">
+      <div class="card-header">
+        <h5>🔑 Hapi 2 — Të dhënat nga aplikacioni
+          {% if sms_gati %}<span class="badge-gjelbër" style="margin-left:8px;">✅ Gati</span>
+          {% else %}<span class="badge-portokalli" style="margin-left:8px;">Pa plotësuar</span>{% endif %}
+        </h5>
+      </div>
+      <div class="card-body">
+        <div class="grid-2">
+          <div class="forma-grup">
+            <label>{{ form.sms_username.label }}</label>
+            {% render_field form.sms_username placeholder="p.sh. ABCDEF" autocomplete="off" %}
+          </div>
+          <div class="forma-grup">
+            <label>{{ form.sms_password.label }}</label>
+            {% render_field form.sms_password placeholder="lëre bosh për ta mbajtur të njëjtin" autocomplete="new-password" %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:20px;">
+      <div class="card-header">
+        <h5>📧 Gmail për faturat ({{ email_adresa }})
+          {% if gmail_gati %}<span class="badge-gjelbër" style="margin-left:8px;">✅ Gati</span>
+          {% else %}<span class="badge-portokalli" style="margin-left:8px;">Pa plotësuar</span>{% endif %}
+        </h5>
+      </div>
+      <div class="card-body">
+        <div class="forma-grup">
+          <label>{{ form.gmail_app_password.label }}</label>
+          {% render_field form.gmail_app_password placeholder="lëre bosh për ta mbajtur të njëjtin" autocomplete="new-password" %}
+          <p class="ndihma">
+            Plotësojeni vetëm nëse emailat nuk po dërgohen. Krijohet te
+            <a href="https://myaccount.google.com/apppasswords" target="_blank">myaccount.google.com/apppasswords</a>
+            pasi të hyni me {{ email_adresa }}.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <button type="submit" class="btn-kryesor" style="margin-bottom:24px;">💾 Ruaj</button>
+  </form>
+
+  <div class="card" style="margin-bottom:20px;">
+    <div class="card-header"><h5>🧪 Hapi 3 — Provoni</h5></div>
+    <div class="card-body">
+      <form method="post" class="flex gap-3" style="flex-wrap:wrap; align-items:flex-end; margin-bottom:16px;">
+        {% csrf_token %}
+        <input type="hidden" name="veprimi" value="prove_sms">
+        <div class="forma-grup" style="margin:0; flex:1; min-width:200px;">
+          <label>Numri ku të vijë SMS prova</label>
+          <input type="text" name="nr_prove" value="{{ nr_im }}" placeholder="070 123 456">
+        </div>
+        <button type="submit" class="btn-kryesor" {% if not sms_gati %}disabled{% endif %}>📱 Dërgo SMS Provë</button>
+      </form>
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="veprimi" value="prove_email">
+        <button type="submit" class="btn-dytësor">📧 Dërgo Email Provë te {{ email_adresa }}</button>
+      </form>
+      <p class="ndihma" style="margin-top:12px;">
+        Telefoni duhet të jetë i ndezur, me internet, dhe aplikacioni <strong>Online</strong>.
+        Statusin e çdo SMS-je e shihni te <a href="{% url 'historiku_sms' %}">Historiku SMS</a>.
+      </p>
+    </div>
+  </div>
+</div>
+{% endblock %}

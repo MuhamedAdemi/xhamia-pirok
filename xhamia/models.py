@@ -409,3 +409,23 @@ class MesazhSMS(models.Model):
 
     def __str__(self):
         return f"{self.nr_telefoni} — {self.get_lloji_display()} — {self.get_statusi_display()}"
+
+
+class KonfigurimiSistemit(models.Model):
+    """Rresht i vetëm (singleton) me fjalëkalimet që admini i vendos nga aplikacioni,
+    në vend që t'i shkruajë në config/local_settings.py."""
+    sms_username = models.CharField(max_length=100, blank=True, verbose_name='SMS Gateway — Username')
+    sms_password = models.CharField(max_length=200, blank=True, verbose_name='SMS Gateway — Password')
+    gmail_app_password = models.CharField(max_length=100, blank=True, verbose_name='Gmail — App Password')
+
+    class Meta:
+        verbose_name = 'Konfigurimi i Sistemit'
+        verbose_name_plural = 'Konfigurimi i Sistemit'
+
+    def __str__(self):
+        return 'Konfigurimi i Sistemit'
+
+    @classmethod
+    def merr(cls):
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj

@@ -90,7 +90,7 @@ CRISPY_ALLOWED_TEMPLATE_PACKS = 'bootstrap5'
 CRISPY_TEMPLATE_PACK = 'bootstrap5'
 
 # Email me Gmail SMTP
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_BACKEND = 'xhamia.email_backend.GmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
@@ -113,7 +113,11 @@ SMS_GATEWAY_USER = os.environ.get('SMS_GATEWAY_USER', '')
 SMS_GATEWAY_PASSWORD = os.environ.get('SMS_GATEWAY_PASSWORD', '')
 
 # Local settings override (gitignored - contains passwords)
+# Nëse skedari mungon ose ka gabim, faqja vazhdon të punojë — fjalëkalimet
+# mund të vendosen edhe nga faqja "SMS & Email" brenda aplikacionit.
 try:
     from .local_settings import *
-except ImportError:
-    pass
+except Exception as e:
+    if not isinstance(e, ImportError):
+        import sys
+        print(f'KUJDES: config/local_settings.py ka gabim dhe u injorua: {e!r}', file=sys.stderr)

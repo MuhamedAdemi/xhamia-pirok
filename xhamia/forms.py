@@ -2,7 +2,7 @@ from django import forms
 from django.contrib.auth.models import User
 from .models import (
     ProfilStafi, Kategoria, Shtepia, PagesaAntaresia, PagesaFondi, Harxhimi,
-    PagesaVarrezave, KonfigurimiVarrezave,
+    PagesaVarrezave, KonfigurimiVarrezave, KonfigurimiSistemit,
 )
 
 
@@ -227,3 +227,26 @@ class HarxhimiForm(forms.ModelForm):
             'shuma_mkd': 'Shuma (MKD) — Opsionale',
             'kursi_denar': 'Kursi EUR/MKD',
         }
+
+
+class KonfigurimiSistemitForm(forms.ModelForm):
+    """Fushat e fjalëkalimeve lihen bosh = mbetet vlera e ruajtur."""
+    sms_password = forms.CharField(
+        required=False, label='Password', widget=forms.PasswordInput(render_value=False),
+    )
+    gmail_app_password = forms.CharField(
+        required=False, label='Gmail App Password (16 shkronja)',
+        widget=forms.PasswordInput(render_value=False),
+    )
+
+    class Meta:
+        model = KonfigurimiSistemit
+        fields = ['sms_username', 'sms_password', 'gmail_app_password']
+        labels = {'sms_username': 'Username'}
+
+    def clean_sms_password(self):
+        return self.cleaned_data.get('sms_password') or self.instance.sms_password
+
+    def clean_gmail_app_password(self):
+        val = (self.cleaned_data.get('gmail_app_password') or '').replace(' ', '')
+        return val or self.instance.gmail_app_password

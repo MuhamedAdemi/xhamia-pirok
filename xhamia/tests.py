@@ -8,7 +8,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from . import sms
-from .models import Kategoria, MesazhSMS, PagesaAntaresia, ProfilStafi, Shtepia
+from .models import Kategoria, KonfigurimiSistemit, MesazhSMS, PagesaAntaresia, ProfilStafi, Shtepia
 
 
 class NormalizoNumrinTest(TestCase):
@@ -111,3 +111,36 @@ class SmsViewsTest(TestCase):
         m = sms.dergo_sms('070123456', 'test', 'KUJTESE', self.admin)
         self.assertEqual(m.statusi, 'DESHTOI')
         self.assertIn('nuk është konfiguruar', m.gabimi)
+
+
+class KonfigurimiSistemitTest(TestCase):
+    def setUp(self):
+        self.admin = User.objects.create_user('admin', password='x')
+        ProfilStafi.objects.create(user=self.admin, rol='ADMIN')
+        self.client.force_login(self.admin)
+
+    def test_ruaj_dhe_mbaj_fjalekalimin(self):
+        url = reverse('konfigurimi_sistemit')
+        self.assertEqual(self.client.get(url).status_code, 200)
+        self.client.post(url, {'veprimi': 'ruaj', 'sms_username': 'ABC', 'sms_password': 'sekret',
+                               'gmail_app_password': 'abcd efgh ijkl mnop'})
+        k = KonfigurimiSistemit.merr()
+        self.assertEqual((k.sms_username, k.sms_password, k.gmail_app_password),
+                         ('ABC', 'sekret', 'abcdefghijklmnop'))
+        # Fjalëkalimet bosh = mbeten të vjetrat
+        self.client.post(url, {'veprimi': 'ruaj', 'sms_username': 'ABC2', 'sms_password': '', 'gmail_app_password': ''})
+        k.refresh_from_db()
+        self.assertEqual((k.sms_username, k.sms_password, k.gmail_app_password),
+                         ('ABC2', 'sekret', 'abcdefghijklmnop'))
+
+    @mock.patch('xhamia.sms.requests.post')
+    def test_sms_prove_perdor_kredencialet_nga_db(self, post):
+        KonfigurimiSistemit.objects.create(pk=1, sms_username='ABC', sms_password='sekret')
+        post.return_value = _pergjigje({'id': 'p1', 'state': 'Pending'})
+        self.client.post(reverse('konfigurimi_sistemit'), {'veprimi': 'prove_sms', 'nr_prove': '070123456'})
+        self.assertEqual(post.call_args.kwargs['auth'], ('ABC', 'sekret'))
+
+    def test_email_backend_merr_fjalekalimin_nga_db(self):
+        from .email_backend import GmailBackend
+        KonfigurimiSistemit.objects.create(pk=1, gmail_app_password='nga-db')
+        self.assertEqual(GmailBackend().password, 'nga-db')

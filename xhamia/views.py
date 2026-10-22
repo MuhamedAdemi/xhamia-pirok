@@ -4,6 +4,8 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.contrib import messages
 from django.http import HttpResponse
+from django.core.mail import send_mail
+from django.conf import settings
 from django.db.models import Sum, Count, Q
 from django.utils import timezone
 from django.template.loader import render_to_string
@@ -18,12 +20,12 @@ from decimal import Decimal
 
 from .models import (
     ProfilStafi, ProfilShtepi, Kategoria, Shtepia, PagesaAntaresia, PagesaFondi, Harxhimi,
-    PagesaVarrezave, KonfigurimiVarrezave, MesazhSMS, gjenero_nr_shtepi,
+    PagesaVarrezave, KonfigurimiVarrezave, MesazhSMS, KonfigurimiSistemit, gjenero_nr_shtepi,
 )
 from .forms import (
     LoginForm, StafForm, KategoriaForm, ShtepiaForm,
     PagesaAntaresiaForm, PagesaFondiForm, HarxhimiForm, MUAJT,
-    PagesaVarrezaveForm, KonfigurimiVarrezaveForm,
+    PagesaVarrezaveForm, KonfigurimiVarrezaveForm, KonfigurimiSistemitForm,
 )
 from .utils import dërgo_email_antaresia, dërgo_email_fondi, dërgo_email_varrezat
 from . import sms
@@ -1059,6 +1061,55 @@ def historiku_sms(request):
     return render(request, 'sms/historiku.html', {
         'mesazhet': mesazhet,
         'faqja_aktive': 'sms_historiku',
+    })
+
+
+@login_required
+def konfigurimi_sistemit(request):
+    if not është_admin(request.user):
+        messages.error(request, 'Nuk keni leje.')
+        return redirect('dashboard')
+    konfigurimi = KonfigurimiSistemit.merr()
+    form = KonfigurimiSistemitForm(instance=konfigurimi)
+
+    if request.method == 'POST':
+        veprimi = request.POST.get('veprimi')
+        if veprimi == 'ruaj':
+            form = KonfigurimiSistemitForm(request.POST, instance=konfigurimi)
+            if form.is_valid():
+                form.save()
+                messages.success(request, 'Konfigurimi u ruajt.')
+                return redirect('konfigurimi_sistemit')
+        elif veprimi == 'prove_sms':
+            mesazh = sms.dergo_sms(
+                request.POST.get('nr_prove', ''),
+                'Xhamia Pirok: SMS prove nga sistemi. Nese e merrni kete, SMS-te punojne!',
+                'KONFIRMIM', request.user,
+            )
+            if mesazh.statusi == 'DESHTOI':
+                messages.error(request, f'SMS prova dështoi: {mesazh.gabimi}')
+            else:
+                messages.success(request, f'SMS prova iu dërgua telefonit. Duhet të arrijë te {mesazh.nr_telefoni} brenda pak sekondave.')
+            return redirect('konfigurimi_sistemit')
+        elif veprimi == 'prove_email':
+            try:
+                send_mail(
+                    'Email provë — Xhamia Pirok',
+                    'Nëse e merrni këtë email, dërgimi i faturave me email punon.',
+                    settings.DEFAULT_FROM_EMAIL, [settings.EMAIL_HOST_USER],
+                )
+                messages.success(request, f'Email prova u dërgua te {settings.EMAIL_HOST_USER}.')
+            except Exception as e:
+                messages.error(request, f'Email prova dështoi: {e}')
+            return redirect('konfigurimi_sistemit')
+
+    return render(request, 'sms/konfigurimi.html', {
+        'form': form,
+        'sms_gati': sms.eshte_konfiguruar(),
+        'gmail_gati': bool(konfigurimi.gmail_app_password or settings.EMAIL_HOST_PASSWORD),
+        'email_adresa': settings.EMAIL_HOST_USER,
+        'nr_im': getattr(getattr(request.user, 'profili', None), 'nr_telefoni', ''),
+        'faqja_aktive': 'konfigurimi_sistemit',
     })
 
 

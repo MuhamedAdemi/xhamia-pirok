@@ -73,6 +73,7 @@ urlpatterns = [
     # SMS
     path('sms/borxhlinjte/', views.borxhlinjte_sms, name='borxhlinjte_sms'),
     path('sms/historiku/', views.historiku_sms, name='historiku_sms'),
+    path('sms/konfigurimi/', views.konfigurimi_sistemit, name='konfigurimi_sistemit'),
 
     # Harxhimet
     path('harxhimet/', views.lista_harxhimeve, name='lista_harxhimeve'),
