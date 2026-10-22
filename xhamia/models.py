@@ -372,3 +372,40 @@ class Harxhimi(models.Model):
     @property
     def emri_muajit(self):
         return self.MUAJT_MAP.get(self.muaji, '') if self.muaji else ''
+
+
+class MesazhSMS(models.Model):
+    LLOJI_CHOICES = [
+        ('KONFIRMIM', 'Konfirmim Pagese'),
+        ('KUJTESE', 'Kujtesë Borxhi'),
+    ]
+    STATUSI_CHOICES = [
+        ('NE_PRITJE', 'Në pritje'),
+        ('DERGUAR', 'Dërguar'),
+        ('DORZUAR', 'Dorëzuar'),
+        ('DESHTOI', 'Dështoi'),
+    ]
+
+    nr_telefoni = models.CharField(max_length=30, verbose_name='Nr. Telefoni')
+    teksti = models.TextField(verbose_name='Teksti')
+    lloji = models.CharField(max_length=15, choices=LLOJI_CHOICES, verbose_name='Lloji')
+    statusi = models.CharField(max_length=15, choices=STATUSI_CHOICES, default='NE_PRITJE', verbose_name='Statusi')
+    gabimi = models.CharField(max_length=500, blank=True, verbose_name='Gabimi')
+    id_gateway = models.CharField(max_length=100, blank=True)
+    shtepia = models.ForeignKey(
+        Shtepia, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='mesazhet_sms', verbose_name='Shtëpia'
+    )
+    dërguar_nga = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='sms_te_derguara', verbose_name='Dërguar nga'
+    )
+    data_dergimit = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Mesazh SMS'
+        verbose_name_plural = 'Mesazhet SMS'
+        ordering = ['-data_dergimit']
+
+    def __str__(self):
+        return f"{self.nr_telefoni} — {self.get_lloji_display()} — {self.get_statusi_display()}"

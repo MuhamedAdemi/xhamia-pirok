@@ -106,6 +106,12 @@ EMAILET_ZYRTARE = [
     'imami.xhamispirok@gmail.com',
 ]
 
+# SMS nga telefoni Android i xhamisë (aplikacioni "SMS Gateway for Android").
+# Përdoruesi/fjalëkalimi shfaqen në aplikacion te "Cloud Server" — vendosen te local_settings.py.
+SMS_GATEWAY_URL = 'https://api.sms-gate.app/3rdparty/v1/messages'
+SMS_GATEWAY_USER = os.environ.get('SMS_GATEWAY_USER', '')
+SMS_GATEWAY_PASSWORD = os.environ.get('SMS_GATEWAY_PASSWORD', '')
+
 # Local settings override (gitignored - contains passwords)
 try:
     from .local_settings import *

@@ -18,7 +18,7 @@ from decimal import Decimal
 
 from .models import (
     ProfilStafi, ProfilShtepi, Kategoria, Shtepia, PagesaAntaresia, PagesaFondi, Harxhimi,
-    PagesaVarrezave, KonfigurimiVarrezave, gjenero_nr_shtepi,
+    PagesaVarrezave, KonfigurimiVarrezave, MesazhSMS, gjenero_nr_shtepi,
 )
 from .forms import (
     LoginForm, StafForm, KategoriaForm, ShtepiaForm,
@@ -26,6 +26,7 @@ from .forms import (
     PagesaVarrezaveForm, KonfigurimiVarrezaveForm,
 )
 from .utils import dërgo_email_antaresia, dërgo_email_fondi, dërgo_email_varrezat
+from . import sms
 
 
 def _gjenero_kod():
@@ -910,6 +911,155 @@ def dergo_email_varrezat_view(request, pk):
             except Exception as e:
                 messages.error(request, f'Emaili nuk u dërgua: {e}')
     return redirect('detaje_pagesa_varrezat', pk=pk)
+
+
+# ─── SMS ────────────────────────────────────────────────────────────────────
+
+def _dergo_sms_pagese(request, nr_telefoni, teksti, shtepia):
+    if not nr_telefoni:
+        messages.warning(request, 'Nuk ka numër telefoni të regjistruar.')
+        return
+    mesazh = sms.dergo_sms(nr_telefoni, teksti, 'KONFIRMIM', request.user, shtepia=shtepia)
+    if mesazh.statusi == 'DESHTOI':
+        messages.error(request, f'SMS-i nuk u dërgua: {mesazh.gabimi}')
+    else:
+        messages.success(request, f'SMS-i u dërgua te {mesazh.nr_telefoni}.')
+
+
+@login_required
+def dergo_sms_antaresia(request, pk):
+    if not mund_regjistrojë(request.user):
+        messages.error(request, 'Nuk keni leje.')
+        return redirect('lista_pagesa_antaresia')
+    pagese = get_object_or_404(PagesaAntaresia, pk=pk)
+    if request.method == 'POST':
+        _dergo_sms_pagese(request, pagese.shtepia.nr_telefoni_kryesor,
+                          sms.teksti_antaresia(pagese), pagese.shtepia)
+    return redirect('detaje_pagesa_antaresia', pk=pk)
+
+
+@login_required
+def dergo_sms_fondi(request, pk):
+    if not mund_regjistrojë(request.user):
+        messages.error(request, 'Nuk keni leje.')
+        return redirect('lista_pagesa_fondi')
+    pagese = get_object_or_404(PagesaFondi, pk=pk)
+    if request.method == 'POST':
+        _dergo_sms_pagese(request, pagese.nr_telefoni, sms.teksti_fondi(pagese), None)
+    return redirect('detaje_pagesa_fondi', pk=pk)
+
+
+@login_required
+def dergo_sms_varrezat(request, pk):
+    if not mund_regjistrojë(request.user):
+        messages.error(request, 'Nuk keni leje.')
+        return redirect('lista_pagesa_varrezave')
+    pagese = get_object_or_404(PagesaVarrezave, pk=pk)
+    if request.method == 'POST':
+        _dergo_sms_pagese(request, pagese.shtepia.nr_telefoni_kryesor,
+                          sms.teksti_varrezat(pagese), pagese.shtepia)
+    return redirect('detaje_pagesa_varrezat', pk=pk)
+
+
+def _borxhet_antaresise(shtepite):
+    """Për çdo shtëpi: vitet e papaguara të antarësisë dhe shuma e borxhit.
+    E njëjta logjikë si te detaje_shtepia, por me një query të vetëm për pagesat."""
+    viti_aktual = timezone.now().year
+    paguar = {
+        (r['shtepia_id'], r['viti']): r['s']
+        for r in PagesaAntaresia.objects.values('shtepia_id', 'viti').annotate(s=Sum('shuma_paguar'))
+    }
+    rezultati = []
+    for sh in shtepite:
+        shuma_duhet = sh.kategoria.shuma_vjetore
+        vitet, borxhi = [], Decimal('0')
+        for v in range(sh.viti_fillimit_antaresise, viti_aktual + 1):
+            if sh.paguar_deri_viti and v <= sh.paguar_deri_viti:
+                continue
+            mungon = shuma_duhet - (paguar.get((sh.id, v)) or Decimal('0'))
+            if mungon > 0:
+                vitet.append(v)
+                borxhi += mungon
+        rezultati.append({'shtepi': sh, 'vitet': vitet, 'borxhi': borxhi})
+    return rezultati
+
+
+@login_required
+def borxhlinjte_sms(request):
+    if not është_admin(request.user):
+        messages.error(request, 'Nuk keni leje.')
+        return redirect('dashboard')
+
+    try:
+        min_vite = max(1, int(request.GET.get('min_vite', 2)))
+    except ValueError:
+        min_vite = 2
+
+    shtepite = Shtepia.objects.filter(është_aktiv=True).select_related('kategoria')
+    borxhlinjte = [b for b in _borxhet_antaresise(shtepite) if len(b['vitet']) >= min_vite]
+    for b in borxhlinjte:
+        b['numri'] = sms.normalizo_numrin(b['shtepi'].nr_telefoni_kryesor)
+
+    teksti = sms.TEKSTI_KUJTESES_PARACAKTUAR
+    if request.method == 'POST':
+        teksti = request.POST.get('teksti', '').strip() or sms.TEKSTI_KUJTESES_PARACAKTUAR
+        zgjedhura = set(request.POST.getlist('shtepite'))
+        te_derguara, deshtuara = 0, 0
+        for b in borxhlinjte:
+            sh = b['shtepi']
+            if str(sh.pk) not in zgjedhura or not b['numri']:
+                continue
+            try:
+                personal = teksti.format(
+                    emri=sh.emri_i_plote,
+                    vitet=', '.join(str(v) for v in b['vitet']),
+                    borxhi=b['borxhi'],
+                    nr=sh.nr_shtepise,
+                )
+            except (KeyError, IndexError, ValueError):
+                messages.error(request, 'Teksti ka një {fushë} të panjohur. Përdorni vetëm {emri}, {vitet}, {borxhi}, {nr}.')
+                break
+            mesazh = sms.dergo_sms(sh.nr_telefoni_kryesor, personal, 'KUJTESE', request.user, shtepia=sh)
+            if mesazh.statusi == 'DESHTOI':
+                deshtuara += 1
+            else:
+                te_derguara += 1
+        else:
+            if te_derguara:
+                messages.success(request, f'{te_derguara} SMS iu dërguan telefonit për dërgim.')
+            if deshtuara:
+                messages.error(request, f'{deshtuara} SMS dështuan — shihni Historikun e SMS-ve.')
+            if not te_derguara and not deshtuara:
+                messages.warning(request, 'Nuk u zgjodh asnjë shtëpi me numër të vlefshëm.')
+            return redirect(f"{reverse('borxhlinjte_sms')}?min_vite={min_vite}")
+
+    return render(request, 'sms/borxhlinjte.html', {
+        'borxhlinjte': borxhlinjte,
+        'min_vite': min_vite,
+        'teksti': teksti,
+        'pa_numer': sum(1 for b in borxhlinjte if not b['numri']),
+        'gateway_gati': sms.eshte_konfiguruar(),
+        'faqja_aktive': 'sms_borxhlinjte',
+    })
+
+
+@login_required
+def historiku_sms(request):
+    if not është_admin(request.user):
+        messages.error(request, 'Nuk keni leje.')
+        return redirect('dashboard')
+
+    if request.method == 'POST':
+        for m in MesazhSMS.objects.filter(statusi__in=['NE_PRITJE', 'DERGUAR']).exclude(id_gateway='')[:50]:
+            sms.perditeso_statusin(m)
+        messages.success(request, 'Statuset u përditësuan.')
+        return redirect('historiku_sms')
+
+    mesazhet = MesazhSMS.objects.select_related('shtepia', 'dërguar_nga')[:200]
+    return render(request, 'sms/historiku.html', {
+        'mesazhet': mesazhet,
+        'faqja_aktive': 'sms_historiku',
+    })
 
 
 # ─── Harxhimet ───────────────────────────────────────────────────────────────

@@ -90,6 +90,14 @@
       <span class="ikona">📋</span> Lista Harxhimeve
     </a>
 
+    <div class="nav-section-label">SMS</div>
+    <a href="{% url 'borxhlinjte_sms' %}" class="{% if faqja_aktive == 'sms_borxhlinjte' %}aktive{% endif %}">
+      <span class="ikona">📱</span> Kujtesa për Borxh
+    </a>
+    <a href="{% url 'historiku_sms' %}" class="{% if faqja_aktive == 'sms_historiku' %}aktive{% endif %}">
+      <span class="ikona">📨</span> Historiku SMS
+    </a>
+
     <div class="nav-section-label">Administrata</div>
     <a href="{% url 'lista_stafit' %}" class="{% if faqja_aktive == 'stafi' %}aktive{% endif %}">
       <span class="ikona">👥</span> Stafi

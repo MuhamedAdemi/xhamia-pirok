@@ -1,0 +1,59 @@
+{% extends 'base.html' %}
+{% block titulli %}Historiku SMS — Xhamia Pirok{% endblock %}
+
+{% block kontent %}
+<div class="page-header">
+  <div>
+    <h2>📨 Historiku SMS</h2>
+    <p>200 SMS-të e fundit të dërguara nga sistemi</p>
+  </div>
+  <form method="post" class="no-print">
+    {% csrf_token %}
+    <button type="submit" class="btn-dytësor">🔄 Përditëso Statuset</button>
+  </form>
+</div>
+
+<div class="card">
+  <div style="overflow-x:auto;">
+    <table class="tabela-xhami">
+      <thead>
+        <tr>
+          <th>Data</th>
+          <th>Marrësi</th>
+          <th>Lloji</th>
+          <th>Teksti</th>
+          <th>Statusi</th>
+          <th>Dërguar nga</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for m in mesazhet %}
+        <tr>
+          <td class="tekst-dytësor" style="white-space:nowrap;">{{ m.data_dergimit|date:"d.m.Y H:i" }}</td>
+          <td>
+            {% if m.shtepia %}<a href="{% url 'detaje_shtepia' m.shtepia.pk %}" style="font-weight:600;">{{ m.shtepia.emri_i_plote }}</a><br>{% endif %}
+            <span class="tekst-dytësor">{{ m.nr_telefoni }}</span>
+          </td>
+          <td><span class="badge-gri">{{ m.get_lloji_display }}</span></td>
+          <td style="font-size:13px; max-width:360px;">{{ m.teksti }}</td>
+          <td>
+            {% if m.statusi == 'DORZUAR' %}<span class="badge-gjelbër">✅ Dorëzuar</span>
+            {% elif m.statusi == 'DERGUAR' %}<span class="badge-gjelbër">📤 Dërguar</span>
+            {% elif m.statusi == 'DESHTOI' %}<span class="badge-portokalli">❌ Dështoi</span>
+            {% if m.gabimi %}<br><span class="tekst-dytësor" style="font-size:12px;">{{ m.gabimi }}</span>{% endif %}
+            {% else %}<span class="badge-gri">⏳ Në pritje</span>{% endif %}
+          </td>
+          <td class="tekst-dytësor">{{ m.dërguar_nga.get_full_name|default:"—" }}</td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="6" style="text-align:center; padding:40px; color:var(--tekst-dytësor);">
+            Ende nuk është dërguar asnjë SMS.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

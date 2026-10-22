@@ -1,0 +1,141 @@
+{% extends 'base.html' %}
+{% block titulli %}Kujtesa për Borxh — Xhamia Pirok{% endblock %}
+
+{% block kontent %}
+<div class="page-header">
+  <div>
+    <h2>📱 Kujtesa për Borxh (SMS)</h2>
+    <p>{{ borxhlinjte|length }} shtëpi aktive me {{ min_vite }} ose më shumë vite antarësi të papaguar</p>
+  </div>
+  <a href="{% url 'historiku_sms' %}" class="btn-dytësor no-print">📨 Historiku SMS</a>
+</div>
+
+{% if not gateway_gati %}
+<div class="card" style="margin-bottom:20px; border-left:4px solid var(--gabim);">
+  <div class="card-body">
+    <strong>⚠️ SMS Gateway nuk është konfiguruar.</strong>
+    Vendosni <code>SMS_GATEWAY_USER</code> dhe <code>SMS_GATEWAY_PASSWORD</code> te <code>config/local_settings.py</code>
+    (i gjeni në aplikacionin "SMS Gateway" në telefon, te seksioni <em>Cloud Server</em>).
+  </div>
+</div>
+{% endif %}
+
+<div class="card" style="margin-bottom:20px;">
+  <form method="get" class="filtrat">
+    <label style="align-self:center;">Të papaguara së paku:</label>
+    <select name="min_vite" onchange="this.form.submit()">
+      {% for n in "12345" %}
+        <option value="{{ n }}" {% if min_vite|stringformat:'s' == n %}selected{% endif %}>{{ n }} vit{% if n != '1' %}e{% endif %}</option>
+      {% endfor %}
+    </select>
+  </form>
+</div>
+
+<form method="post" onsubmit="return konfirmo();">
+  {% csrf_token %}
+
+  <div class="card" style="margin-bottom:20px;">
+    <div class="card-header"><h5>✉️ Teksti i SMS-së</h5></div>
+    <div class="card-body">
+      <div class="forma-grup">
+        <textarea name="teksti" id="teksti" rows="4" style="width:100%;">{{ teksti }}</textarea>
+        <p class="ndihma">
+          Fushat zëvendësohen automatikisht për çdo shtëpi:
+          <code>{emri}</code> emri i plotë, <code>{vitet}</code> vitet e papaguara,
+          <code>{borxhi}</code> shuma në EUR, <code>{nr}</code> nr. i shtëpisë.
+          Shkronjat ë dhe ç kthehen në e dhe c, që SMS-i të mos kushtojë dyfish.
+          <br><span id="numruesi"></span>
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    {% if pa_numer %}
+    <p class="ndihma" style="padding:12px 16px 0;">
+      ⚠️ {{ pa_numer }} shtëpi nuk kanë numër telefoni të vlefshëm dhe nuk mund të zgjidhen. Shtojeni numrin te "Edito Shtëpinë".
+    </p>
+    {% endif %}
+    <div style="overflow-x:auto;">
+      <table class="tabela-xhami">
+        <thead>
+          <tr>
+            <th><input type="checkbox" id="zgjidh-te-gjitha" title="Zgjidh të gjitha"></th>
+            <th>Nr.</th>
+            <th>Kryefamiljari</th>
+            <th>Telefoni</th>
+            <th>Vitet e papaguara</th>
+            <th>Borxhi</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for b in borxhlinjte %}
+          <tr>
+            <td>
+              {% if b.numri %}
+              <input type="checkbox" name="shtepite" value="{{ b.shtepi.pk }}" class="zgjedhje">
+              {% endif %}
+            </td>
+            <td><span class="nr-shtepi">{{ b.shtepi.nr_shtepise }}</span></td>
+            <td><a href="{% url 'detaje_shtepia' b.shtepi.pk %}" style="font-weight:600;">{{ b.shtepi.emri_i_plote }}</a></td>
+            <td class="tekst-dytësor">
+              {% if b.numri %}{{ b.numri }}{% else %}<span class="badge-gri">pa numër</span>{% endif %}
+            </td>
+            <td>
+              <span class="badge-portokalli">{{ b.vitet|length }} vite</span>
+              <span class="tekst-dytësor" style="font-size:12px;">{{ b.vitet|join:", " }}</span>
+            </td>
+            <td style="font-weight:700;">{{ b.borxhi }}€</td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="6" style="text-align:center; padding:40px; color:var(--tekst-dytësor);">
+              Asnjë shtëpi me {{ min_vite }} ose më shumë vite të papaguara. 🎉
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {% if borxhlinjte %}
+  <div class="flex gap-3" style="margin-top:20px; align-items:center;">
+    <button type="submit" class="btn-kryesor" {% if not gateway_gati %}disabled{% endif %}>📱 Dërgo SMS te të zgjedhurit</button>
+    <span class="tekst-dytësor" id="nr-zgjedhur">0 të zgjedhur</span>
+  </div>
+  {% endif %}
+</form>
+
+<script>
+  const kutite = document.querySelectorAll('.zgjedhje');
+  const nrZgjedhur = document.getElementById('nr-zgjedhur');
+  function perditeso() {
+    const n = document.querySelectorAll('.zgjedhje:checked').length;
+    if (nrZgjedhur) nrZgjedhur.textContent = n + ' të zgjedhur';
+    return n;
+  }
+  const kryesori = document.getElementById('zgjidh-te-gjitha');
+  if (kryesori) kryesori.addEventListener('change', e => {
+    kutite.forEach(k => k.checked = e.target.checked);
+    perditeso();
+  });
+  kutite.forEach(k => k.addEventListener('change', perditeso));
+
+  const teksti = document.getElementById('teksti');
+  const numruesi = document.getElementById('numruesi');
+  function numero() {
+    const n = teksti.value.length;
+    const sms = n <= 160 ? 1 : Math.ceil(n / 153);
+    numruesi.textContent = n + ' karaktere (para zëvendësimit të fushave) ≈ ' + sms + ' SMS për person';
+  }
+  teksti.addEventListener('input', numero);
+  numero();
+
+  function konfirmo() {
+    const n = perditeso();
+    if (n === 0) { alert('Zgjidhni së paku një shtëpi.'); return false; }
+    return confirm('Të dërgohen ' + n + ' SMS nga telefoni i xhamisë?');
+  }
+</script>
+{% endblock %}

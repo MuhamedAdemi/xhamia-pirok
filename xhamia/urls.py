@@ -49,6 +49,7 @@ urlpatterns = [
     path('pagesat/antaresia/<int:pk>/fatura/', views.fatura_antaresia_pdf, name='fatura_antaresia_pdf'),
     path('pagesat/antaresia/<int:pk>/fshi/', views.fshi_pagese_antaresia, name='fshi_pagese_antaresia'),
     path('pagesat/antaresia/<int:pk>/email/', views.dergo_email_antaresia, name='dergo_email_antaresia'),
+    path('pagesat/antaresia/<int:pk>/sms/', views.dergo_sms_antaresia, name='dergo_sms_antaresia'),
 
     # Pagesat Fondi
     path('pagesat/fondi/', views.lista_pagesa_fondi, name='lista_pagesa_fondi'),
@@ -57,6 +58,7 @@ urlpatterns = [
     path('pagesat/fondi/<int:pk>/fatura/', views.fatura_fondi_pdf, name='fatura_fondi_pdf'),
     path('pagesat/fondi/<int:pk>/fshi/', views.fshi_pagese_fondi, name='fshi_pagese_fondi'),
     path('pagesat/fondi/<int:pk>/email/', views.dergo_email_fondi_view, name='dergo_email_fondi'),
+    path('pagesat/fondi/<int:pk>/sms/', views.dergo_sms_fondi, name='dergo_sms_fondi'),
 
     # Pagesat Varrezave
     path('pagesat/varrezat/', views.lista_pagesa_varrezave, name='lista_pagesa_varrezave'),
@@ -65,7 +67,12 @@ urlpatterns = [
     path('pagesat/varrezat/<int:pk>/fatura/', views.fatura_varrezat_pdf, name='fatura_varrezat_pdf'),
     path('pagesat/varrezat/<int:pk>/fshi/', views.fshi_pagese_varrezat, name='fshi_pagese_varrezat'),
     path('pagesat/varrezat/<int:pk>/email/', views.dergo_email_varrezat_view, name='dergo_email_varrezat'),
+    path('pagesat/varrezat/<int:pk>/sms/', views.dergo_sms_varrezat, name='dergo_sms_varrezat'),
     path('varrezat/konfigurimi/', views.konfigurimi_varrezave, name='konfigurimi_varrezave'),
+
+    # SMS
+    path('sms/borxhlinjte/', views.borxhlinjte_sms, name='borxhlinjte_sms'),
+    path('sms/historiku/', views.historiku_sms, name='historiku_sms'),
 
     # Harxhimet
     path('harxhimet/', views.lista_harxhimeve, name='lista_harxhimeve'),

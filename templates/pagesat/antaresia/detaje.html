@@ -18,6 +18,13 @@
       <button type="submit" class="btn-dytësor">📧 Dërgo Email</button>
     </form>
     {% endif %}
+    {% if pagese.shtepia.nr_telefoni_kryesor %}
+    <form method="post" action="{% url 'dergo_sms_antaresia' pagese.pk %}" style="display:inline;"
+          onsubmit="return confirm('Të dërgohet SMS konfirmimi te {{ pagese.shtepia.nr_telefoni_kryesor }}?');">
+      {% csrf_token %}
+      <button type="submit" class="btn-dytësor">📱 Dërgo SMS</button>
+    </form>
+    {% endif %}
     {% if request.user.profili.është_admin %}
     <a href="{% url 'fshi_pagese_antaresia' pagese.pk %}" class="btn-rrezik">Fshi</a>
     {% endif %}
