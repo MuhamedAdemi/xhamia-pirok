@@ -48,6 +48,11 @@
             {% render_field form.sms_password placeholder="lëre bosh për ta mbajtur të njëjtin" autocomplete="new-password" %}
           </div>
         </div>
+        <div class="forma-grup">
+          <label>{{ form.sms_sim_numri.label }}</label>
+          {% render_field form.sms_sim_numri %}
+          <p class="ndihma">Nëse telefoni ka 2 SIM kartela, zgjidhni atë me numrin e xhamisë. Bosh = SIM-i i paracaktuar i telefonit.</p>
+        </div>
       </div>
     </div>
 

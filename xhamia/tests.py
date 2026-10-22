@@ -123,7 +123,8 @@ class KonfigurimiSistemitTest(TestCase):
         url = reverse('konfigurimi_sistemit')
         self.assertEqual(self.client.get(url).status_code, 200)
         self.client.post(url, {'veprimi': 'ruaj', 'sms_username': 'ABC', 'sms_password': 'sekret',
-                               'gmail_app_password': 'abcd efgh ijkl mnop'})
+                               'sms_sim_numri': '1', 'gmail_app_password': 'abcd efgh ijkl mnop'})
+        self.assertEqual(KonfigurimiSistemit.merr().sms_sim_numri, 1)
         k = KonfigurimiSistemit.merr()
         self.assertEqual((k.sms_username, k.sms_password, k.gmail_app_password),
                          ('ABC', 'sekret', 'abcdefghijklmnop'))
@@ -135,10 +136,11 @@ class KonfigurimiSistemitTest(TestCase):
 
     @mock.patch('xhamia.sms.requests.post')
     def test_sms_prove_perdor_kredencialet_nga_db(self, post):
-        KonfigurimiSistemit.objects.create(pk=1, sms_username='ABC', sms_password='sekret')
+        KonfigurimiSistemit.objects.create(pk=1, sms_username='ABC', sms_password='sekret', sms_sim_numri=1)
         post.return_value = _pergjigje({'id': 'p1', 'state': 'Pending'})
         self.client.post(reverse('konfigurimi_sistemit'), {'veprimi': 'prove_sms', 'nr_prove': '070123456'})
         self.assertEqual(post.call_args.kwargs['auth'], ('ABC', 'sekret'))
+        self.assertEqual(post.call_args.kwargs['json']['simNumber'], 1)
 
     def test_email_backend_merr_fjalekalimin_nga_db(self):
         from .email_backend import GmailBackend

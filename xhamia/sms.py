@@ -53,6 +53,14 @@ def _auth():
     return (settings.SMS_GATEWAY_USER, settings.SMS_GATEWAY_PASSWORD)
 
 
+def _trupi(teksti, numri):
+    trupi = {'textMessage': {'text': teksti}, 'phoneNumbers': [numri]}
+    sim = KonfigurimiSistemit.merr().sms_sim_numri
+    if sim:
+        trupi['simNumber'] = sim
+    return trupi
+
+
 def eshte_konfiguruar():
     return all(_auth())
 
@@ -79,7 +87,7 @@ def dergo_sms(nr_telefoni, teksti, lloji, dërguar_nga, shtepia=None):
         try:
             r = requests.post(
                 settings.SMS_GATEWAY_URL,
-                json={'textMessage': {'text': teksti}, 'phoneNumbers': [numri]},
+                json=_trupi(teksti, numri),
                 auth=_auth(),
                 timeout=TIMEOUT,
             )

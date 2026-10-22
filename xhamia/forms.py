@@ -241,7 +241,7 @@ class KonfigurimiSistemitForm(forms.ModelForm):
 
     class Meta:
         model = KonfigurimiSistemit
-        fields = ['sms_username', 'sms_password', 'gmail_app_password']
+        fields = ['sms_username', 'sms_password', 'sms_sim_numri', 'gmail_app_password']
         labels = {'sms_username': 'Username'}
 
     def clean_sms_password(self):

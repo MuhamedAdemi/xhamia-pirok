@@ -416,6 +416,10 @@ class KonfigurimiSistemit(models.Model):
     në vend që t'i shkruajë në config/local_settings.py."""
     sms_username = models.CharField(max_length=100, blank=True, verbose_name='SMS Gateway — Username')
     sms_password = models.CharField(max_length=200, blank=True, verbose_name='SMS Gateway — Password')
+    sms_sim_numri = models.PositiveSmallIntegerField(
+        null=True, blank=True, choices=[(1, 'SIM 1'), (2, 'SIM 2')],
+        verbose_name='Nga cili SIM dërgohen SMS-të',
+    )
     gmail_app_password = models.CharField(max_length=100, blank=True, verbose_name='Gmail — App Password')
 
     class Meta:
