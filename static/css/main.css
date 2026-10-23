@@ -603,3 +603,24 @@ a:hover { text-decoration: underline; }
   .main-content { margin-left: 0 !important; padding: 0 !important; }
   .card { box-shadow: none !important; border: none !important; }
 }
+
+/* ─── Shuma: zgjedhja €/den dhe vlerat e shpejta ─────────────────────────── */
+.monedha-zgjedhje { display: flex; gap: 8px; }
+.monedha-opsion {
+  flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 12px; border: 2px solid var(--kufi); border-radius: var(--rreze);
+  cursor: pointer; font-weight: 600; background: var(--e-bardhë);
+}
+.monedha-opsion input { margin: 0; }
+.monedha-opsion:has(input:checked) { border-color: var(--gjelbër); background: rgba(45,90,27,0.07); color: var(--gjelbër); }
+.vlerat-shpejta { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 14px; }
+.chip-shume {
+  padding: 6px 12px; border-radius: 999px; border: 1px solid var(--kufi);
+  background: var(--krem); font-size: 13px; font-weight: 600; cursor: pointer; color: var(--tekst-kryesor);
+}
+.chip-shume:hover { border-color: var(--gjelbër); color: var(--gjelbër); }
+.konvertimi {
+  padding: 10px 14px; background: var(--krem-errët); border-radius: 10px;
+  font-size: 14px; color: var(--tekst-dytësor);
+}
+.konvertimi strong { color: var(--tekst-kryesor); font-size: 16px; }

@@ -1,6 +1,45 @@
 from django.db import models
 from django.contrib.auth.models import User
+from decimal import Decimal
+
 from django.utils import timezone
+
+MONEDHA_CHOICES = [('EUR', 'Euro (€)'), ('MKD', 'Denar (MKD)')]
+KURSI_PARACAKTUAR = Decimal('61.5')
+
+
+class MonedhaMixin:
+    """Shuma ruhet gjithmonë në € (FUSHA_EUR) dhe në MKD; `monedha` tregon në çka u pagua."""
+    FUSHA_EUR = 'shuma_paguar'
+
+    @property
+    def shuma_eur(self):
+        return getattr(self, self.FUSHA_EUR)
+
+    @property
+    def shuma_origjinale(self):
+        if self.monedha == 'MKD' and self.shuma_mkd is not None:
+            return f"{self.shuma_mkd:,.0f} den".replace(',', '.')
+        return f"{getattr(self, self.FUSHA_EUR):.2f} €"
+
+
+class VitetMixin:
+    """Pagesë që mbulon një ose më shumë vite: nga `viti` deri `viti_deri` (përfshirë)."""
+
+    def save(self, *args, **kwargs):
+        if not self.viti_deri or self.viti_deri < self.viti:
+            self.viti_deri = self.viti
+        super().save(*args, **kwargs)
+
+    @property
+    def nr_viteve(self):
+        return (self.viti_deri or self.viti) - self.viti + 1
+
+    @property
+    def vitet_tekst(self):
+        if self.viti_deri and self.viti_deri != self.viti:
+            return f"{self.viti}–{self.viti_deri}"
+        return str(self.viti)
 
 
 class ProfilStafi(models.Model):
@@ -62,7 +101,8 @@ class Shtepia(models.Model):
     mbiemri_kryefamiljarit = models.CharField(max_length=100, verbose_name='Mbiemri')
     nr_antareve_familjes = models.PositiveSmallIntegerField(default=1, verbose_name='Nr. Anëtarëve')
     kategoria = models.ForeignKey(
-        Kategoria, on_delete=models.PROTECT, verbose_name='Kategoria e Pagesës'
+        Kategoria, on_delete=models.SET_NULL, null=True, blank=True,
+        verbose_name='Kategoria (opsionale)'
     )
     viti_fillimit_antaresise = models.PositiveSmallIntegerField(
         default=2026, verbose_name='Antarësia Aktive nga Viti'
@@ -153,7 +193,7 @@ def gjenero_nr_fature_fondi():
     return f"{prefix}{nr:04d}"
 
 
-class PagesaAntaresia(models.Model):
+class PagesaAntaresia(VitetMixin, MonedhaMixin, models.Model):
     PERIUDHA_CHOICES = [
         ('VJETORE', 'Vjetore'),
         ('6MUJORE', '6-Mujore'),
@@ -162,19 +202,19 @@ class PagesaAntaresia(models.Model):
     ]
 
     nr_fatures = models.CharField(
-        max_length=20, unique=True, default=gjenero_nr_fature_antaresi,
-        verbose_name='Nr. Faturës'
+        max_length=30, unique=True, verbose_name='Nr. Faturës (blloku BFI)'
     )
     shtepia = models.ForeignKey(
         Shtepia, on_delete=models.PROTECT, related_name='pagesat',
         verbose_name='Shtëpia'
     )
     kategoria_pageses = models.ForeignKey(
-        Kategoria, on_delete=models.PROTECT, verbose_name='Kategoria'
+        Kategoria, on_delete=models.SET_NULL, null=True, blank=True, verbose_name='Kategoria'
     )
     shuma_paguar = models.DecimalField(max_digits=8, decimal_places=2, verbose_name='Shuma (€)')
     periudha = models.CharField(max_length=10, choices=PERIUDHA_CHOICES, default='VJETORE')
-    viti = models.PositiveSmallIntegerField(verbose_name='Viti', default=timezone.now().year)
+    viti = models.PositiveSmallIntegerField(verbose_name='Nga Viti', default=timezone.now().year)
+    viti_deri = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name='Deri Viti')
     muaji_fillimit = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name='Muaji Fillimit')
     muaji_mbarimit = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name='Muaji Mbarimit')
     data_pageses = models.DateField(verbose_name='Data e Pagesës')
@@ -185,6 +225,7 @@ class PagesaAntaresia(models.Model):
     shenime = models.TextField(blank=True, verbose_name='Shënime')
     shuma_mkd = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, verbose_name='Shuma (MKD)')
     kursi_denar = models.DecimalField(max_digits=8, decimal_places=4, null=True, blank=True, verbose_name='Kursi EUR/MKD')
+    monedha = models.CharField(max_length=3, choices=MONEDHA_CHOICES, default='EUR', verbose_name='Paguar në')
     data_regjistrimit = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -196,15 +237,16 @@ class PagesaAntaresia(models.Model):
         return f"{self.nr_fatures} — {self.shtepia} — {self.shuma_paguar}€"
 
 
-class PagesaFondi(models.Model):
+class PagesaFondi(MonedhaMixin, models.Model):
+    FUSHA_EUR = 'shuma'
+
     LLOJI_CHOICES = [
         ('DHURATE', 'Dhuratë / Fondi i Përgjithshëm'),
         ('AKTIVITET', 'Aktivitet'),
     ]
 
     nr_fatures = models.CharField(
-        max_length=20, unique=True, default=gjenero_nr_fature_fondi,
-        verbose_name='Nr. Faturës'
+        max_length=30, unique=True, verbose_name='Nr. Faturës (blloku BFI)'
     )
     lloji = models.CharField(
         max_length=15, choices=LLOJI_CHOICES, default='DHURATE',
@@ -224,6 +266,7 @@ class PagesaFondi(models.Model):
     shenime = models.TextField(blank=True, verbose_name='Shënime')
     shuma_mkd = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, verbose_name='Shuma (MKD)')
     kursi_denar = models.DecimalField(max_digits=8, decimal_places=4, null=True, blank=True, verbose_name='Kursi EUR/MKD')
+    monedha = models.CharField(max_length=3, choices=MONEDHA_CHOICES, default='EUR', verbose_name='Paguar në')
     data_regjistrimit = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -267,17 +310,17 @@ def gjenero_nr_fature_varrezat():
     return f"{prefix}{nr:04d}"
 
 
-class PagesaVarrezave(models.Model):
+class PagesaVarrezave(VitetMixin, MonedhaMixin, models.Model):
     nr_fatures = models.CharField(
-        max_length=20, unique=True, default=gjenero_nr_fature_varrezat,
-        verbose_name='Nr. Faturës'
+        max_length=30, unique=True, verbose_name='Nr. Faturës (blloku BFI)'
     )
     shtepia = models.ForeignKey(
         Shtepia, on_delete=models.PROTECT, related_name='pagesat_varrezave',
         verbose_name='Shtëpia'
     )
     shuma_paguar = models.DecimalField(max_digits=8, decimal_places=2, verbose_name='Shuma (€)')
-    viti = models.PositiveSmallIntegerField(verbose_name='Viti', default=timezone.now().year)
+    viti = models.PositiveSmallIntegerField(verbose_name='Nga Viti', default=timezone.now().year)
+    viti_deri = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name='Deri Viti')
     data_pageses = models.DateField(verbose_name='Data e Pagesës')
     arktar = models.ForeignKey(
         User, on_delete=models.PROTECT, related_name='varrezat_regjistruara',
@@ -286,6 +329,7 @@ class PagesaVarrezave(models.Model):
     shenime = models.TextField(blank=True, verbose_name='Shënime')
     shuma_mkd = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, verbose_name='Shuma (MKD)')
     kursi_denar = models.DecimalField(max_digits=8, decimal_places=4, null=True, blank=True, verbose_name='Kursi EUR/MKD')
+    monedha = models.CharField(max_length=3, choices=MONEDHA_CHOICES, default='EUR', verbose_name='Paguar në')
     data_regjistrimit = models.DateTimeField(auto_now_add=True)
 
     class Meta:

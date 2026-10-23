@@ -24,11 +24,13 @@ from .models import (
 )
 from .forms import (
     LoginForm, StafForm, KategoriaForm, ShtepiaForm,
-    PagesaAntaresiaForm, PagesaFondiForm, HarxhimiForm, MUAJT,
+    PagesaAntaresiaForm, PagesaFondiForm, HarxhimiForm,
     PagesaVarrezaveForm, KonfigurimiVarrezaveForm, KonfigurimiSistemitForm,
+    sugjero_nr_fature,
 )
 from .utils import dërgo_email_antaresia, dërgo_email_fondi, dërgo_email_varrezat
 from . import sms
+from .importi_pdf import importo
 
 
 def _gjenero_kod():
@@ -86,9 +88,44 @@ def mund_regjistrojë(user):
         return False
 
 
+def _ids_qe_mbulojne(model, viti):
+    """ID-të e shtëpive që kanë një pagesë që e mbulon vitin (një faturë mund të mbulojë shumë vite)."""
+    return set(model.objects.filter(viti__lte=viti, viti_deri__gte=viti).values_list('shtepia_id', flat=True))
+
+
+def _tabela_vjetore(pagesat, viti_fillimit, paguar_deri, shuma_vjetore):
+    """Gjendja vit për vit e një shtëpie (antarësi ose varreza).
+
+    Një vit është i paguar nëse e mbulon një pagesë ose është ≤ paguar_deri (historik).
+    Borxhi llogaritet vetëm për vitet deri te ky vit, me shumën vjetore (nëse dihet).
+    Kthen (tabela, borxhi_total, vitet_papaguara)."""
+    viti_aktual = timezone.now().year
+    pagesat = list(pagesat.values('viti', 'viti_deri', 'shuma_paguar'))
+    for pg in pagesat:
+        pg['viti_deri'] = pg['viti_deri'] or pg['viti']
+    viti_nga = min([viti_fillimit] + [pg['viti'] for pg in pagesat])
+    viti_deri = max([viti_aktual] + [pg['viti_deri'] for pg in pagesat])
+    shuma_vjetore = shuma_vjetore or Decimal('0')
+
+    tabela, borxhi_total, papaguara = {}, Decimal('0'), []
+    for v in range(viti_nga, viti_deri + 1):
+        mbulojne = [pg for pg in pagesat if pg['viti'] <= v <= pg['viti_deri']]
+        if paguar_deri and v <= paguar_deri:
+            tabela[v] = {'shuma_paguar': shuma_vjetore, 'ka_paguar': True, 'borxhi': Decimal('0'), 'historike': True}
+        elif mbulojne:
+            shuma = sum(pg['shuma_paguar'] / (pg['viti_deri'] - pg['viti'] + 1) for pg in mbulojne)
+            tabela[v] = {'shuma_paguar': shuma.quantize(Decimal('0.01')), 'ka_paguar': True,
+                         'borxhi': Decimal('0'), 'historike': False}
+        elif viti_fillimit <= v <= viti_aktual:
+            tabela[v] = {'shuma_paguar': Decimal('0'), 'ka_paguar': False, 'borxhi': shuma_vjetore, 'historike': False}
+            borxhi_total += shuma_vjetore
+            papaguara.append(v)
+    return tabela, borxhi_total, papaguara
+
+
 def _shtepite_paguara_ids(viti):
     """ID-të e shtëpive që e kanë paguar antarësinë e vitit — pagesa reale + shënimi historik (paguar_deri_viti)."""
-    actual = set(PagesaAntaresia.objects.filter(viti=viti).values_list('shtepia_id', flat=True))
+    actual = _ids_qe_mbulojne(PagesaAntaresia, viti)
     historike = set(Shtepia.objects.filter(
         paguar_deri_viti__gte=viti, është_aktiv=True
     ).values_list('id', flat=True))
@@ -97,7 +134,7 @@ def _shtepite_paguara_ids(viti):
 
 def _shtepite_paguara_varrezat_ids(viti):
     """ID-të e shtëpive që e kanë paguar varrezat e vitit — pagesa reale + shënimi historik."""
-    actual = set(PagesaVarrezave.objects.filter(viti=viti).values_list('shtepia_id', flat=True))
+    actual = _ids_qe_mbulojne(PagesaVarrezave, viti)
     historike = set(Shtepia.objects.filter(
         varrezat_paguar_deri_viti__gte=viti, është_aktiv=True
     ).values_list('id', flat=True))
@@ -171,7 +208,7 @@ def dashboard_antaresia(request):
     kane_paguar = len(paguar_ids)
     nuk_kane_paguar = total_shtepite - kane_paguar
 
-    total_mbledhur = PagesaAntaresia.objects.filter(viti=viti_zgjedhur).aggregate(
+    total_mbledhur = PagesaAntaresia.objects.filter(data_pageses__year=viti_zgjedhur).aggregate(
         s=Sum('shuma_paguar')
     )['s'] or 0
 
@@ -188,14 +225,14 @@ def dashboard_antaresia(request):
     muajt_etiketat = ['Jan', 'Shk', 'Mar', 'Pri', 'Maj', 'Qer', 'Kor', 'Gus', 'Sht', 'Tet', 'Nën', 'Dhj']
     for m in range(1, 13):
         shuma = PagesaAntaresia.objects.filter(
-            viti=viti_zgjedhur, data_pageses__month=m
+            data_pageses__year=viti_zgjedhur, data_pageses__month=m
         ).aggregate(s=Sum('shuma_paguar'))['s'] or 0
         pagesat_mujore.append(float(shuma))
 
     # Sipas kategorisë
     sipas_kategorise = []
     for kat in Kategoria.objects.filter(është_aktiv=True):
-        cnt = PagesaAntaresia.objects.filter(viti=viti_zgjedhur, kategoria_pageses=kat).count()
+        cnt = Shtepia.objects.filter(id__in=paguar_ids, kategoria=kat).count()
         if cnt > 0:
             sipas_kategorise.append({'emri': kat.emri, 'count': cnt})
 
@@ -213,8 +250,8 @@ def dashboard_antaresia(request):
     viti_aktual = timezone.now().year
     data_vitet = []
     for v in range(viti_aktual - 9, viti_aktual + 1):
-        shuma_v = PagesaAntaresia.objects.filter(viti=v).aggregate(s=Sum('shuma_paguar'))['s'] or 0
-        act_v = set(PagesaAntaresia.objects.filter(viti=v).values_list('shtepia_id', flat=True))
+        shuma_v = PagesaAntaresia.objects.filter(data_pageses__year=v).aggregate(s=Sum('shuma_paguar'))['s'] or 0
+        act_v = _ids_qe_mbulojne(PagesaAntaresia, v)
         hist_v = set(Shtepia.objects.filter(
             paguar_deri_viti__gte=v, viti_fillimit_antaresise__lte=v, është_aktiv=True
         ).values_list('id', flat=True))
@@ -311,7 +348,7 @@ def dashboard_varrezat(request):
     kane_paguar = len(paguar_ids)
     nuk_kane_paguar = total_shtepite - kane_paguar
 
-    total_mbledhur = PagesaVarrezave.objects.filter(viti=viti_zgjedhur).aggregate(
+    total_mbledhur = PagesaVarrezave.objects.filter(data_pageses__year=viti_zgjedhur).aggregate(
         s=Sum('shuma_paguar')
     )['s'] or 0
 
@@ -397,7 +434,7 @@ def lista_shtepive(request):
         rreshtat = [
             [
                 sh.nr_shtepise, sh.emri_kryefamiljarit, sh.emri_prindit, sh.mbiemri_kryefamiljarit,
-                sh.nr_antareve_familjes, sh.kategoria.emri, sh.nr_telefoni_kryesor,
+                sh.nr_antareve_familjes, sh.kategoria.emri if sh.kategoria else '', sh.nr_telefoni_kryesor,
                 sh.email, 'Aktive' if sh.është_aktiv else 'Joaktive',
                 'Po' if sh.id in paguar_ids else 'Jo',
             ]
@@ -450,65 +487,55 @@ def shto_shtepi(request):
 
 
 @login_required
+def importo_shtepite(request):
+    """Regjistron shtëpitë nga eksporti PDF i "Masjid Manager" (lista e të gjithave + lista e të paguarave)."""
+    if not është_admin(request.user):
+        messages.error(request, 'Nuk keni leje.')
+        return redirect('lista_shtepive')
+
+    raporti, vetem_prove = None, False
+    viti_paguar = timezone.now().year - 1
+    if request.method == 'POST':
+        vetem_prove = request.POST.get('veprimi') != 'importo'
+        try:
+            viti_paguar = int(request.POST.get('viti_paguar') or viti_paguar)
+        except ValueError:
+            pass
+        pdf_shtepite = request.FILES.get('pdf_shtepite')
+        if not pdf_shtepite:
+            messages.error(request, 'Zgjidhni PDF-në me të gjitha shtëpitë.')
+        else:
+            try:
+                raporti = importo(
+                    pdf_shtepite, request.FILES.get('pdf_paguara'), viti_paguar, request.user, vetem_prove,
+                )
+            except Exception as e:
+                messages.error(request, f'PDF-ja nuk u lexua: {e}')
+            else:
+                if not vetem_prove:
+                    messages.success(request, f"U regjistruan {raporti['te_reja']} shtëpi të reja.")
+
+    return render(request, 'shtepite/importo.html', {
+        'raporti': raporti, 'vetem_prove': vetem_prove, 'viti_paguar': viti_paguar,
+        'faqja_aktive': 'shtepite',
+    })
+
+
+@login_required
 def detaje_shtepia(request, pk):
     shtepi = get_object_or_404(Shtepia, pk=pk)
-    pagesat = shtepi.pagesat.select_related('arktar', 'kategoria_pageses').order_by('-viti', '-data_pageses')
+    pagesat = shtepi.pagesat.select_related('arktar').order_by('-viti', '-data_pageses')
     pagesat_varrezave = shtepi.pagesat_varrezave.select_related('arktar').order_by('-viti', '-data_pageses')
 
     viti_aktual = timezone.now().year
-    viti_fillimit = shtepi.viti_fillimit_antaresise
-    paguar_deri = shtepi.paguar_deri_viti
-    pagesat_per_vit = {}
-    borxhi_total = Decimal('0')
-    for v in range(viti_fillimit, viti_aktual + 1):
-        shuma_duhet = shtepi.kategoria.shuma_vjetore
-        if paguar_deri and v <= paguar_deri:
-            pagesat_per_vit[v] = {
-                'shuma_paguar': shuma_duhet,
-                'ka_paguar': True,
-                'borxhi': Decimal('0'),
-                'historike': True,
-            }
-        else:
-            shuma_paguar = shtepi.pagesat.filter(viti=v).aggregate(
-                s=Sum('shuma_paguar')
-            )['s'] or Decimal('0')
-            ka_paguar = shuma_paguar >= shuma_duhet
-            borxh_v = max(Decimal('0'), shuma_duhet - shuma_paguar)
-            borxhi_total += borxh_v
-            pagesat_per_vit[v] = {
-                'shuma_paguar': shuma_paguar,
-                'ka_paguar': ka_paguar,
-                'borxhi': borxh_v,
-                'historike': False,
-            }
-
-    shuma_vjetore_varrezat = KonfigurimiVarrezave.merr().shuma_vjetore
-    viti_fillimit_v = shtepi.viti_fillimit_varrezave
-    paguar_deri_v = shtepi.varrezat_paguar_deri_viti
-    pagesat_per_vit_varrezat = {}
-    borxhi_total_varrezat = Decimal('0')
-    for v in range(viti_fillimit_v, viti_aktual + 1):
-        if paguar_deri_v and v <= paguar_deri_v:
-            pagesat_per_vit_varrezat[v] = {
-                'shuma_paguar': shuma_vjetore_varrezat,
-                'ka_paguar': True,
-                'borxhi': Decimal('0'),
-                'historike': True,
-            }
-        else:
-            shuma_paguar = shtepi.pagesat_varrezave.filter(viti=v).aggregate(
-                s=Sum('shuma_paguar')
-            )['s'] or Decimal('0')
-            ka_paguar = shuma_paguar >= shuma_vjetore_varrezat
-            borxh_v = max(Decimal('0'), shuma_vjetore_varrezat - shuma_paguar)
-            borxhi_total_varrezat += borxh_v
-            pagesat_per_vit_varrezat[v] = {
-                'shuma_paguar': shuma_paguar,
-                'ka_paguar': ka_paguar,
-                'borxhi': borxh_v,
-                'historike': False,
-            }
+    pagesat_per_vit, borxhi_total, papaguara = _tabela_vjetore(
+        shtepi.pagesat, shtepi.viti_fillimit_antaresise, shtepi.paguar_deri_viti,
+        shtepi.kategoria.shuma_vjetore if shtepi.kategoria else None,
+    )
+    pagesat_per_vit_varrezat, borxhi_total_varrezat, papaguara_varrezat = _tabela_vjetore(
+        shtepi.pagesat_varrezave, shtepi.viti_fillimit_varrezave, shtepi.varrezat_paguar_deri_viti,
+        KonfigurimiVarrezave.merr().shuma_vjetore,
+    )
 
     vitit_lista = list(range(2000, viti_aktual + 2))
 
@@ -520,6 +547,8 @@ def detaje_shtepia(request, pk):
         'pagesat_varrezave': pagesat_varrezave,
         'pagesat_per_vit_varrezat': pagesat_per_vit_varrezat,
         'borxhi_total_varrezat': borxhi_total_varrezat,
+        'nr_papaguara': len(papaguara),
+        'nr_papaguara_varrezat': len(papaguara_varrezat),
         'viti_aktual': viti_aktual,
         'vitit_lista': vitit_lista,
         'faqja_aktive': 'shtepite',
@@ -581,15 +610,12 @@ def edito_shtepi(request, pk):
 
 @login_required
 def lista_pagesa_antaresia(request):
-    viti = request.GET.get('viti', timezone.now().year)
+    viti = request.GET.get('viti', str(timezone.now().year))
     kerkimi = request.GET.get('kerkimi', '')
-    kategoria_id = request.GET.get('kategoria', '')
-    periudha = request.GET.get('periudha', '')
-    muaji_fillimit = request.GET.get('muaji_fillimit', '')
 
-    pagesat = PagesaAntaresia.objects.select_related('shtepia', 'arktar', 'kategoria_pageses')
+    pagesat = PagesaAntaresia.objects.select_related('shtepia', 'arktar')
     if viti:
-        pagesat = pagesat.filter(viti=viti)
+        pagesat = pagesat.filter(viti__lte=viti, viti_deri__gte=viti)
     if kerkimi:
         pagesat = pagesat.filter(
             Q(nr_fatures__icontains=kerkimi) |
@@ -598,20 +624,14 @@ def lista_pagesa_antaresia(request):
             Q(shtepia__mbiemri_kryefamiljarit__icontains=kerkimi) |
             Q(shtepia__nr_shtepise__icontains=kerkimi)
         )
-    if kategoria_id:
-        pagesat = pagesat.filter(kategoria_pageses_id=kategoria_id)
-    if periudha:
-        pagesat = pagesat.filter(periudha=periudha)
-    if muaji_fillimit:
-        pagesat = pagesat.filter(muaji_fillimit=muaji_fillimit)
 
     if request.GET.get('eksporto') == 'excel':
-        koka = ['Nr. Faturës', 'Shtëpia', 'Kategoria', 'Shuma (€)', 'Periudha', 'Viti', 'Data', 'Arktar']
+        koka = ['Nr. Faturës', 'Shtëpia', 'Shuma (€)', 'Shuma (MKD)', 'Paguar në', 'Vitet', 'Data', 'Arktar']
         rreshtat = [
             [
                 p.nr_fatures, f'#{p.shtepia.nr_shtepise} {p.shtepia.emri_i_plote}',
-                p.kategoria_pageses.emri, float(p.shuma_paguar), p.get_periudha_display(),
-                p.viti, p.data_pageses.strftime('%d.%m.%Y'), p.arktar.get_full_name(),
+                float(p.shuma_paguar), float(p.shuma_mkd or 0), p.monedha,
+                p.vitet_tekst, p.data_pageses.strftime('%d.%m.%Y'), p.arktar.get_full_name(),
             ]
             for p in pagesat
         ]
@@ -619,13 +639,33 @@ def lista_pagesa_antaresia(request):
 
     return render(request, 'pagesat/antaresia/lista.html', {
         'pagesat': pagesat, 'viti': viti, 'kerkimi': kerkimi,
-        'kategoria_id': kategoria_id, 'periudha': periudha, 'muaji_fillimit': muaji_fillimit,
-        'kategoritë': Kategoria.objects.filter(është_aktiv=True),
-        'periudha_choices': PagesaAntaresia.PERIUDHA_CHOICES,
-        'muajt': MUAJT,
-        'vitit_lista': list(range(2020, timezone.now().year + 2)),
+        'vitit_lista': list(range(2000, timezone.now().year + 3)),
         'faqja_aktive': 'pagesat_antaresia',
     })
+
+
+# Shumat e zakonshme vjetore të antarësisë, në € dhe në den (shpesh pranohet edhe vlera më e rrumbullakët)
+VLERAT_SHPEJTA_ANTARESIA = [
+    (70, 'EUR'), (4300, 'MKD'), (4000, 'MKD'),
+    (80, 'EUR'), (5000, 'MKD'),
+    (100, 'EUR'), (6000, 'MKD'),
+    (120, 'EUR'), (7300, 'MKD'), (7000, 'MKD'),
+]
+
+
+def _initial_pagese(request, model, te_dhenat_e_shtepise=None):
+    """Vlerat fillestare: nr. i radhës nga blloku dhe — kur vjen nga faqja e shtëpisë —
+    vitet e papaguara (nga viti i parë i papaguar deri sot)."""
+    initial = {'nr_fatures': sugjero_nr_fature(model), 'data_pageses': timezone.now().date()}
+    shtepi_id = request.GET.get('shtepi')
+    if shtepi_id and te_dhenat_e_shtepise:
+        shtepi = Shtepia.objects.filter(pk=shtepi_id).first()
+        if shtepi:
+            initial['shtepia'] = shtepi
+            _, _, papaguara = _tabela_vjetore(*te_dhenat_e_shtepise(shtepi), None)
+            if papaguara:
+                initial['viti'], initial['viti_deri'] = papaguara[0], papaguara[-1]
+    return initial
 
 
 @login_required
@@ -633,17 +673,19 @@ def shto_pagese_antaresia(request):
     if not mund_regjistrojë(request.user):
         messages.error(request, 'Nuk keni leje për të regjistruar pagesa.')
         return redirect('lista_pagesa_antaresia')
-    form = PagesaAntaresiaForm(request.POST or None, initial={
-        'shtepia': request.GET.get('shtepi') or None,
-    })
+    form = PagesaAntaresiaForm(request.POST or None, initial=_initial_pagese(
+        request, PagesaAntaresia, lambda sh: (sh.pagesat, sh.viti_fillimit_antaresise, sh.paguar_deri_viti),
+    ))
     if request.method == 'POST' and form.is_valid():
-        pagese = form.save(commit=False)
+        pagese = form.apliko_shumen(form.save(commit=False))
+        pagese.kategoria_pageses = pagese.shtepia.kategoria
         pagese.arktar = request.user
         pagese.save()
         messages.success(request, f'Pagesa {pagese.nr_fatures} u regjistrua me sukses.')
         return redirect('detaje_pagesa_antaresia', pk=pagese.pk)
     return render(request, 'pagesat/antaresia/forma.html', {
-        'form': form, 'titulli': 'Regjistro Pagesë Antarësia', 'faqja_aktive': 'pagesat_antaresia'
+        'form': form, 'titulli': 'Regjistro Pagesë Antarësia', 'faqja_aktive': 'pagesat_antaresia',
+        'vlerat_shpejta': VLERAT_SHPEJTA_ANTARESIA,
     })
 
 
@@ -710,9 +752,9 @@ def shto_pagese_fondi(request):
     if not mund_regjistrojë(request.user):
         messages.error(request, 'Nuk keni leje për të regjistruar pagesa.')
         return redirect('lista_pagesa_fondi')
-    form = PagesaFondiForm(request.POST or None)
+    form = PagesaFondiForm(request.POST or None, initial=_initial_pagese(request, PagesaFondi))
     if request.method == 'POST' and form.is_valid():
-        pagese = form.save(commit=False)
+        pagese = form.apliko_shumen(form.save(commit=False))
         pagese.arktar = request.user
         pagese.save()
         messages.success(request, f'Pagesa {pagese.nr_fatures} u regjistrua me sukses.')
@@ -745,12 +787,12 @@ def fatura_fondi_pdf(request, pk):
 
 @login_required
 def lista_pagesa_varrezave(request):
-    viti = request.GET.get('viti', timezone.now().year)
+    viti = request.GET.get('viti', str(timezone.now().year))
     kerkimi = request.GET.get('kerkimi', '')
 
     pagesat = PagesaVarrezave.objects.select_related('shtepia', 'arktar')
     if viti:
-        pagesat = pagesat.filter(viti=viti)
+        pagesat = pagesat.filter(viti__lte=viti, viti_deri__gte=viti)
     if kerkimi:
         pagesat = pagesat.filter(
             Q(nr_fatures__icontains=kerkimi) |
@@ -761,11 +803,12 @@ def lista_pagesa_varrezave(request):
         )
 
     if request.GET.get('eksporto') == 'excel':
-        koka = ['Nr. Faturës', 'Shtëpia', 'Shuma (€)', 'Viti', 'Data', 'Arktar']
+        koka = ['Nr. Faturës', 'Shtëpia', 'Shuma (€)', 'Shuma (MKD)', 'Paguar në', 'Vitet', 'Data', 'Arktar']
         rreshtat = [
             [
                 p.nr_fatures, f'#{p.shtepia.nr_shtepise} {p.shtepia.emri_i_plote}',
-                float(p.shuma_paguar), p.viti, p.data_pageses.strftime('%d.%m.%Y'), p.arktar.get_full_name(),
+                float(p.shuma_paguar), float(p.shuma_mkd or 0), p.monedha, p.vitet_tekst,
+                p.data_pageses.strftime('%d.%m.%Y'), p.arktar.get_full_name(),
             ]
             for p in pagesat
         ]
@@ -773,7 +816,7 @@ def lista_pagesa_varrezave(request):
 
     return render(request, 'pagesat/varrezat/lista.html', {
         'pagesat': pagesat, 'viti': viti, 'kerkimi': kerkimi,
-        'vitit_lista': list(range(2020, timezone.now().year + 2)),
+        'vitit_lista': list(range(2000, timezone.now().year + 3)),
         'faqja_aktive': 'pagesat_varrezat',
     })
 
@@ -784,13 +827,15 @@ def shto_pagese_varrezat(request):
         messages.error(request, 'Nuk keni leje për të regjistruar pagesa.')
         return redirect('lista_pagesa_varrezave')
     shuma_paracaktuar = KonfigurimiVarrezave.merr().shuma_vjetore
-    shtepi_id = request.GET.get('shtepi', '')
-    form = PagesaVarrezaveForm(request.POST or None, initial={
-        'shuma_paguar': shuma_paracaktuar,
-        'shtepia': shtepi_id or None,
-    })
+    initial = _initial_pagese(
+        request, PagesaVarrezave,
+        lambda sh: (sh.pagesat_varrezave, sh.viti_fillimit_varrezave, sh.varrezat_paguar_deri_viti),
+    )
+    if shuma_paracaktuar:
+        initial['shuma_hyrese'] = shuma_paracaktuar
+    form = PagesaVarrezaveForm(request.POST or None, initial=initial)
     if request.method == 'POST' and form.is_valid():
-        pagese = form.save(commit=False)
+        pagese = form.apliko_shumen(form.save(commit=False))
         pagese.arktar = request.user
         pagese.save()
         messages.success(request, f'Pagesa {pagese.nr_fatures} u regjistrua me sukses.')
@@ -836,7 +881,7 @@ def fshi_pagese_varrezat(request, pk):
         info={
             'lloji':     'Pagesë Varrezash',
             'emri':      pagese.nr_fatures,
-            'detaje':    f'{pagese.shtepia} — {pagese.shuma_paguar}€ ({pagese.viti})',
+            'detaje':    f'{pagese.shtepia} — {pagese.shuma_origjinale} ({pagese.vitet_tekst})',
             'url_anulo': reverse('detaje_pagesa_varrezat', args=[pk]),
         },
         mesazh_sukses=f'Pagesa {nr} u fshi me sukses.',
@@ -964,25 +1009,21 @@ def dergo_sms_varrezat(request, pk):
 
 
 def _borxhet_antaresise(shtepite):
-    """Për çdo shtëpi: vitet e papaguara të antarësisë dhe shuma e borxhit.
-    E njëjta logjikë si te detaje_shtepia, por me një query të vetëm për pagesat."""
+    """Për çdo shtëpi: vitet e papaguara të antarësisë dhe shuma e borxhit (nëse dihet kategoria).
+    E njëjta logjikë si _tabela_vjetore, por me një query të vetëm për të gjitha pagesat."""
     viti_aktual = timezone.now().year
-    paguar = {
-        (r['shtepia_id'], r['viti']): r['s']
-        for r in PagesaAntaresia.objects.values('shtepia_id', 'viti').annotate(s=Sum('shuma_paguar'))
-    }
+    mbuluara = {}
+    for sh_id, nga, deri in PagesaAntaresia.objects.values_list('shtepia_id', 'viti', 'viti_deri'):
+        mbuluara.setdefault(sh_id, set()).update(range(nga, (deri or nga) + 1))
     rezultati = []
     for sh in shtepite:
-        shuma_duhet = sh.kategoria.shuma_vjetore
-        vitet, borxhi = [], Decimal('0')
-        for v in range(sh.viti_fillimit_antaresise, viti_aktual + 1):
-            if sh.paguar_deri_viti and v <= sh.paguar_deri_viti:
-                continue
-            mungon = shuma_duhet - (paguar.get((sh.id, v)) or Decimal('0'))
-            if mungon > 0:
-                vitet.append(v)
-                borxhi += mungon
-        rezultati.append({'shtepi': sh, 'vitet': vitet, 'borxhi': borxhi})
+        paguara = mbuluara.get(sh.id, set())
+        vitet = [
+            v for v in range(sh.viti_fillimit_antaresise, viti_aktual + 1)
+            if v not in paguara and not (sh.paguar_deri_viti and v <= sh.paguar_deri_viti)
+        ]
+        shuma_vjetore = sh.kategoria.shuma_vjetore if sh.kategoria else Decimal('0')
+        rezultati.append({'shtepi': sh, 'vitet': vitet, 'borxhi': shuma_vjetore * len(vitet)})
     return rezultati
 
 
@@ -1193,7 +1234,7 @@ def dashboard_buxheti(request):
 
     # ── Antarësia ──
     hyra_ant = PagesaAntaresia.objects.filter(
-        viti=viti_zgjedhur
+        data_pageses__year=viti_zgjedhur
     ).aggregate(s=Sum('shuma_paguar'))['s'] or Decimal('0')
     sh_ant = Harxhimi.objects.filter(
         viti=viti_zgjedhur, burimi='ANTARESIA'
@@ -1206,7 +1247,7 @@ def dashboard_buxheti(request):
 
     data_10_ant = []
     for v in range(viti_aktual - 9, viti_aktual + 1):
-        h = float(PagesaAntaresia.objects.filter(viti=v).aggregate(s=Sum('shuma_paguar'))['s'] or 0)
+        h = float(PagesaAntaresia.objects.filter(data_pageses__year=v).aggregate(s=Sum('shuma_paguar'))['s'] or 0)
         sh = float(Harxhimi.objects.filter(viti=v, burimi='ANTARESIA').aggregate(s=Sum('shuma_eur'))['s'] or 0)
         data_10_ant.append({'viti': v, 'hyra': h, 'shpenzime': sh})
 
@@ -1377,7 +1418,7 @@ def fshi_shtepi(request, pk):
         info={
             'lloji':     'Shtëpi',
             'emri':      f'Shtëpia #{shtepi.nr_shtepise}',
-            'detaje':    f'{shtepi.emri_i_plote} — {shtepi.kategoria.emri}',
+            'detaje':    shtepi.emri_i_plote,
             'url_anulo': reverse('detaje_shtepia', args=[pk]),
         },
         mesazh_sukses=f'Shtëpia #{shtepi.nr_shtepise} u çaktivizua me sukses.',
@@ -1400,7 +1441,7 @@ def fshi_pagese_antaresia(request, pk):
         info={
             'lloji':     'Pagesë Antarësia',
             'emri':      pagese.nr_fatures,
-            'detaje':    f'{pagese.shtepia} — {pagese.shuma_paguar}€ ({pagese.viti})',
+            'detaje':    f'{pagese.shtepia} — {pagese.shuma_origjinale} ({pagese.vitet_tekst})',
             'url_anulo': reverse('detaje_pagesa_antaresia', args=[pk]),
         },
         mesazh_sukses=f'Pagesa {nr} u fshi me sukses.',
@@ -1423,7 +1464,7 @@ def fshi_pagese_fondi(request, pk):
         info={
             'lloji':     'Donacion Fondi',
             'emri':      pagese.nr_fatures,
-            'detaje':    f'{pagese.emri_donatorit} {pagese.mbiemri_donatorit} — {pagese.shuma}€',
+            'detaje':    f'{pagese.emri_donatorit} {pagese.mbiemri_donatorit} — {pagese.shuma_origjinale}',
             'url_anulo': reverse('detaje_pagesa_fondi', args=[pk]),
         },
         mesazh_sukses=f'Donacioni {nr} u fshi me sukses.',
@@ -1483,35 +1524,13 @@ def portali_shtepi(request):
     viti = int(request.GET.get('viti', timezone.now().year))
     vitit_lista = list(range(2020, timezone.now().year + 2))
 
-    pagesat_te_gjitha = shtepi.pagesat.select_related('arktar', 'kategoria_pageses').order_by('-viti', '-data_pageses')
+    pagesat_te_gjitha = shtepi.pagesat.select_related('arktar').order_by('-viti', '-data_pageses')
 
     viti_aktual = timezone.now().year
-    viti_fillimit = shtepi.viti_fillimit_antaresise
-    paguar_deri = shtepi.paguar_deri_viti
-    pagesat_per_vit = {}
-    borxhi_total = Decimal('0')
-    for v in range(viti_fillimit, viti_aktual + 1):
-        shuma_duhet = shtepi.kategoria.shuma_vjetore
-        if paguar_deri and v <= paguar_deri:
-            pagesat_per_vit[v] = {
-                'shuma_paguar': shuma_duhet,
-                'ka_paguar': True,
-                'borxhi': Decimal('0'),
-                'historike': True,
-            }
-        else:
-            shuma_paguar = shtepi.pagesat.filter(viti=v).aggregate(
-                s=Sum('shuma_paguar')
-            )['s'] or Decimal('0')
-            ka_paguar = shuma_paguar >= shuma_duhet
-            borxh_v = max(Decimal('0'), shuma_duhet - shuma_paguar)
-            borxhi_total += borxh_v
-            pagesat_per_vit[v] = {
-                'shuma_paguar': shuma_paguar,
-                'ka_paguar': ka_paguar,
-                'borxhi': borxh_v,
-                'historike': False,
-            }
+    pagesat_per_vit, borxhi_total, papaguara = _tabela_vjetore(
+        shtepi.pagesat, shtepi.viti_fillimit_antaresise, shtepi.paguar_deri_viti,
+        shtepi.kategoria.shuma_vjetore if shtepi.kategoria else None,
+    )
 
     total_gjithsej = pagesat_te_gjitha.aggregate(s=Sum('shuma_paguar'))['s'] or Decimal('0')
     pagesa_e_fundit = pagesat_te_gjitha.first()
@@ -1523,6 +1542,7 @@ def portali_shtepi(request):
         'pagesat_per_vit': pagesat_per_vit,
         'pagesat_te_gjitha': pagesat_te_gjitha,
         'borxhi_total': borxhi_total,
+        'nr_papaguara': len(papaguara),
         'viti_aktual': viti_aktual,
         'total_gjithsej': total_gjithsej,
         'pagesa_e_fundit': pagesa_e_fundit,

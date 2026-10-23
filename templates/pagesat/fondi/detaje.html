@@ -68,12 +68,7 @@
         {% endif %}
         <tr>
           <td style="padding:10px 0; color:var(--tekst-dytësor); font-size:13px;">Shuma</td>
-          <td style="padding:10px 0;">
-            <span style="font-size:28px; font-weight:700; color:var(--kafe);">{{ pagese.shuma }}€</span>
-            {% if pagese.shuma_mkd %}
-            <span style="font-size:13px; color:var(--tekst-dytësor); margin-left:8px; display:block;">≈ {{ pagese.shuma_mkd }} MKD{% if pagese.kursi_denar %} (1€={{ pagese.kursi_denar }} MKD){% endif %}</span>
-            {% endif %}
-          </td>
+          <td style="padding:10px 0;">{% include 'pagesat/_shuma_detaje.html' with ngjyra='var(--kafe)' %}</td>
         </tr>
         <tr>
           <td style="padding:10px 0; color:var(--tekst-dytësor); font-size:13px;">Data e pagesës</td>

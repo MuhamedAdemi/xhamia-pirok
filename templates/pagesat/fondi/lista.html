@@ -58,7 +58,7 @@
             {% endif %}
           </td>
           <td class="font-semibold">{{ p.emri_donatorit }} {{ p.mbiemri_donatorit }}</td>
-          <td class="tekst-kafe font-semibold">{{ p.shuma }}€</td>
+          <td class="tekst-kafe font-semibold">{{ p.shuma_origjinale }}</td>
           <td class="tekst-dytësor">{{ p.arsyeja|default:"—"|truncatechars:40 }}</td>
           <td class="tekst-dytësor">{{ p.data_pageses|date:"d M Y" }}</td>
           <td class="tekst-dytësor">{{ p.arktar.get_full_name }}</td>

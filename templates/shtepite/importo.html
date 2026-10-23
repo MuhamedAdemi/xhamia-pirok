@@ -1,0 +1,111 @@
+{% extends 'base.html' %}
+{% block titulli %}Importo Shtëpitë — Xhamia Pirok{% endblock %}
+
+{% block kontent %}
+<div class="page-header">
+  <div class="flex items-center gap-3">
+    <a href="{% url 'lista_shtepive' %}" class="btn-dytësor btn-sm">← Kthehu</a>
+    <div>
+      <h2>⬆️ Importo Shtëpitë nga PDF</h2>
+      <p>Nga eksporti i "Masjid Manager": lista e të gjitha shtëpive dhe lista e atyre që kanë paguar</p>
+    </div>
+  </div>
+</div>
+
+{% if raporti %}
+<div class="card" style="margin-bottom:20px; border-left:4px solid {% if vetem_prove %}var(--paralajmërim){% else %}var(--gjelbër){% endif %};">
+  <div class="card-header">
+    <h5>{% if vetem_prove %}🧪 Rezultati i provës — asgjë nuk u ruajt{% else %}✅ Importi përfundoi{% endif %}</h5>
+  </div>
+  <div class="card-body">
+    <div class="grid-4" style="margin-bottom:16px;">
+      <div class="stat-card gjelbër">
+        <div class="stat-label">Shtëpi të reja</div>
+        <div class="stat-vlera gjelbër">{{ raporti.te_reja }}</div>
+        <div class="stat-nën">{% if raporti.nr_nga %}nr. {{ raporti.nr_nga }} – {{ raporti.nr_deri }}{% else %}nga {{ raporti.gjithsej_rreshta }} rreshta{% endif %}</div>
+      </div>
+      <div class="stat-card blu">
+        <div class="stat-label">Paguar deri {{ viti_paguar }}</div>
+        <div class="stat-vlera" style="color:#007AFF;">{{ raporti.shenuara_paguar }}</div>
+        <div class="stat-nën">fillojnë borxhin nga {{ viti_paguar|add:1 }}</div>
+      </div>
+      <div class="stat-card portokalli">
+        <div class="stat-label">Me borxh</div>
+        <div class="stat-vlera" style="color:var(--paralajmërim);">{{ raporti.pa_paguar }}</div>
+        <div class="stat-nën">borxh nga viti {{ viti_paguar }}</div>
+      </div>
+      <div class="stat-card kafe">
+        <div class="stat-label">Ekzistonin / Dyfishe</div>
+        <div class="stat-vlera kafe">{{ raporti.ekzistuese }} / {{ raporti.dyfishe|length }}</div>
+        <div class="stat-nën">nuk u regjistruan sërish</div>
+      </div>
+    </div>
+
+    {% if raporti.dyfishe %}
+    <p class="ndihma"><strong>Rreshta të dyfishtë në PDF</strong> (u regjistruan vetëm një herë): {{ raporti.dyfishe|join:", " }}</p>
+    {% endif %}
+    {% if raporti.paguara_pa_gjetur %}
+    <p class="ndihma" style="color:var(--gabim);"><strong>Te "të paguarat" por jo te lista e shtëpive:</strong> {{ raporti.paguara_pa_gjetur|join:", " }}</p>
+    {% endif %}
+
+    {% if raporti.shenime %}
+    <details style="margin-top:12px;">
+      <summary style="cursor:pointer; font-weight:600;">⚠️ {{ raporti.shenime|length }} shtëpi për t'i kontrolluar pas importit</summary>
+      <div style="overflow-x:auto; margin-top:10px;">
+        <table class="tabela-xhami">
+          <thead><tr><th>Nr. në PDF</th><th>Emri</th><th>Shënimi</th></tr></thead>
+          <tbody>
+            {% for r in raporti.shenime %}
+            <tr><td>{{ r.nr }}</td><td>{{ r.emri }}</td><td class="tekst-dytësor">{{ r.shenim }}</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </details>
+    {% endif %}
+
+    {% if vetem_prove %}
+    <p style="margin-top:14px;">Nëse rezultati duket në rregull, zgjidhni përsëri të njëjtat PDF më poshtë dhe klikoni <strong>Importo</strong>.</p>
+    {% else %}
+    <a href="{% url 'lista_shtepive' %}" class="btn-kryesor" style="margin-top:14px;">Shih Shtëpitë →</a>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+<form method="post" enctype="multipart/form-data" style="max-width:680px;">
+  {% csrf_token %}
+  <div class="card" style="margin-bottom:20px;">
+    <div class="card-header"><h5>📄 Skedarët PDF</h5></div>
+    <div class="card-body">
+      <div class="forma-grup">
+        <label>1. Të gjitha shtëpitë ("Gjithe qytetaret")</label>
+        <input type="file" name="pdf_shtepite" accept="application/pdf" required>
+      </div>
+      <div class="forma-grup">
+        <label>2. Shtëpitë që kanë paguar ("Qytetaret qe kane paguar") — opsionale</label>
+        <input type="file" name="pdf_paguara" accept="application/pdf">
+      </div>
+      <div class="forma-grup">
+        <label>Lista e të paguarave është për vitin</label>
+        <input type="number" name="viti_paguar" value="{{ viti_paguar }}" min="2000" max="2100" style="max-width:140px;">
+        <p class="ndihma">
+          Shtëpitë te lista e të paguarave shënohen <strong>të paguara deri në këtë vit</strong>.
+          Të tjerat shënohen me borxh <strong>që nga ky vit</strong>. Nëse dikush ka borxh më të vjetër,
+          ndryshojeni te "Edito Shtëpinë" → "Antarësia Aktive nga Viti".
+        </p>
+      </div>
+      <p class="ndihma">
+        Shtëpitë që ekzistojnë tashmë (i njëjti emër, emër i prindit dhe mbiemër) nuk regjistrohen sërish,
+        prandaj importi mund të përsëritet pa rrezik.
+      </p>
+    </div>
+  </div>
+
+  <div class="flex gap-3" style="flex-wrap:wrap;">
+    <button type="submit" name="veprimi" value="prove" class="btn-dytësor">🧪 Provo (pa ruajtur)</button>
+    <button type="submit" name="veprimi" value="importo" class="btn-kryesor"
+            onclick="return confirm('Të regjistrohen shtëpitë nga PDF-ja?');">⬆️ Importo</button>
+  </div>
+</form>
+{% endblock %}

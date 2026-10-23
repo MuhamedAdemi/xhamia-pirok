@@ -8,16 +8,16 @@
       <span class="nr-shtepi" style="font-size:18px; width:64px; height:34px;">{{ shtepi.nr_shtepise }}</span>
       {{ shtepi.emri_i_plote }}
     </h2>
-    <p>{{ shtepi.kategoria.emri }} • {{ shtepi.nr_antareve_familjes }} anëtarë familje</p>
+    <p>{% if shtepi.kategoria %}{{ shtepi.kategoria.emri }} • {% endif %}{{ shtepi.nr_antareve_familjes }} anëtarë familje</p>
   </div>
 </div>
 
 <!-- Statusi i përgjithshëm -->
-<div style="background:{% if borxhi_total == 0 %}var(--gjelbër-shumë-i-çelur){% else %}rgba(255,149,0,0.06){% endif %}; border:2px solid {% if borxhi_total == 0 %}var(--gjelbër){% else %}var(--paralajmërim){% endif %}; border-radius:16px; padding:22px 28px; margin-bottom:24px; display:flex; align-items:center; gap:20px;">
-  <div style="font-size:44px; flex-shrink:0;">{% if borxhi_total == 0 %}✅{% else %}⏳{% endif %}</div>
+<div style="background:{% if not nr_papaguara %}var(--gjelbër-shumë-i-çelur){% else %}rgba(255,149,0,0.06){% endif %}; border:2px solid {% if not nr_papaguara %}var(--gjelbër){% else %}var(--paralajmërim){% endif %}; border-radius:16px; padding:22px 28px; margin-bottom:24px; display:flex; align-items:center; gap:20px;">
+  <div style="font-size:44px; flex-shrink:0;">{% if not nr_papaguara %}✅{% else %}⏳{% endif %}</div>
   <div style="flex:1;">
-    <h3 style="margin:0 0 6px; font-size:17px; color:{% if borxhi_total == 0 %}var(--gjelbër){% else %}var(--paralajmërim){% endif %};">
-      {% if borxhi_total == 0 %}
+    <h3 style="margin:0 0 6px; font-size:17px; color:{% if not nr_papaguara %}var(--gjelbër){% else %}var(--paralajmërim){% endif %};">
+      {% if not nr_papaguara %}
         Të gjitha pagesat janë në rregull!
       {% else %}
         Ka pagesa të papaguara
@@ -25,8 +25,8 @@
     </h3>
     <div style="display:flex; gap:20px; flex-wrap:wrap; font-size:14px; color:var(--tekst-dytësor);">
       <span>Total paguar: <strong style="color:var(--gjelbër);">{{ total_gjithsej }}€</strong></span>
-      {% if borxhi_total > 0 %}
-      <span>Borxh total: <strong style="color:var(--gabim);">{{ borxhi_total }}€</strong></span>
+      {% if nr_papaguara %}
+      <span>Pa paguar: <strong style="color:var(--gabim);">{{ nr_papaguara }} vit{{ nr_papaguara|pluralize:'e' }}{% if borxhi_total > 0 %} ({{ borxhi_total }}€){% endif %}</strong></span>
       {% endif %}
       {% if pagesa_e_fundit %}
       <span>Pagesa e fundit: <strong>{{ pagesa_e_fundit.data_pageses|date:"d M Y" }}</strong></span>
@@ -50,7 +50,7 @@
         </div>
         <div style="font-size:22px; margin:6px 0;">{% if info.ka_paguar %}✅{% else %}❌{% endif %}</div>
         <div style="font-size:12px; font-weight:600; color:{% if info.ka_paguar %}var(--gjelbër){% else %}var(--gabim){% endif %};">
-          {% if info.ka_paguar %}{{ info.shuma_paguar }}€ paguar{% else %}{{ info.borxhi }}€ borxh{% endif %}
+          {% if info.historike %}paguar (historik){% elif info.ka_paguar %}{{ info.shuma_paguar }}€ paguar{% elif info.borxhi %}{{ info.borxhi }}€ borxh{% else %}papaguar{% endif %}
         </div>
         {% if info.historike %}
         <div style="margin-top:5px; font-size:10px; background:rgba(107,68,35,0.12); color:#6B4423; padding:2px 6px; border-radius:8px; font-weight:600;">Historik</div>
@@ -75,8 +75,7 @@
       <thead>
         <tr>
           <th>Nr. Faturës</th>
-          <th>Viti</th>
-          <th>Periudha</th>
+          <th>Vitet</th>
           <th>Shuma</th>
           <th>Data</th>
           <th>Fatura</th>
@@ -86,9 +85,8 @@
         {% for p in pagesat_te_gjitha %}
         <tr>
           <td style="font-family:monospace; font-weight:700; color:var(--gjelbër);">{{ p.nr_fatures }}</td>
-          <td class="font-semibold">{{ p.viti }}</td>
-          <td><span class="badge-gjelbër">{{ p.get_periudha_display }}</span></td>
-          <td class="tekst-gjelbër font-semibold">{{ p.shuma_paguar }}€</td>
+          <td class="font-semibold">{{ p.vitet_tekst }}</td>
+          <td class="tekst-gjelbër font-semibold">{{ p.shuma_origjinale }}</td>
           <td class="tekst-dytësor">{{ p.data_pageses|date:"d F Y" }}</td>
           <td>
             <a href="{% url 'fatura_antaresia_pdf' p.pk %}" class="btn-dytësor btn-sm" target="_blank">🖨️ Fatura</a>
@@ -96,7 +94,7 @@
         </tr>
         {% empty %}
         <tr>
-          <td colspan="6" style="text-align:center; padding:40px; color:var(--tekst-dytësor);">
+          <td colspan="5" style="text-align:center; padding:40px; color:var(--tekst-dytësor);">
             Asnjë pagesë e regjistruar ende. Kontaktoni xhaminë për informacion.
           </td>
         </tr>

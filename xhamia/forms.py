@@ -1,8 +1,11 @@
+from decimal import Decimal, ROUND_HALF_UP
+
 from django import forms
 from django.contrib.auth.models import User
 from .models import (
     ProfilStafi, Kategoria, Shtepia, PagesaAntaresia, PagesaFondi, Harxhimi,
     PagesaVarrezave, KonfigurimiVarrezave, KonfigurimiSistemit,
+    MONEDHA_CHOICES, KURSI_PARACAKTUAR,
 )
 
 
@@ -80,54 +83,112 @@ class ShtepiaForm(forms.ModelForm):
         }
 
 
-class PagesaAntaresiaForm(forms.ModelForm):
-    muaji_fillimit = forms.ChoiceField(
-        choices=[('', '—')] + MUAJT, required=False, label='Muaji Fillimit'
+class ShumaMonedhaMixin(forms.Form):
+    """Shuma shkruhet në Euro ose Denar; vlera tjetër llogaritet me kursin (parazgjedhje 61.5).
+    Pagesa ruan gjithmonë të dyja: shumën në € (për totalet) dhe në MKD."""
+    FUSHA_EUR = None   # emri i fushës në model ku ruhet shuma në €
+
+    shuma_hyrese = forms.DecimalField(
+        label='Shuma', max_digits=12, decimal_places=2, min_value=Decimal('0.01'),
     )
-    muaji_mbarimit = forms.ChoiceField(
-        choices=[('', '—')] + MUAJT, required=False, label='Muaji Mbarimit'
+    monedha = forms.ChoiceField(
+        label='Paguar në', choices=MONEDHA_CHOICES, initial='EUR', widget=forms.RadioSelect,
+    )
+    kursi = forms.DecimalField(
+        label='Kursi (1 € = ? den)', max_digits=8, decimal_places=4,
+        min_value=Decimal('1'), initial=KURSI_PARACAKTUAR,
     )
 
-    def clean_muaji_fillimit(self):
-        val = self.cleaned_data.get('muaji_fillimit')
-        return int(val) if val else None
+    def apliko_shumen(self, pagese):
+        shuma, kursi = self.cleaned_data['shuma_hyrese'], self.cleaned_data['kursi']
+        pagese.monedha = self.cleaned_data['monedha']
+        pagese.kursi_denar = kursi
+        if pagese.monedha == 'MKD':
+            pagese.shuma_mkd = shuma
+            eur = (shuma / kursi).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        else:
+            eur = shuma
+            pagese.shuma_mkd = (shuma * kursi).quantize(Decimal('1'), rounding=ROUND_HALF_UP)
+        setattr(pagese, self.FUSHA_EUR, eur)
+        return pagese
 
-    def clean_muaji_mbarimit(self):
-        val = self.cleaned_data.get('muaji_mbarimit')
-        return int(val) if val else None
+
+def sugjero_nr_fature(model):
+    """Numrat e bllokut të BFI-së janë njëri pas tjetrit — sugjero numrin pas faturës së fundit."""
+    for nr in model.objects.order_by('-data_regjistrimit').values_list('nr_fatures', flat=True)[:20]:
+        if nr and nr.isdigit():
+            return str(int(nr) + 1).zfill(len(nr))
+    return ''
+
+
+class VitetFormMixin(forms.Form):
+    """Validon intervalin 'Nga viti — Deri viti' dhe që asnjë vit të mos jetë paguar më parë."""
+    VITI_MIN, VITI_MAX = 1990, 2100
+    MAX_VITE = 50
+
+    def _vitet_e_paguara(self, shtepia, viti, viti_deri):
+        raise NotImplementedError
+
+    def clean(self):
+        cd = super().clean()
+        viti, viti_deri, shtepia = cd.get('viti'), cd.get('viti_deri'), cd.get('shtepia')
+        if viti is None:
+            return cd
+        if not viti_deri:
+            viti_deri = cd['viti_deri'] = viti
+        if not (self.VITI_MIN <= viti <= self.VITI_MAX) or not (self.VITI_MIN <= viti_deri <= self.VITI_MAX):
+            raise forms.ValidationError(f'Vitet duhet të jenë mes {self.VITI_MIN} dhe {self.VITI_MAX}.')
+        if viti_deri < viti:
+            self.add_error('viti_deri', '"Deri viti" nuk mund të jetë para "Nga viti".')
+        elif viti_deri - viti + 1 > self.MAX_VITE:
+            self.add_error('viti_deri', f'Një faturë mund të mbulojë më së shumti {self.MAX_VITE} vite.')
+        elif shtepia:
+            te_paguara = self._vitet_e_paguara(shtepia, viti, viti_deri)
+            if te_paguara:
+                self.add_error('viti', 'Këto vite janë paguar tashmë për këtë shtëpi: '
+                               + ', '.join(str(v) for v in sorted(te_paguara)))
+        return cd
+
+
+def _vitet_e_mbuluara(pagesat, viti, viti_deri, paguar_deri):
+    """Vitet në [viti, viti_deri] që janë paguar tashmë (me pagesa ose historikisht)."""
+    te_paguara = {v for v in range(viti, viti_deri + 1) if paguar_deri and v <= paguar_deri}
+    for nga, deri in pagesat.filter(viti__lte=viti_deri, viti_deri__gte=viti).values_list('viti', 'viti_deri'):
+        te_paguara |= set(range(max(nga, viti), min(deri or nga, viti_deri) + 1))
+    return te_paguara
+
+
+class PagesaAntaresiaForm(ShumaMonedhaMixin, VitetFormMixin, forms.ModelForm):
+    FUSHA_EUR = 'shuma_paguar'
+
+    def _vitet_e_paguara(self, shtepia, viti, viti_deri):
+        return _vitet_e_mbuluara(shtepia.pagesat, viti, viti_deri, shtepia.paguar_deri_viti)
 
     class Meta:
         model = PagesaAntaresia
-        fields = [
-            'shtepia', 'kategoria_pageses', 'shuma_paguar',
-            'periudha', 'viti', 'muaji_fillimit', 'muaji_mbarimit',
-            'data_pageses', 'shenime', 'shuma_mkd', 'kursi_denar',
-        ]
+        fields = ['nr_fatures', 'shtepia', 'viti', 'viti_deri', 'data_pageses', 'shenime']
         widgets = {
             'data_pageses': forms.DateInput(attrs={'type': 'date'}),
             'shenime': forms.Textarea(attrs={'rows': 2}),
         }
         labels = {
+            'nr_fatures': 'Nr. i Faturës (nga blloku i BFI-së)',
             'shtepia': 'Shtëpia',
-            'kategoria_pageses': 'Kategoria',
-            'shuma_paguar': 'Shuma (€)',
-            'periudha': 'Periudha e Pagesës',
-            'viti': 'Viti',
+            'viti': 'Nga Viti',
+            'viti_deri': 'Deri Viti',
             'data_pageses': 'Data e Pagesës',
             'shenime': 'Shënime',
-            'shuma_mkd': 'Shuma (MKD)',
-            'kursi_denar': 'Kursi EUR/MKD',
         }
 
 
-class PagesaFondiForm(forms.ModelForm):
+class PagesaFondiForm(ShumaMonedhaMixin, forms.ModelForm):
+    FUSHA_EUR = 'shuma'
+
     class Meta:
         model = PagesaFondi
         fields = [
-            'lloji', 'emri_donatorit', 'mbiemri_donatorit',
-            'email_donatorit', 'nr_telefoni',
-            'shuma', 'data_pageses', 'arsyeja', 'shenime',
-            'shuma_mkd', 'kursi_denar',
+            'nr_fatures', 'lloji', 'emri_donatorit', 'mbiemri_donatorit',
+            'email_donatorit', 'nr_telefoni', 'data_pageses', 'arsyeja', 'shenime',
         ]
         widgets = {
             'data_pageses': forms.DateInput(attrs={'type': 'date'}),
@@ -135,39 +196,38 @@ class PagesaFondiForm(forms.ModelForm):
             'arsyeja': forms.Textarea(attrs={'rows': 2}),
         }
         labels = {
+            'nr_fatures': 'Nr. i Faturës (nga blloku i BFI-së)',
             'lloji': 'Lloji i Pagesës',
             'emri_donatorit': 'Emri',
             'mbiemri_donatorit': 'Mbiemri',
             'email_donatorit': 'Email',
             'nr_telefoni': 'Nr. Telefoni',
-            'shuma': 'Shuma (€)',
             'data_pageses': 'Data e Pagesës',
             'arsyeja': 'Arsyeja / Qëllimi (p.sh. emri i aktivitetit)',
             'shenime': 'Shënime',
-            'shuma_mkd': 'Shuma (MKD)',
-            'kursi_denar': 'Kursi EUR/MKD',
         }
 
 
-class PagesaVarrezaveForm(forms.ModelForm):
+class PagesaVarrezaveForm(ShumaMonedhaMixin, VitetFormMixin, forms.ModelForm):
+    FUSHA_EUR = 'shuma_paguar'
+
+    def _vitet_e_paguara(self, shtepia, viti, viti_deri):
+        return _vitet_e_mbuluara(shtepia.pagesat_varrezave, viti, viti_deri, shtepia.varrezat_paguar_deri_viti)
+
     class Meta:
         model = PagesaVarrezave
-        fields = [
-            'shtepia', 'shuma_paguar', 'viti', 'data_pageses',
-            'shenime', 'shuma_mkd', 'kursi_denar',
-        ]
+        fields = ['nr_fatures', 'shtepia', 'viti', 'viti_deri', 'data_pageses', 'shenime']
         widgets = {
             'data_pageses': forms.DateInput(attrs={'type': 'date'}),
             'shenime': forms.Textarea(attrs={'rows': 2}),
         }
         labels = {
+            'nr_fatures': 'Nr. i Faturës (nga blloku i BFI-së)',
             'shtepia': 'Shtëpia',
-            'shuma_paguar': 'Shuma (€)',
-            'viti': 'Viti',
+            'viti': 'Nga Viti',
+            'viti_deri': 'Deri Viti',
             'data_pageses': 'Data e Pagesës',
             'shenime': 'Shënime',
-            'shuma_mkd': 'Shuma (MKD)',
-            'kursi_denar': 'Kursi EUR/MKD',
         }
 
 

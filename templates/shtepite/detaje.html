@@ -9,7 +9,7 @@
       <h2><span class="nr-shtepi" style="font-size:18px; width:60px; height:34px;">{{ shtepi.nr_shtepise }}</span>
         {{ shtepi.emri_i_plote }}
       </h2>
-      <p>{{ shtepi.kategoria.emri }} • {{ shtepi.nr_antareve_familjes }} anëtarë familje</p>
+      <p>{% if shtepi.kategoria %}{{ shtepi.kategoria.emri }} • {% endif %}{{ shtepi.nr_antareve_familjes }} anëtarë familje</p>
     </div>
   </div>
   <div class="flex gap-3">
@@ -49,7 +49,7 @@
         </tr>
         <tr>
           <td style="padding:8px 0; color:var(--tekst-dytësor); font-size:13px;">Kategoria</td>
-          <td style="padding:8px 0;"><span class="badge-gjelbër">{{ shtepi.kategoria.emri }}</span> — {{ shtepi.kategoria.shuma_vjetore }}€/vit</td>
+          <td style="padding:8px 0;">{% if shtepi.kategoria %}<span class="badge-gjelbër">{{ shtepi.kategoria.emri }}</span> — {{ shtepi.kategoria.shuma_vjetore }}€/vit{% else %}<span class="tekst-dytësor">—</span>{% endif %}</td>
         </tr>
         <tr>
           <td style="padding:8px 0; color:var(--tekst-dytësor); font-size:13px;">Statusi</td>
@@ -152,8 +152,8 @@
     <h5>📅 Gjendja e Antarësisë sipas Vitit</h5>
     <div style="display:flex; align-items:center; gap:12px;">
       <span style="font-size:13px; color:var(--tekst-dytësor);">nga {{ shtepi.viti_fillimit_antaresise }} deri {{ viti_aktual }}</span>
-      {% if borxhi_total > 0 %}
-      <span style="font-size:13px; background:rgba(255,59,48,0.1); color:var(--gabim); padding:4px 10px; border-radius:20px; font-weight:600;">Borxh total: {{ borxhi_total }}€</span>
+      {% if borxhi_total > 0 or nr_papaguara %}
+      <span style="font-size:13px; background:rgba(255,59,48,0.1); color:var(--gabim); padding:4px 10px; border-radius:20px; font-weight:600;">{% if borxhi_total > 0 %}Borxh total: {{ borxhi_total }}€ — {% endif %}{{ nr_papaguara }} vit{{ nr_papaguara|pluralize:'e' }} pa paguar</span>
       {% else %}
       <span style="font-size:13px; background:var(--gjelbër-shumë-i-çelur); color:var(--gjelbër); padding:4px 10px; border-radius:20px; font-weight:600;">✅ Pa borxh</span>
       {% endif %}
@@ -169,7 +169,7 @@
         </div>
         <div style="font-size:20px; margin:6px 0;">{% if info.ka_paguar %}✅{% else %}❌{% endif %}</div>
         <div style="font-size:12px; color:{% if info.ka_paguar %}var(--gjelbër){% else %}var(--gabim){% endif %}; font-weight:600;">
-          {% if info.ka_paguar %}{{ info.shuma_paguar }}€{% else %}{{ info.borxhi }}€ borxh{% endif %}
+          {% if info.historike %}historik{% elif info.ka_paguar %}{{ info.shuma_paguar }}€{% elif info.borxhi %}{{ info.borxhi }}€ borxh{% else %}papaguar{% endif %}
         </div>
         {% if info.historike %}
         <div style="margin-top:5px; font-size:10px; background:rgba(107,68,35,0.12); color:#6B4423; padding:2px 6px; border-radius:8px; font-weight:600;">Historik</div>
@@ -221,8 +221,7 @@
       <thead>
         <tr>
           <th>Nr. Faturës</th>
-          <th>Viti</th>
-          <th>Periudha</th>
+          <th>Vitet</th>
           <th>Shuma</th>
           <th>Data</th>
           <th>Arktar</th>
@@ -233,9 +232,8 @@
         {% for p in pagesat %}
         <tr>
           <td><a href="{% url 'detaje_pagesa_antaresia' p.pk %}">{{ p.nr_fatures }}</a></td>
-          <td class="font-semibold">{{ p.viti }}</td>
-          <td><span class="badge-gjelbër">{{ p.get_periudha_display }}</span></td>
-          <td class="tekst-gjelbër font-semibold">{{ p.shuma_paguar }}€</td>
+          <td class="font-semibold">{{ p.vitet_tekst }}</td>
+          <td class="tekst-gjelbër font-semibold">{{ p.shuma_origjinale }}</td>
           <td class="tekst-dytësor">{{ p.data_pageses|date:"d M Y" }}</td>
           <td class="tekst-dytësor">{{ p.arktar.get_full_name }}</td>
           <td>
@@ -244,7 +242,7 @@
         </tr>
         {% empty %}
         <tr>
-          <td colspan="7" style="text-align:center; padding:30px; color:var(--tekst-dytësor);">
+          <td colspan="6" style="text-align:center; padding:30px; color:var(--tekst-dytësor);">
             Asnjë pagesë e regjistruar ende.
           </td>
         </tr>
@@ -260,8 +258,8 @@
     <h5>⚰️ Gjendja e Varrezave sipas Vitit</h5>
     <div style="display:flex; align-items:center; gap:12px;">
       <span style="font-size:13px; color:var(--tekst-dytësor);">nga {{ shtepi.viti_fillimit_varrezave }} deri {{ viti_aktual }}</span>
-      {% if borxhi_total_varrezat > 0 %}
-      <span style="font-size:13px; background:rgba(255,59,48,0.1); color:var(--gabim); padding:4px 10px; border-radius:20px; font-weight:600;">Borxh total: {{ borxhi_total_varrezat }}€</span>
+      {% if borxhi_total_varrezat > 0 or nr_papaguara_varrezat %}
+      <span style="font-size:13px; background:rgba(255,59,48,0.1); color:var(--gabim); padding:4px 10px; border-radius:20px; font-weight:600;">{% if borxhi_total_varrezat > 0 %}Borxh total: {{ borxhi_total_varrezat }}€ — {% endif %}{{ nr_papaguara_varrezat }} vit{{ nr_papaguara_varrezat|pluralize:'e' }} pa paguar</span>
       {% else %}
       <span style="font-size:13px; background:var(--gjelbër-shumë-i-çelur); color:var(--gjelbër); padding:4px 10px; border-radius:20px; font-weight:600;">✅ Pa borxh</span>
       {% endif %}
@@ -277,7 +275,7 @@
         </div>
         <div style="font-size:20px; margin:6px 0;">{% if info.ka_paguar %}✅{% else %}❌{% endif %}</div>
         <div style="font-size:12px; color:{% if info.ka_paguar %}var(--gjelbër){% else %}var(--gabim){% endif %}; font-weight:600;">
-          {% if info.ka_paguar %}{{ info.shuma_paguar }}€{% else %}{{ info.borxhi }}€ borxh{% endif %}
+          {% if info.historike %}historik{% elif info.ka_paguar %}{{ info.shuma_paguar }}€{% elif info.borxhi %}{{ info.borxhi }}€ borxh{% else %}papaguar{% endif %}
         </div>
         {% if info.historike %}
         <div style="margin-top:5px; font-size:10px; background:rgba(107,68,35,0.12); color:#6B4423; padding:2px 6px; border-radius:8px; font-weight:600;">Historik</div>
@@ -340,8 +338,8 @@
         {% for p in pagesat_varrezave %}
         <tr>
           <td><a href="{% url 'detaje_pagesa_varrezat' p.pk %}">{{ p.nr_fatures }}</a></td>
-          <td class="font-semibold">{{ p.viti }}</td>
-          <td class="tekst-gjelbër font-semibold">{{ p.shuma_paguar }}€</td>
+          <td class="font-semibold">{{ p.vitet_tekst }}</td>
+          <td class="tekst-gjelbër font-semibold">{{ p.shuma_origjinale }}</td>
           <td class="tekst-dytësor">{{ p.data_pageses|date:"d M Y" }}</td>
           <td class="tekst-dytësor">{{ p.arktar.get_full_name }}</td>
           <td>

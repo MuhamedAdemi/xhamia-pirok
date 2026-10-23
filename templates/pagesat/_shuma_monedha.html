@@ -1,0 +1,73 @@
+{% load widget_tweaks %}
+{# Shuma e pagesës në € ose den. Konteksti: form, vlerat_shpejta (opsionale: [(shuma, 'EUR'|'MKD'), ...]) #}
+<div class="card" style="margin-bottom:20px;">
+  <div class="card-header"><h5>💶 Shuma e Paguar</h5></div>
+  <div class="card-body">
+    <div class="forma-grup">
+      <label>{{ form.monedha.label }}</label>
+      <div class="monedha-zgjedhje">
+        {% for radio in form.monedha %}
+        <label class="monedha-opsion">{{ radio.tag }} <span>{{ radio.choice_label }}</span></label>
+        {% endfor %}
+      </div>
+    </div>
+
+    {% if vlerat_shpejta %}
+    <div class="vlerat-shpejta">
+      {% for shuma, monedha in vlerat_shpejta %}
+      <button type="button" class="chip-shume" data-shuma="{{ shuma }}" data-monedha="{{ monedha }}">
+        {% if monedha == 'EUR' %}{{ shuma }} €{% else %}{{ shuma }} den{% endif %}
+      </button>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="grid-2">
+      <div class="forma-grup">
+        <label>Shuma (<span id="monedhaEtiketa">€</span>)</label>
+        {% render_field form.shuma_hyrese placeholder="0" inputmode="decimal" %}
+        {% if form.shuma_hyrese.errors %}<p class="gabim-fusha">{{ form.shuma_hyrese.errors.0 }}</p>{% endif %}
+      </div>
+      <div class="forma-grup">
+        <label>{{ form.kursi.label }}</label>
+        {% render_field form.kursi inputmode="decimal" %}
+        {% if form.kursi.errors %}<p class="gabim-fusha">{{ form.kursi.errors.0 }}</p>{% endif %}
+        <p class="ndihma">Parazgjedhje 61.5. Ndryshoje vetëm nëse u pagua me kurs tjetër.</p>
+      </div>
+    </div>
+    <div class="konvertimi" id="konvertimi">Shkruani shumën…</div>
+  </div>
+</div>
+
+<script>
+(function () {
+  const shuma = document.querySelector('[name="shuma_hyrese"]');
+  const kursi = document.querySelector('[name="kursi"]');
+  const radiot = document.querySelectorAll('[name="monedha"]');
+  const etiketa = document.getElementById('monedhaEtiketa');
+  const konvertimi = document.getElementById('konvertimi');
+
+  const monedha = () => (document.querySelector('[name="monedha"]:checked') || {}).value || 'EUR';
+  const fmt = (n, d) => n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d });
+
+  function perditeso() {
+    const m = monedha();
+    etiketa.textContent = m === 'EUR' ? '€' : 'den';
+    const v = parseFloat((shuma.value || '').replace(',', '.'));
+    const k = parseFloat((kursi.value || '').replace(',', '.'));
+    if (!(v > 0) || !(k > 0)) { konvertimi.textContent = 'Shkruani shumën…'; return; }
+    konvertimi.innerHTML = m === 'EUR'
+      ? `${fmt(v, 2)} € = <strong>${fmt(Math.round(v * k), 0)} den</strong>`
+      : `${fmt(v, 0)} den = <strong>${fmt(v / k, 2)} €</strong>`;
+  }
+
+  document.querySelectorAll('.chip-shume').forEach(b => b.addEventListener('click', () => {
+    document.querySelector(`[name="monedha"][value="${b.dataset.monedha}"]`).checked = true;
+    shuma.value = b.dataset.shuma;
+    perditeso();
+  }));
+  [shuma, kursi].forEach(e => e.addEventListener('input', perditeso));
+  radiot.forEach(r => r.addEventListener('change', perditeso));
+  perditeso();
+})();
+</script>

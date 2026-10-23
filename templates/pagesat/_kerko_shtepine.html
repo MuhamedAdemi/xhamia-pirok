@@ -1,0 +1,21 @@
+{# Kërkim mbi listën e shtëpive (mund të jenë mbi 1000): filtron opsionet sipas emrit ose numrit. #}
+<input type="search" id="kerkoShtepine" placeholder="🔎 Kërko: emri, mbiemri ose nr. i shtëpisë…" autocomplete="off" style="margin-bottom:6px;">
+<script>
+(function () {
+  const kerko = document.getElementById('kerkoShtepine');
+  const select = document.querySelector('[name="shtepia"]');
+  const opsionet = Array.from(select.options);
+  const pa_shenja = t => t.toLowerCase().replace(/ë/g, 'e').replace(/ç/g, 'c');
+  kerko.addEventListener('input', () => {
+    const fjalet = pa_shenja(kerko.value).split(/\s+/).filter(Boolean);
+    let ePara = null;
+    opsionet.forEach(o => {
+      const tekst = pa_shenja(o.text);
+      const shfaq = !o.value || fjalet.every(f => tekst.includes(f));
+      o.hidden = !shfaq;
+      if (shfaq && o.value && !ePara) ePara = o;
+    });
+    if (ePara && fjalet.length) select.value = ePara.value;
+  });
+})();
+</script>

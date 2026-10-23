@@ -8,7 +8,10 @@
     <p>{{ shtepite.count }} shtëpi të regjistruara</p>
   </div>
   {% if request.user.profili.është_admin %}
-  <a href="{% url 'shto_shtepi' %}" class="btn-kryesor no-print">+ Shto Shtëpi</a>
+  <div class="flex gap-3 no-print" style="flex-wrap:wrap;">
+    <a href="{% url 'importo_shtepite' %}" class="btn-dytësor">⬆️ Importo nga PDF</a>
+    <a href="{% url 'shto_shtepi' %}" class="btn-kryesor">+ Shto Shtëpi</a>
+  </div>
   {% endif %}
 </div>
 

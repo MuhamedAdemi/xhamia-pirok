@@ -36,6 +36,7 @@ urlpatterns = [
     # Shtepite
     path('shtepite/', views.lista_shtepive, name='lista_shtepive'),
     path('shtepite/shto/', views.shto_shtepi, name='shto_shtepi'),
+    path('shtepite/importo/', views.importo_shtepite, name='importo_shtepite'),
     path('shtepite/<int:pk>/', views.detaje_shtepia, name='detaje_shtepia'),
     path('shtepite/<int:pk>/edito/', views.edito_shtepi, name='edito_shtepi'),
     path('shtepite/<int:pk>/fshi/', views.fshi_shtepi, name='fshi_shtepi'),

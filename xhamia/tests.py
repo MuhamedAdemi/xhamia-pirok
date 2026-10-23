@@ -146,3 +146,91 @@ class KonfigurimiSistemitTest(TestCase):
         from .email_backend import GmailBackend
         KonfigurimiSistemit.objects.create(pk=1, gmail_app_password='nga-db')
         self.assertEqual(GmailBackend().password, 'nga-db')
+
+
+class PagesatShumeViteTest(TestCase):
+    def setUp(self):
+        self.admin = User.objects.create_user('admin', password='x', first_name='A', last_name='B')
+        ProfilStafi.objects.create(user=self.admin, rol='ADMIN')
+        self.client.force_login(self.admin)
+        self.sh = Shtepia.objects.create(
+            nr_shtepise='0001', emri_kryefamiljarit='Muhamed', emri_prindit='Mesud',
+            mbiemri_kryefamiljarit='Ademi', viti_fillimit_antaresise=2000,
+        )
+
+    def _paguaj(self, **te_dhenat):
+        data = {
+            'nr_fatures': '004512', 'shtepia': self.sh.pk, 'viti': 2000, 'viti_deri': '',
+            'data_pageses': '2026-10-24', 'shuma_hyrese': '70', 'monedha': 'EUR', 'kursi': '61.5',
+        }
+        data.update(te_dhenat)
+        return self.client.post(reverse('shto_pagese_antaresia'), data)
+
+    def test_denar_konvertohet_ne_euro(self):
+        self._paguaj(shuma_hyrese='4300', monedha='MKD', viti=2026)
+        p = PagesaAntaresia.objects.get()
+        self.assertEqual((p.monedha, p.shuma_mkd, p.shuma_paguar), ('MKD', Decimal('4300'), Decimal('69.92')))
+        self.assertEqual(p.shuma_origjinale, '4.300 den')
+        self.assertIsNone(p.kategoria_pageses)
+
+    def test_euro_konvertohet_ne_denar(self):
+        self._paguaj(shuma_hyrese='70', monedha='EUR', viti=2026)
+        p = PagesaAntaresia.objects.get()
+        self.assertEqual((p.shuma_paguar, p.shuma_mkd), (Decimal('70'), Decimal('4305')))
+
+    def test_nje_fature_per_shume_vite_dhe_vite_te_ardhshme(self):
+        r = self._paguaj(viti=2000, viti_deri=2027, shuma_hyrese='1960')
+        self.assertEqual(r.status_code, 302)
+        p = PagesaAntaresia.objects.get()
+        self.assertEqual((p.nr_viteve, p.vitet_tekst), (28, '2000–2027'))
+        detaje = self.client.get(reverse('detaje_shtepia', args=[self.sh.pk]))
+        self.assertEqual(detaje.context['nr_papaguara'], 0)
+        self.assertTrue(detaje.context['pagesat_per_vit'][2027]['ka_paguar'])
+        self.assertEqual(detaje.context['pagesat_per_vit'][2000]['shuma_paguar'], Decimal('70.00'))
+        lista = self.client.get(reverse('lista_pagesa_antaresia') + '?viti=2013')
+        self.assertEqual(list(lista.context['pagesat']), [p])
+
+    def test_vitet_e_paguara_nuk_paguhen_dy_here(self):
+        self._paguaj(viti=2020, viti_deri=2022)
+        r = self._paguaj(nr_fatures='004513', viti=2022, viti_deri=2024)
+        self.assertEqual(r.status_code, 200)
+        self.assertIn('2022', r.context['form'].errors['viti'][0])
+        self.assertEqual(PagesaAntaresia.objects.count(), 1)
+
+    def test_nr_fatures_detyrueshem_unik_dhe_sugjerohet(self):
+        self._paguaj(viti=2026)
+        r = self._paguaj(viti=2025)
+        self.assertIn('nr_fatures', r.context['form'].errors)
+        forma = self.client.get(reverse('shto_pagese_antaresia') + f'?shtepi={self.sh.pk}')
+        self.assertEqual(forma.context['form'].initial['nr_fatures'], '004513')
+        self.assertEqual(forma.context['form'].initial['viti'], 2000)
+
+    def test_borxhi_pa_kategori_numeron_vitet(self):
+        detaje = self.client.get(reverse('detaje_shtepia', args=[self.sh.pk]))
+        self.assertEqual(detaje.context['nr_papaguara'], timezone.now().year - 2000 + 1)
+        self.assertEqual(detaje.context['borxhi_total'], 0)
+
+    def test_varrezat_dhe_fondi_me_denar(self):
+        r = self.client.post(reverse('shto_pagese_varrezat'), {
+            'nr_fatures': '900001', 'shtepia': self.sh.pk, 'viti': 2024, 'viti_deri': 2026,
+            'data_pageses': '2026-10-24', 'shuma_hyrese': '3000', 'monedha': 'MKD', 'kursi': '61.5',
+        })
+        self.assertEqual(r.status_code, 302)
+        r = self.client.post(reverse('shto_pagese_fondi'), {
+            'nr_fatures': '700001', 'lloji': 'DHURATE', 'emri_donatorit': 'A', 'mbiemri_donatorit': 'B',
+            'data_pageses': '2026-10-24', 'shuma_hyrese': '50', 'monedha': 'EUR', 'kursi': '61.5',
+        })
+        self.assertEqual(r.status_code, 302)
+
+    def test_faqet_hapen(self):
+        self._paguaj(viti=2000, viti_deri=2026, shuma_hyrese='4300', monedha='MKD')
+        p = PagesaAntaresia.objects.get()
+        for url in [
+            reverse('dashboard'), reverse('dashboard_varrezat'), reverse('dashboard_buxheti'),
+            reverse('lista_shtepive'), reverse('detaje_shtepia', args=[self.sh.pk]),
+            reverse('lista_pagesa_antaresia'), reverse('lista_pagesa_varrezave'), reverse('lista_pagesa_fondi'),
+            reverse('shto_pagese_antaresia'), reverse('shto_pagese_varrezat'), reverse('shto_pagese_fondi'),
+            reverse('detaje_pagesa_antaresia', args=[p.pk]), reverse('fatura_antaresia_pdf', args=[p.pk]),
+            reverse('importo_shtepite'), reverse('borxhlinjte_sms'),
+        ]:
+            self.assertEqual(self.client.get(url).status_code, 200, url)

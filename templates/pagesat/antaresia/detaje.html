@@ -50,32 +50,13 @@
           </td>
         </tr>
         <tr>
-          <td style="padding:10px 0; color:var(--tekst-dytësor); font-size:13px;">Kategoria</td>
-          <td style="padding:10px 0;"><span class="badge-gjelbër">{{ pagese.kategoria_pageses.emri }}</span></td>
-        </tr>
-        <tr>
           <td style="padding:10px 0; color:var(--tekst-dytësor); font-size:13px;">Shuma</td>
-          <td style="padding:10px 0;">
-            <span style="font-size:22px; font-weight:700; color:var(--gjelbër);">{{ pagese.shuma_paguar }}€</span>
-            {% if pagese.shuma_mkd %}
-            <span style="font-size:13px; color:var(--tekst-dytësor); margin-left:8px;">≈ {{ pagese.shuma_mkd }} MKD{% if pagese.kursi_denar %} (1€={{ pagese.kursi_denar }} MKD){% endif %}</span>
-            {% endif %}
-          </td>
+          <td style="padding:10px 0;">{% include 'pagesat/_shuma_detaje.html' %}</td>
         </tr>
         <tr>
-          <td style="padding:10px 0; color:var(--tekst-dytësor); font-size:13px;">Periudha</td>
-          <td style="padding:10px 0;"><span class="badge-gjelbër">{{ pagese.get_periudha_display }}</span></td>
+          <td style="padding:10px 0; color:var(--tekst-dytësor); font-size:13px;">{% if pagese.nr_viteve > 1 %}Vitet{% else %}Viti{% endif %}</td>
+          <td style="padding:10px 0; font-weight:600;">{{ pagese.vitet_tekst }}{% if pagese.nr_viteve > 1 %} <span class="badge-gjelbër">{{ pagese.nr_viteve }} vite</span>{% endif %}</td>
         </tr>
-        <tr>
-          <td style="padding:10px 0; color:var(--tekst-dytësor); font-size:13px;">Viti</td>
-          <td style="padding:10px 0; font-weight:600;">{{ pagese.viti }}</td>
-        </tr>
-        {% if pagese.muaji_fillimit %}
-        <tr>
-          <td style="padding:10px 0; color:var(--tekst-dytësor); font-size:13px;">Periudha muajore</td>
-          <td style="padding:10px 0;">Muaji {{ pagese.muaji_fillimit }} — {{ pagese.muaji_mbarimit }}</td>
-        </tr>
-        {% endif %}
         <tr>
           <td style="padding:10px 0; color:var(--tekst-dytësor); font-size:13px;">Data e pagesës</td>
           <td style="padding:10px 0; font-weight:600;">{{ pagese.data_pageses|date:"d F Y" }}</td>

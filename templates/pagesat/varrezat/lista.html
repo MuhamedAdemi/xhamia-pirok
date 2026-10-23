@@ -15,7 +15,8 @@
 <div class="card">
   <form method="get" class="filtrat no-print">
     <input type="text" name="kerkimi" value="{{ kerkimi }}" placeholder="Nr. fature, emër...">
-    <select name="viti">
+    <select name="viti" title="Pagesat që mbulojnë këtë vit">
+      <option value="" {% if not viti %}selected{% endif %}>Të gjitha vitet</option>
       {% for v in vitit_lista %}
         <option value="{{ v }}" {% if v|stringformat:'s' == viti|stringformat:'s' %}selected{% endif %}>{{ v }}</option>
       {% endfor %}
@@ -33,7 +34,7 @@
           <th>Nr. Faturës</th>
           <th>Shtëpia</th>
           <th>Shuma</th>
-          <th>Viti</th>
+          <th>Vitet</th>
           <th>Data</th>
           <th>Arktar</th>
           <th class="no-print"></th>
@@ -49,8 +50,8 @@
               {{ p.shtepia.emri_i_plote }}
             </a>
           </td>
-          <td class="tekst-gjelbër font-semibold">{{ p.shuma_paguar }}€</td>
-          <td class="font-semibold">{{ p.viti }}</td>
+          <td class="tekst-gjelbër font-semibold">{{ p.shuma_origjinale }}</td>
+          <td class="font-semibold">{{ p.vitet_tekst }}</td>
           <td class="tekst-dytësor">{{ p.data_pageses|date:"d M Y" }}</td>
           <td class="tekst-dytësor">{{ p.arktar.get_full_name }}</td>
           <td class="no-print">

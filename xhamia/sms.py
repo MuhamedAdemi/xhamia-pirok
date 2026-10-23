@@ -143,18 +143,26 @@ def _statusi_nga_gateway(state):
 
 # ─── Tekstet e SMS-ve ────────────────────────────────────────────────────────
 
+def _shuma(pagese):
+    return pagese.shuma_origjinale.replace('€', 'EUR')
+
+
+def _vitet(pagese):
+    return f"vitet {pagese.vitet_tekst}" if pagese.nr_viteve > 1 else f"vitin {pagese.viti}"
+
+
 def teksti_antaresia(pagese):
     return (
-        f"Xhamia Pirok: U pranua pagesa juaj prej {pagese.shuma_paguar} EUR "
-        f"per antaresine e vitit {pagese.viti}. Fatura: {pagese.nr_fatures}. "
+        f"Xhamia Pirok: U pranua pagesa juaj prej {_shuma(pagese)} "
+        f"per antaresine per {_vitet(pagese)}. Fatura: {pagese.nr_fatures}. "
         f"Allahu ju shperbleft!"
     )
 
 
 def teksti_varrezat(pagese):
     return (
-        f"Xhamia Pirok: U pranua pagesa juaj prej {pagese.shuma_paguar} EUR "
-        f"per mirembajtjen e varrezave {pagese.viti}. Fatura: {pagese.nr_fatures}. "
+        f"Xhamia Pirok: U pranua pagesa juaj prej {_shuma(pagese)} "
+        f"per mirembajtjen e varrezave per {_vitet(pagese)}. Fatura: {pagese.nr_fatures}. "
         f"Allahu ju shperbleft!"
     )
 
@@ -163,11 +171,11 @@ def teksti_fondi(pagese):
     if pagese.lloji == 'AKTIVITET':
         per = f"per aktivitetin {pagese.arsyeja}" if pagese.arsyeja else "per aktivitetin"
         return (
-            f"Xhamia Pirok: U pranua pagesa juaj prej {pagese.shuma} EUR {per}. "
+            f"Xhamia Pirok: U pranua pagesa juaj prej {_shuma(pagese)} {per}. "
             f"Fatura: {pagese.nr_fatures}. Allahu ju shperbleft!"
         )
     return (
-        f"Xhamia Pirok: U pranua donacioni juaj prej {pagese.shuma} EUR per xhamine. "
+        f"Xhamia Pirok: U pranua donacioni juaj prej {_shuma(pagese)} per xhamine. "
         f"Fatura: {pagese.nr_fatures}. Allahu ju shperbleft!"
     )
 

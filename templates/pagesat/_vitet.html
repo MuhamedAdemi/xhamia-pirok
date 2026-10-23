@@ -1,0 +1,33 @@
+{% load widget_tweaks %}
+{# "Nga viti — Deri viti": një faturë mund të mbulojë një ose shumë vite (edhe të ardhshme). #}
+<div class="grid-2">
+  <div class="forma-grup">
+    <label>{{ form.viti.label }}</label>
+    {% render_field form.viti inputmode="numeric" %}
+    {% if form.viti.errors %}<p class="gabim-fusha">{{ form.viti.errors.0 }}</p>{% endif %}
+  </div>
+  <div class="forma-grup">
+    <label>{{ form.viti_deri.label }}</label>
+    {% render_field form.viti_deri inputmode="numeric" placeholder="i njëjti vit" %}
+    {% if form.viti_deri.errors %}<p class="gabim-fusha">{{ form.viti_deri.errors.0 }}</p>{% endif %}
+  </div>
+</div>
+<p class="ndihma" id="vitetPermbledhje" style="margin-top:-6px;">Për një vit të vetëm, lëreni "Deri Viti" bosh.</p>
+{% if form.non_field_errors %}<p class="gabim-fusha">{{ form.non_field_errors.0 }}</p>{% endif %}
+
+<script>
+(function () {
+  const nga = document.querySelector('[name="viti"]');
+  const deri = document.querySelector('[name="viti_deri"]');
+  const info = document.getElementById('vitetPermbledhje');
+  function perditeso() {
+    const a = parseInt(nga.value), b = parseInt(deri.value) || a;
+    if (!a) return;
+    if (b < a) { info.textContent = '⚠️ "Deri Viti" nuk mund të jetë para "Nga Viti".'; return; }
+    const n = b - a + 1;
+    info.textContent = n === 1 ? `Kjo faturë mbulon vitin ${a}.` : `Kjo faturë mbulon ${n} vite: ${a}–${b}.`;
+  }
+  [nga, deri].forEach(e => e.addEventListener('input', perditeso));
+  perditeso();
+})();
+</script>
