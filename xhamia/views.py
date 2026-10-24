@@ -8,6 +8,7 @@ from django.core.mail import send_mail
 from django.conf import settings
 from django.db.models import Sum, Count, Q
 from django.utils import timezone
+from datetime import timedelta
 from django.template.loader import render_to_string
 from django.urls import reverse
 from io import BytesIO
@@ -1108,6 +1109,20 @@ def dergo_email_varrezat_view(request, pk):
 def _dergo_sms_pagese(request, nr_telefoni, teksti, shtepia):
     if not nr_telefoni:
         messages.warning(request, 'Nuk ka numër telefoni të regjistruar.')
+        return
+    # Mbrojtje nga dërgimi i dyfishtë: i njëjti SMS te i njëjti numër në 24 orët e fundit.
+    # (Kur telefoni është offline, SMS-të presin në radhë — klikimet e përsëritura arrijnë të gjitha bashkë.)
+    numri = sms.normalizo_numrin(nr_telefoni)
+    i_meparshmi = MesazhSMS.objects.filter(
+        nr_telefoni=numri, teksti=sms.pastro_tekstin(teksti),
+        data_dergimit__gte=timezone.now() - timedelta(hours=24),
+    ).exclude(statusi='DESHTOI').first()
+    if i_meparshmi and not request.POST.get('ridergo'):
+        messages.warning(request, (
+            f'Ky SMS i është dërguar tashmë {numri} më {timezone.localtime(i_meparshmi.data_dergimit):%d.%m.%Y %H:%M} '
+            f'(statusi: {i_meparshmi.get_statusi_display()}). Nuk u dërgua sërish. Nëse statusi është "Në pritje", '
+            f'kontrolloni që telefoni me SMS Gateway të jetë i ndezur dhe me internet — SMS-i do të niset vetë.'
+        ))
         return
     mesazh = sms.dergo_sms(nr_telefoni, teksti, 'KONFIRMIM', request.user, shtepia=shtepia)
     if mesazh.statusi == 'DESHTOI':

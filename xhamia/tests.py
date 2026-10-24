@@ -421,3 +421,24 @@ class FilloNgaZeroTest(TestCase):
         self.assertFalse(User.objects.filter(username='sh0001').exists())
         self.assertTrue(User.objects.filter(username='admin').exists())
         self.assertEqual(KonfigurimiSistemit.merr().sms_username, 'DC75HC')
+
+
+@override_settings(SMS_GATEWAY_USER='u', SMS_GATEWAY_PASSWORD='p')
+class SmsDyfishTest(TestCase):
+    @mock.patch('xhamia.sms.requests.post')
+    def test_i_njejti_sms_nuk_dergohet_dy_here(self, post):
+        post.return_value = _pergjigje({'id': 'x', 'state': 'Pending'})
+        admin = User.objects.create_user('admin', password='x')
+        ProfilStafi.objects.create(user=admin, rol='ADMIN')
+        self.client.force_login(admin)
+        sh = Shtepia.objects.create(nr_shtepise='0001', emri_kryefamiljarit='A', mbiemri_kryefamiljarit='B',
+                                    viti_fillimit_antaresise=2026, nr_telefoni_kryesor='070123456')
+        p = PagesaAntaresia.objects.create(blloku='1', nr_fatures='1', shtepia=sh, shuma_paguar=Decimal('70'),
+                                           viti=2026, data_pageses=date.today(), arktar=admin)
+        url = reverse('dergo_sms_antaresia', args=[p.pk])
+        self.client.post(url)
+        r = self.client.post(url, follow=True)
+        self.assertEqual(post.call_count, 1)
+        self.assertContains(r, 'dërguar tashmë')
+        self.client.post(url, {'ridergo': '1'})
+        self.assertEqual(post.call_count, 2)
