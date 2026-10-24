@@ -160,7 +160,7 @@ def dosja_backup():
 
 def lista_backup():
     """Backup-et e ruajtura në server, më i riu i pari: [(Path, madhësia KB, data)]."""
-    skedaret = sorted(dosja_backup().glob('xhamia_*.zip'), reverse=True)
+    skedaret = sorted(dosja_backup().glob('*.zip'), key=lambda f: f.stat().st_mtime, reverse=True)
     return [(f, round(f.stat().st_size / 1024), datetime.fromtimestamp(f.stat().st_mtime)) for f in skedaret]
 
 
@@ -182,3 +182,39 @@ def pastro_backup_te_vjetra(ditet=30):
             f.unlink()
             fshire.append(f.name)
     return fshire
+
+
+def numrat_per_fshirje():
+    from .models import MesazhSMS, ProfilShtepi
+    return {
+        'Shtëpi': Shtepia.objects.count(),
+        'Pagesa antarësie': PagesaAntaresia.objects.count(),
+        'Pagesa varrezash': PagesaVarrezave.objects.count(),
+        'Pagesa fondi': PagesaFondi.objects.count(),
+        'Harxhime': Harxhimi.objects.count(),
+        'SMS (historiku)': MesazhSMS.objects.count(),
+        'Llogari shtëpish (portali)': ProfilShtepi.objects.count(),
+    }
+
+
+def fillo_nga_zero():
+    """Fshin shtëpitë, pagesat, harxhimet, SMS-të dhe llogaritë e portalit të shtëpive.
+    Ruhen: stafi (përdoruesit dhe fjalëkalimet), kategoritë, konfigurimi (SMS, email, kurset, tarifat).
+    Para fshirjes ruhet një backup i plotë në server."""
+    from django.contrib.auth.models import User
+    from django.db import transaction
+    from .models import MesazhSMS, ProfilShtepi
+
+    emri, te_dhenat = krijo_zip()
+    rruga = dosja_backup() / f'para-fshirjes_{emri}'
+    rruga.write_bytes(te_dhenat)
+    with transaction.atomic():
+        perdoruesit_e_shtepive = list(ProfilShtepi.objects.values_list('user_id', flat=True))
+        PagesaAntaresia.objects.all().delete()
+        PagesaVarrezave.objects.all().delete()
+        PagesaFondi.objects.all().delete()
+        Harxhimi.objects.all().delete()
+        MesazhSMS.objects.all().delete()
+        Shtepia.objects.all().delete()          # fshin edhe ProfilShtepi (cascade)
+        User.objects.filter(pk__in=perdoruesit_e_shtepive).delete()
+    return rruga

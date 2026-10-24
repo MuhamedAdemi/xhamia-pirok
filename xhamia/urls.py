@@ -34,6 +34,7 @@ urlpatterns = [
     path('dashboard/buxheti/', views.dashboard_buxheti, name='dashboard_buxheti'),
     path('regjistri/', views.regjistri, name='regjistri'),
     path('backup/', views.backup_faqja, name='backup'),
+    path('backup/fillo-nga-zero/', views.fillo_nga_zero, name='fillo_nga_zero'),
 
     # Shtepite
     path('shtepite/', views.lista_shtepive, name='lista_shtepive'),

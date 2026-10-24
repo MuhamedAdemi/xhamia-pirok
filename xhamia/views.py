@@ -458,6 +458,30 @@ def backup_faqja(request):
     })
 
 
+@login_required
+def fillo_nga_zero(request):
+    """Fshin të gjitha të dhënat e testimit (shtëpi, pagesa, harxhime, SMS) — me 3 hapa konfirmimi."""
+    if not është_admin(request.user):
+        messages.error(request, 'Nuk keni leje.')
+        return redirect('dashboard')
+    numrat = backup.numrat_per_fshirje()
+    return _fshirje_3hap(
+        request,
+        çelësi='fillo_nga_zero',
+        fshi_fn=backup.fillo_nga_zero,
+        redirect_sukses=reverse('importo_shtepite'),
+        info={
+            'lloji':     'TË GJITHA të dhënat e regjistruara',
+            'emri':      'Fillo nga zero',
+            'detaje':    ' · '.join(f'{k}: {v}' for k, v in numrat.items()) + '. '
+                         'Ruhen: stafi, fjalëkalimet, kategoritë dhe konfigurimi. '
+                         'Para fshirjes ruhet automatikisht një backup në server.',
+            'url_anulo': reverse('backup'),
+        },
+        mesazh_sukses='Të dhënat e testimit u fshinë. Tani importoni shtëpitë nga Excel-i.',
+    )
+
+
 # ─── Shtëpitë ───────────────────────────────────────────────────────────────
 
 @login_required

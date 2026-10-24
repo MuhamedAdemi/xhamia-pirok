@@ -56,13 +56,25 @@
     </div>
   </div>
 
-  <div class="card">
+  <div class="card" style="margin-bottom:20px;">
     <div class="card-header"><h5>⚙️ Si aktivizohet backup-i automatik (një herë)</h5></div>
     <div class="card-body" style="line-height:1.7;">
       Në PythonAnywhere → <strong>Tasks</strong> → <em>Scheduled tasks</em>: zgjidhni orën (p.sh. 03:00) dhe shkruani:
       <pre style="background:var(--krem-errët); padding:10px; border-radius:8px; white-space:pre-wrap;">cd ~/xhamia-pirok && venv/bin/python manage.py backup_automatik --email</pre>
       Rikthimi i plotë (vetëm në rast fatkeqësie), në Bash console:
       <pre style="background:var(--krem-errët); padding:10px; border-radius:8px; white-space:pre-wrap;">cd ~/xhamia-pirok && venv/bin/python manage.py rikthe_backup ~/xhamia-backups/EMRI_I_SKEDARIT.zip --po</pre>
+    </div>
+  </div>
+
+  <div class="card" style="border-left:4px solid var(--gabim);">
+    <div class="card-header"><h5>🗑️ Fillo nga zero</h5></div>
+    <div class="card-body">
+      <p class="ndihma" style="line-height:1.7;">
+        Fshin <strong>të gjitha shtëpitë, pagesat, harxhimet dhe historikun e SMS-ve</strong> — p.sh. të dhënat e testimit,
+        para se të filloni punën reale. <strong>Ruhen</strong>: stafi dhe fjalëkalimet, kategoritë, konfigurimi
+        (SMS, email, kurset, tarifat). Para fshirjes ruhet automatikisht një backup në server.
+      </p>
+      <a href="{% url 'fillo_nga_zero' %}" class="btn-rrezik">🗑️ Fshi të dhënat dhe fillo nga zero</a>
     </div>
   </div>
 </div>

@@ -388,3 +388,36 @@ class ImportiExcelBackupTest(TestCase):
         self.assertEqual(len(mbetur), 3)
         self.assertEqual(len(mail.outbox), 1)
         self.assertTrue(mail.outbox[0].attachments)
+
+
+class FilloNgaZeroTest(TestCase):
+    def test_fshin_te_dhenat_por_ruan_stafin_dhe_konfigurimin(self):
+        import tempfile
+        from pathlib import Path
+        from .models import ProfilShtepi
+        admin = User.objects.create_user('admin', password='x')
+        ProfilStafi.objects.create(user=admin, rol='ADMIN')
+        self.client.force_login(admin)
+        KonfigurimiSistemit.objects.create(pk=1, sms_username='DC75HC', sms_password='p')
+        sh = Shtepia.objects.create(nr_shtepise='0001', emri_kryefamiljarit='Test', mbiemri_kryefamiljarit='T',
+                                    viti_fillimit_antaresise=2026)
+        PagesaAntaresia.objects.create(blloku='1', nr_fatures='1', shtepia=sh, shuma_paguar=Decimal('70'),
+                                       viti=2026, data_pageses=date.today(), arktar=admin)
+        u_shtepi = User.objects.create_user('sh0001', password='x')
+        ProfilShtepi.objects.create(user=u_shtepi, shtepia=sh)
+
+        url = reverse('fillo_nga_zero')
+        with tempfile.TemporaryDirectory() as d, override_settings(BACKUP_DIR=d):
+            self.assertContains(self.client.get(url), 'Shtëpi: 1')
+            self.client.post(url, {'veprimi': 'hapi1'})
+            kodi = self.client.session['fshirje_fillo_nga_zero_kod']
+            self.client.post(url, {'veprimi': 'hapi2', 'kodi': kodi})
+            r = self.client.post(url, {'veprimi': 'hapi3'})
+            self.assertRedirects(r, reverse('importo_shtepite'))
+            self.assertEqual(len(list(Path(d).glob('para-fshirjes_*.zip'))), 1)
+
+        self.assertFalse(Shtepia.objects.exists())
+        self.assertFalse(PagesaAntaresia.objects.exists())
+        self.assertFalse(User.objects.filter(username='sh0001').exists())
+        self.assertTrue(User.objects.filter(username='admin').exists())
+        self.assertEqual(KonfigurimiSistemit.merr().sms_username, 'DC75HC')
