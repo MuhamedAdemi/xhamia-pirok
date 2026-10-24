@@ -122,7 +122,7 @@
         <tbody>
           {% for p in pagesat_e_fundit %}
           <tr>
-            <td><a href="{% url 'detaje_pagesa_antaresia' p.pk %}">{{ p.nr_fatures }}</a></td>
+            <td><a href="{% url 'detaje_pagesa_antaresia' p.pk %}">{{ p.fatura_tekst }}</a></td>
             <td>
               <span class="nr-shtepi">{{ p.shtepia.nr_shtepise }}</span>
               {{ p.shtepia.emri_i_plote }}

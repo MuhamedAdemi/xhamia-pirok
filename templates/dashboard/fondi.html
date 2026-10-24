@@ -96,7 +96,7 @@
         <tbody>
           {% for p in pagesat_e_fundit %}
           <tr>
-            <td><a href="{% url 'detaje_pagesa_fondi' p.pk %}">{{ p.nr_fatures }}</a></td>
+            <td><a href="{% url 'detaje_pagesa_fondi' p.pk %}">{{ p.fatura_tekst }}</a></td>
             <td>{{ p.emri_donatorit }} {{ p.mbiemri_donatorit }}</td>
             <td class="tekst-kafe font-semibold">{{ p.shuma }}€</td>
             <td class="tekst-dytësor">{{ p.data_pageses|date:"d M Y" }}</td>

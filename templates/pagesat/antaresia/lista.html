@@ -43,7 +43,7 @@
       <tbody>
         {% for p in pagesat %}
         <tr>
-          <td><a href="{% url 'detaje_pagesa_antaresia' p.pk %}" style="font-family:monospace; font-weight:600;">{{ p.nr_fatures }}</a></td>
+          <td><a href="{% url 'detaje_pagesa_antaresia' p.pk %}" style="font-family:monospace; font-weight:600;">{{ p.fatura_tekst }}</a></td>
           <td>
             <a href="{% url 'detaje_shtepia' p.shtepia.pk %}">
               <span class="nr-shtepi">{{ p.shtepia.nr_shtepise }}</span>

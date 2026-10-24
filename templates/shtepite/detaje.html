@@ -231,7 +231,7 @@
       <tbody>
         {% for p in pagesat %}
         <tr>
-          <td><a href="{% url 'detaje_pagesa_antaresia' p.pk %}">{{ p.nr_fatures }}</a></td>
+          <td><a href="{% url 'detaje_pagesa_antaresia' p.pk %}">{{ p.fatura_tekst }}</a></td>
           <td class="font-semibold">{{ p.vitet_tekst }}</td>
           <td class="tekst-gjelbër font-semibold">{{ p.shuma_origjinale }}</td>
           <td class="tekst-dytësor">{{ p.data_pageses|date:"d M Y" }}</td>
@@ -337,7 +337,7 @@
       <tbody>
         {% for p in pagesat_varrezave %}
         <tr>
-          <td><a href="{% url 'detaje_pagesa_varrezat' p.pk %}">{{ p.nr_fatures }}</a></td>
+          <td><a href="{% url 'detaje_pagesa_varrezat' p.pk %}">{{ p.fatura_tekst }}</a></td>
           <td class="font-semibold">{{ p.vitet_tekst }}</td>
           <td class="tekst-gjelbër font-semibold">{{ p.shuma_origjinale }}</td>
           <td class="tekst-dytësor">{{ p.data_pageses|date:"d M Y" }}</td>

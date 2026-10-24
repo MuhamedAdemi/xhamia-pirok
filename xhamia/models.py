@@ -4,12 +4,25 @@ from decimal import Decimal
 
 from django.utils import timezone
 
-MONEDHA_CHOICES = [('EUR', 'Euro (€)'), ('MKD', 'Denar (MKD)')]
+MONEDHA_CHOICES = [
+    ('MKD', 'Denar (MKD)'), ('EUR', 'Euro (€)'), ('CHF', 'Franga (CHF)'), ('USD', 'Dollar ($)'),
+]
+SIMBOLET = {'MKD': 'den', 'EUR': '€', 'CHF': 'CHF', 'USD': '$'}
 KURSI_PARACAKTUAR = Decimal('61.5')
+KURSET_PARACAKTUARA = {'EUR': Decimal('61.5'), 'CHF': Decimal('66'), 'USD': Decimal('57')}
+
+
+def formato_shumen(vlera, monedha):
+    if vlera is None:
+        return ''
+    if monedha == 'MKD':
+        return f"{vlera:,.0f} den".replace(',', '.')
+    return f"{vlera:,.2f} {SIMBOLET.get(monedha, monedha)}".replace(',', ' ')
 
 
 class MonedhaMixin:
-    """Shuma ruhet gjithmonë në € (FUSHA_EUR) dhe në MKD; `monedha` tregon në çka u pagua."""
+    """Shuma ruhet në monedhën e pagesës (`shuma_monedhe`), si dhe gjithmonë në € (FUSHA_EUR)
+    dhe në MKD — për totalet. `monedha` tregon në çka u pagua."""
     FUSHA_EUR = 'shuma_paguar'
 
     @property
@@ -17,10 +30,26 @@ class MonedhaMixin:
         return getattr(self, self.FUSHA_EUR)
 
     @property
+    def shuma_ne_monedhe(self):
+        """Shuma në monedhën e pagesës (edhe për pagesat e vjetra pa `shuma_monedhe`)."""
+        if self.shuma_monedhe is not None:
+            return self.shuma_monedhe
+        return self.shuma_mkd if self.monedha == 'MKD' else self.shuma_eur
+
+    @property
     def shuma_origjinale(self):
-        if self.monedha == 'MKD' and self.shuma_mkd is not None:
-            return f"{self.shuma_mkd:,.0f} den".replace(',', '.')
-        return f"{getattr(self, self.FUSHA_EUR):.2f} €"
+        return formato_shumen(self.shuma_ne_monedhe, self.monedha)
+
+    def get_absolute_url(self):
+        from django.urls import reverse
+        return reverse(self.URL_DETAJE, args=[self.pk])
+
+    @property
+    def fatura_tekst(self):
+        """Si shkruhet në bllokun e BFI-së: "Bllok 1100 nr 046386"."""
+        if self.blloku:
+            return f"Bllok {self.blloku} nr {self.nr_fatures}"
+        return self.nr_fatures
 
 
 class VitetMixin:
@@ -194,6 +223,8 @@ def gjenero_nr_fature_fondi():
 
 
 class PagesaAntaresia(VitetMixin, MonedhaMixin, models.Model):
+    URL_DETAJE = 'detaje_pagesa_antaresia'
+
     PERIUDHA_CHOICES = [
         ('VJETORE', 'Vjetore'),
         ('6MUJORE', '6-Mujore'),
@@ -201,9 +232,8 @@ class PagesaAntaresia(VitetMixin, MonedhaMixin, models.Model):
         ('MUJORE', 'Mujore'),
     ]
 
-    nr_fatures = models.CharField(
-        max_length=30, unique=True, verbose_name='Nr. Faturës (blloku BFI)'
-    )
+    blloku = models.CharField(max_length=10, blank=True, verbose_name='Blloku')
+    nr_fatures = models.CharField(max_length=30, verbose_name='Nr. i Faturës')
     shtepia = models.ForeignKey(
         Shtepia, on_delete=models.PROTECT, related_name='pagesat',
         verbose_name='Shtëpia'
@@ -226,28 +256,37 @@ class PagesaAntaresia(VitetMixin, MonedhaMixin, models.Model):
     shuma_mkd = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, verbose_name='Shuma (MKD)')
     kursi_denar = models.DecimalField(max_digits=8, decimal_places=4, null=True, blank=True, verbose_name='Kursi EUR/MKD')
     monedha = models.CharField(max_length=3, choices=MONEDHA_CHOICES, default='EUR', verbose_name='Paguar në')
+    shuma_monedhe = models.DecimalField(
+        max_digits=12, decimal_places=2, null=True, blank=True, verbose_name='Shuma në monedhën e pagesës'
+    )
     data_regjistrimit = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         verbose_name = 'Pagesë Antarësia'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['blloku', 'nr_fatures'], name='%(class)s_fatura_unike',
+                violation_error_message='Kjo faturë (blloku + numri) është regjistruar tashmë.',
+            ),
+        ]
         verbose_name_plural = 'Pagesat Antarësia'
         ordering = ['-data_pageses']
 
     def __str__(self):
-        return f"{self.nr_fatures} — {self.shtepia} — {self.shuma_paguar}€"
+        return f"{self.fatura_tekst} — {self.shtepia} — {self.shuma_origjinale}"
 
 
 class PagesaFondi(MonedhaMixin, models.Model):
     FUSHA_EUR = 'shuma'
+    URL_DETAJE = 'detaje_pagesa_fondi'
 
     LLOJI_CHOICES = [
         ('DHURATE', 'Dhuratë / Fondi i Përgjithshëm'),
         ('AKTIVITET', 'Aktivitet'),
     ]
 
-    nr_fatures = models.CharField(
-        max_length=30, unique=True, verbose_name='Nr. Faturës (blloku BFI)'
-    )
+    blloku = models.CharField(max_length=10, blank=True, verbose_name='Blloku')
+    nr_fatures = models.CharField(max_length=30, verbose_name='Nr. i Faturës')
     lloji = models.CharField(
         max_length=15, choices=LLOJI_CHOICES, default='DHURATE',
         verbose_name='Lloji i Pagesës'
@@ -267,15 +306,24 @@ class PagesaFondi(MonedhaMixin, models.Model):
     shuma_mkd = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, verbose_name='Shuma (MKD)')
     kursi_denar = models.DecimalField(max_digits=8, decimal_places=4, null=True, blank=True, verbose_name='Kursi EUR/MKD')
     monedha = models.CharField(max_length=3, choices=MONEDHA_CHOICES, default='EUR', verbose_name='Paguar në')
+    shuma_monedhe = models.DecimalField(
+        max_digits=12, decimal_places=2, null=True, blank=True, verbose_name='Shuma në monedhën e pagesës'
+    )
     data_regjistrimit = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         verbose_name = 'Pagesë Fondi'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['blloku', 'nr_fatures'], name='%(class)s_fatura_unike',
+                violation_error_message='Kjo faturë (blloku + numri) është regjistruar tashmë.',
+            ),
+        ]
         verbose_name_plural = 'Pagesat Fondit'
         ordering = ['-data_pageses']
 
     def __str__(self):
-        return f"{self.nr_fatures} — {self.emri_donatorit} {self.mbiemri_donatorit} — {self.shuma}€"
+        return f"{self.fatura_tekst} — {self.emri_donatorit} {self.mbiemri_donatorit} — {self.shuma_origjinale}"
 
 
 class KonfigurimiVarrezave(models.Model):
@@ -311,9 +359,10 @@ def gjenero_nr_fature_varrezat():
 
 
 class PagesaVarrezave(VitetMixin, MonedhaMixin, models.Model):
-    nr_fatures = models.CharField(
-        max_length=30, unique=True, verbose_name='Nr. Faturës (blloku BFI)'
-    )
+    URL_DETAJE = 'detaje_pagesa_varrezat'
+
+    blloku = models.CharField(max_length=10, blank=True, verbose_name='Blloku')
+    nr_fatures = models.CharField(max_length=30, verbose_name='Nr. i Faturës')
     shtepia = models.ForeignKey(
         Shtepia, on_delete=models.PROTECT, related_name='pagesat_varrezave',
         verbose_name='Shtëpia'
@@ -330,15 +379,24 @@ class PagesaVarrezave(VitetMixin, MonedhaMixin, models.Model):
     shuma_mkd = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, verbose_name='Shuma (MKD)')
     kursi_denar = models.DecimalField(max_digits=8, decimal_places=4, null=True, blank=True, verbose_name='Kursi EUR/MKD')
     monedha = models.CharField(max_length=3, choices=MONEDHA_CHOICES, default='EUR', verbose_name='Paguar në')
+    shuma_monedhe = models.DecimalField(
+        max_digits=12, decimal_places=2, null=True, blank=True, verbose_name='Shuma në monedhën e pagesës'
+    )
     data_regjistrimit = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         verbose_name = 'Pagesë Varrezash'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['blloku', 'nr_fatures'], name='%(class)s_fatura_unike',
+                violation_error_message='Kjo faturë (blloku + numri) është regjistruar tashmë.',
+            ),
+        ]
         verbose_name_plural = 'Pagesat e Varrezave'
         ordering = ['-data_pageses']
 
     def __str__(self):
-        return f"{self.nr_fatures} — {self.shtepia} — {self.shuma_paguar}€"
+        return f"{self.fatura_tekst} — {self.shtepia} — {self.shuma_origjinale}"
 
 
 def gjenero_nr_fature_harxhim():
@@ -465,6 +523,9 @@ class KonfigurimiSistemit(models.Model):
         verbose_name='Nga cili SIM dërgohen SMS-të',
     )
     gmail_app_password = models.CharField(max_length=100, blank=True, verbose_name='Gmail — App Password')
+    kursi_eur = models.DecimalField(max_digits=8, decimal_places=4, default=Decimal('61.5'), verbose_name='1 € = ? den')
+    kursi_chf = models.DecimalField(max_digits=8, decimal_places=4, default=Decimal('66'), verbose_name='1 CHF = ? den')
+    kursi_usd = models.DecimalField(max_digits=8, decimal_places=4, default=Decimal('57'), verbose_name='1 $ = ? den')
 
     class Meta:
         verbose_name = 'Konfigurimi i Sistemit'
@@ -477,3 +538,7 @@ class KonfigurimiSistemit(models.Model):
     def merr(cls):
         obj, _ = cls.objects.get_or_create(pk=1)
         return obj
+
+    def kursi(self, monedha):
+        """Sa denarë vlen 1 njësi e monedhës."""
+        return {'MKD': Decimal('1'), 'EUR': self.kursi_eur, 'CHF': self.kursi_chf, 'USD': self.kursi_usd}[monedha]

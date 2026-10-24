@@ -32,6 +32,7 @@ urlpatterns = [
     path('dashboard/fondi/', views.dashboard_fondi, name='dashboard_fondi'),
     path('dashboard/varrezat/', views.dashboard_varrezat, name='dashboard_varrezat'),
     path('dashboard/buxheti/', views.dashboard_buxheti, name='dashboard_buxheti'),
+    path('regjistri/', views.regjistri, name='regjistri'),
 
     # Shtepite
     path('shtepite/', views.lista_shtepive, name='lista_shtepive'),

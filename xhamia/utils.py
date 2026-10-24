@@ -13,7 +13,7 @@ def dërgo_email_antaresia(pagese, request):
 
     html = render_to_string('email/fatura_antaresia.html', {'pagese': pagese}, request=request)
     msg = EmailMessage(
-        subject=f'Fatura {pagese.nr_fatures} — Xhamia Pirok',
+        subject=f'Fatura {pagese.fatura_tekst} — Xhamia Pirok',
         body=html,
         from_email=settings.DEFAULT_FROM_EMAIL,
         to=marrësit,
@@ -31,9 +31,9 @@ def dërgo_email_fondi(pagese, request):
         return
 
     if pagese.lloji == 'AKTIVITET':
-        subjekti = f'Fatura {pagese.nr_fatures} — Aktivitet: {pagese.arsyeja or "Xhamia Pirok"}'
+        subjekti = f'Fatura {pagese.fatura_tekst} — Aktivitet: {pagese.arsyeja or "Xhamia Pirok"}'
     else:
-        subjekti = f'Fatura {pagese.nr_fatures} — Fondi i Xhamisë Pirok'
+        subjekti = f'Fatura {pagese.fatura_tekst} — Fondi i Xhamisë Pirok'
 
     html = render_to_string('email/fatura_fondi.html', {'pagese': pagese}, request=request)
     msg = EmailMessage(
@@ -56,7 +56,7 @@ def dërgo_email_varrezat(pagese, request):
 
     html = render_to_string('email/fatura_varrezat.html', {'pagese': pagese}, request=request)
     msg = EmailMessage(
-        subject=f'Fatura {pagese.nr_fatures} — Mirëmbajtja e Varrezave — Xhamia Pirok',
+        subject=f'Fatura {pagese.fatura_tekst} — Mirëmbajtja e Varrezave — Xhamia Pirok',
         body=html,
         from_email=settings.DEFAULT_FROM_EMAIL,
         to=marrësit,

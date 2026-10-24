@@ -123,13 +123,15 @@ class KonfigurimiSistemitTest(TestCase):
         url = reverse('konfigurimi_sistemit')
         self.assertEqual(self.client.get(url).status_code, 200)
         self.client.post(url, {'veprimi': 'ruaj', 'sms_username': 'ABC', 'sms_password': 'sekret',
-                               'sms_sim_numri': '1', 'gmail_app_password': 'abcd efgh ijkl mnop'})
+                               'sms_sim_numri': '1', 'gmail_app_password': 'abcd efgh ijkl mnop',
+                               'kursi_eur': '61.5', 'kursi_chf': '66', 'kursi_usd': '57'})
         self.assertEqual(KonfigurimiSistemit.merr().sms_sim_numri, 1)
         k = KonfigurimiSistemit.merr()
         self.assertEqual((k.sms_username, k.sms_password, k.gmail_app_password),
                          ('ABC', 'sekret', 'abcdefghijklmnop'))
         # Fjalëkalimet bosh = mbeten të vjetrat
-        self.client.post(url, {'veprimi': 'ruaj', 'sms_username': 'ABC2', 'sms_password': '', 'gmail_app_password': ''})
+        self.client.post(url, {'veprimi': 'ruaj', 'sms_username': 'ABC2', 'sms_password': '', 'gmail_app_password': '',
+                               'kursi_eur': '61.5', 'kursi_chf': '66', 'kursi_usd': '57'})
         k.refresh_from_db()
         self.assertEqual((k.sms_username, k.sms_password, k.gmail_app_password),
                          ('ABC2', 'sekret', 'abcdefghijklmnop'))
@@ -160,7 +162,7 @@ class PagesatShumeViteTest(TestCase):
 
     def _paguaj(self, **te_dhenat):
         data = {
-            'nr_fatures': '004512', 'shtepia': self.sh.pk, 'viti': 2000, 'viti_deri': '',
+            'blloku': '1100', 'nr_fatures': '004512', 'shtepia': self.sh.pk, 'viti': 2000, 'viti_deri': '',
             'data_pageses': '2026-10-24', 'shuma_hyrese': '70', 'monedha': 'EUR', 'kursi': '61.5',
         }
         data.update(te_dhenat)
@@ -200,8 +202,10 @@ class PagesatShumeViteTest(TestCase):
     def test_nr_fatures_detyrueshem_unik_dhe_sugjerohet(self):
         self._paguaj(viti=2026)
         r = self._paguaj(viti=2025)
-        self.assertIn('nr_fatures', r.context['form'].errors)
+        self.assertIn('regjistruar tashmë', r.context['form'].non_field_errors()[0])
+        self.assertEqual(self._paguaj(viti=2025, blloku='1101').status_code, 302)  # tjetër bllok, i njëjti nr
         forma = self.client.get(reverse('shto_pagese_antaresia') + f'?shtepi={self.sh.pk}')
+        self.assertEqual(forma.context['form'].initial['blloku'], '1101')
         self.assertEqual(forma.context['form'].initial['nr_fatures'], '004513')
         self.assertEqual(forma.context['form'].initial['viti'], 2000)
 
@@ -234,3 +238,61 @@ class PagesatShumeViteTest(TestCase):
             reverse('importo_shtepite'), reverse('borxhlinjte_sms'),
         ]:
             self.assertEqual(self.client.get(url).status_code, 200, url)
+
+
+class BllokuMonedhatRegjistriTest(TestCase):
+    def setUp(self):
+        self.admin = User.objects.create_user('admin', password='x', first_name='A', last_name='B')
+        ProfilStafi.objects.create(user=self.admin, rol='ADMIN')
+        self.client.force_login(self.admin)
+        self.sh = Shtepia.objects.create(
+            nr_shtepise='0001', emri_kryefamiljarit='Muhamed', emri_prindit='Mesud',
+            mbiemri_kryefamiljarit='Ademi', viti_fillimit_antaresise=2024,
+        )
+
+    def _paguaj(self, **te_dhenat):
+        data = {
+            'blloku': '1100', 'nr_fatures': '046386', 'shtepia': self.sh.pk, 'viti': 2024, 'viti_deri': 2026,
+            'data_pageses': '2026-10-24', 'shuma_hyrese': '10000', 'monedha': 'MKD', 'kursi': '61.5',
+        }
+        data.update(te_dhenat)
+        return self.client.post(reverse('shto_pagese_antaresia'), data)
+
+    def test_fatura_me_bllok_dhe_tre_vite(self):
+        self.assertEqual(self._paguaj().status_code, 302)
+        p = PagesaAntaresia.objects.get()
+        self.assertEqual(p.fatura_tekst, 'Bllok 1100 nr 046386')
+        self.assertEqual((p.nr_viteve, p.shuma_origjinale), (3, '10.000 den'))
+        self.assertIn('Bllok 1100 nr 046386', sms.teksti_antaresia(p))
+        self.assertContains(self.client.get(reverse('detaje_pagesa_antaresia', args=[p.pk])), 'Bllok 1100 nr 046386')
+
+    def test_franga_konvertohen_me_kursin_e_vet(self):
+        self._paguaj(monedha='CHF', shuma_hyrese='100', kursi='66')
+        p = PagesaAntaresia.objects.get()
+        self.assertEqual((p.monedha, p.shuma_monedhe, p.shuma_mkd), ('CHF', Decimal('100'), Decimal('6600')))
+        self.assertEqual(p.shuma_paguar, Decimal('107.32'))  # 6600 / 61.5
+        self.assertEqual(p.shuma_origjinale, '100.00 CHF')
+
+    def test_regjistri_me_totale_per_bllok_dhe_muaj(self):
+        from . import raporti
+        self._paguaj(nr_fatures='046386', data_pageses='2026-01-05', viti=2024, viti_deri=2024)
+        self._paguaj(nr_fatures='046387', data_pageses='2026-01-06', viti=2025, viti_deri=2025, monedha='EUR', shuma_hyrese='70')
+        self._paguaj(blloku='1262', nr_fatures='026351', data_pageses='2026-02-01', viti=2026, viti_deri=2027)
+        rreshtat, gjithsej = raporti.ndertoj_regjistrin('antaresia', 2026, 'vit')
+        tipet = [r['tip'] for r in rreshtat]
+        self.assertEqual(tipet, ['titull', 'pagese', 'pagese', 'bllok', 'muaj', 'titull', 'pagese', 'bllok', 'muaj',
+                                 'tremujor', 'gjashtemujor', 'gjithsej'])
+        self.assertEqual(rreshtat[3]['totali'].shumat['MKD'], Decimal('10000'))
+        self.assertEqual(rreshtat[3]['totali'].shumat['EUR'], Decimal('70'))
+        self.assertEqual((gjithsej.nr, gjithsej.vite), (3, 4))
+        self.assertTrue(raporti.regjistri_excel('antaresia', 2026, 'q1').startswith(b'PK'))
+        r = self.client.get(reverse('regjistri') + '?lloji=antaresia&viti=2026&periudha=vit')
+        self.assertContains(r, 'Bllok 1262')
+        r = self.client.get(reverse('regjistri') + '?lloji=fondi&viti=2026&eksporto=excel')
+        self.assertEqual(r.status_code, 200)
+
+    def test_csv_borxhlinjte(self):
+        from io import BytesIO
+        from .importi_pdf import lexo_borxhlinjte_csv, celesi
+        csv_ = 'emri;prindi;mbiemri;viti_nga;viti_deri\nAbduraman;Belul;Ademi;2016;2026\n'.encode('utf-8-sig')
+        self.assertEqual(lexo_borxhlinjte_csv(BytesIO(csv_)), {celesi('Abduraman', 'Belul', 'Ademi'): 2016})

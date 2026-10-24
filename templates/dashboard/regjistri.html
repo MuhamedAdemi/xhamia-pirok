@@ -1,0 +1,105 @@
+{% extends 'base.html' %}
+{% block titulli %}Regjistri — Xhamia Pirok{% endblock %}
+
+{% block kontent %}
+<div class="page-header">
+  <div>
+    <h2>📒 Regjistri i Pagesave</h2>
+    <p>Si fletorja: sipas radhës, me total për çdo bllok, muaj, tremujor, gjashtëmujor dhe vit</p>
+  </div>
+</div>
+
+<div class="card" style="margin-bottom:20px;">
+  <form method="get" class="filtrat no-print">
+    <select name="lloji">
+      {% for k, emri in llojet %}<option value="{{ k }}" {% if k == lloji %}selected{% endif %}>{{ emri }}</option>{% endfor %}
+    </select>
+    <select name="viti">
+      {% for v in vitit_lista %}<option value="{{ v }}" {% if v == viti %}selected{% endif %}>{{ v }}</option>{% endfor %}
+    </select>
+    <select name="periudha">
+      {% for k, emri in periudhat %}<option value="{{ k }}" {% if k == periudha %}selected{% endif %}>{{ emri }}</option>{% endfor %}
+    </select>
+    <button type="submit" class="btn-kryesor btn-sm">Shfaq</button>
+    <button type="submit" name="eksporto" value="excel" class="btn-dytësor btn-sm">⬇️ Shkarko Excel</button>
+    <button type="button" class="btn-dytësor btn-sm" onclick="window.print()">🖨️ Printo</button>
+  </form>
+</div>
+
+<div class="grid-4" style="margin-bottom:20px;">
+  <div class="stat-card gjelbër">
+    <div class="stat-label">Pagesa</div>
+    <div class="stat-vlera gjelbër">{{ gjithsej.nr }}</div>
+    <div class="stat-nën">{% if me_vite %}{{ gjithsej.vite }} vite të paguara{% else %}në këtë periudhë{% endif %}</div>
+  </div>
+  <div class="stat-card kafe">
+    <div class="stat-label">Denarë</div>
+    <div class="stat-vlera kafe">{{ gjithsej.shumat.MKD|floatformat:"0g" }}</div>
+    <div class="stat-nën">të marra në den</div>
+  </div>
+  <div class="stat-card blu">
+    <div class="stat-label">Euro / Franga / Dollar</div>
+    <div class="stat-vlera" style="color:#007AFF; font-size:20px;">{{ gjithsej.shumat.EUR|floatformat:"2g" }} € · {{ gjithsej.shumat.CHF|floatformat:"2g" }} CHF · {{ gjithsej.shumat.USD|floatformat:"2g" }} $</div>
+    <div class="stat-nën">të marra në valutë</div>
+  </div>
+  <div class="stat-card portokalli">
+    <div class="stat-label">Gjithsej në €</div>
+    <div class="stat-vlera" style="color:var(--paralajmërim);">{{ gjithsej.eur|floatformat:"2g" }} €</div>
+    <div class="stat-nën">gjithçka e konvertuar</div>
+  </div>
+</div>
+
+<div class="card">
+  <div style="overflow-x:auto;">
+    <table class="tabela-xhami tabela-regjistri">
+      <thead>
+        <tr>
+          <th>Nr.</th><th>Emri</th>{% if me_vite %}<th>Prindi</th>{% endif %}<th>Mbiemri</th>
+          {% if not me_vite %}<th>Përshkrimi</th>{% endif %}
+          <th>Blloku</th><th>Nr. Faturës</th><th>Data</th>
+          <th class="djathtas">Denarë</th><th class="djathtas">Euro</th><th class="djathtas">Franga</th><th class="djathtas">Dollar</th>
+          {% if me_vite %}<th>Vitet</th>{% endif %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rreshtat %}
+          {% if r.tip == 'pagese' %}
+          <tr>
+            <td class="tekst-dytësor">{{ r.nr }}</td>
+            <td><a href="{{ r.pagese.get_absolute_url|default:'#' }}">{{ r.emri }}</a></td>
+            {% if me_vite %}<td>{{ r.prindi }}</td>{% endif %}
+            <td>{{ r.mbiemri }}</td>
+            {% if not me_vite %}<td class="tekst-dytësor">{{ r.pershkrimi }}</td>{% endif %}
+            <td>{{ r.blloku }}</td>
+            <td style="font-family:monospace;">{{ r.nr_fatures }}</td>
+            <td class="tekst-dytësor">{{ r.data|date:"d.m.Y" }}</td>
+            <td class="djathtas">{{ r.shumat.MKD|floatformat:"0g"|default:"–" }}</td>
+            <td class="djathtas">{{ r.shumat.EUR|floatformat:"2g"|default:"–" }}</td>
+            <td class="djathtas">{{ r.shumat.CHF|floatformat:"2g"|default:"–" }}</td>
+            <td class="djathtas">{{ r.shumat.USD|floatformat:"2g"|default:"–" }}</td>
+            {% if me_vite %}<td>{{ r.vitet }}{% if r.nr_viteve > 1 %} <span class="tekst-dytësor">({{ r.nr_viteve }})</span>{% endif %}</td>{% endif %}
+          </tr>
+          {% elif r.tip == 'titull' %}
+          <tr class="rresht-titull"><td colspan="{% if me_vite %}12{% else %}12{% endif %}">{{ r.etiketa }}</td></tr>
+          {% else %}
+          <tr class="rresht-total total-{{ r.tip }}">
+            <td></td>
+            <td colspan="{% if me_vite %}5{% else %}5{% endif %}">{{ r.etiketa }} <span class="tekst-dytësor">· {{ r.totali.nr }} pagesa</span></td>
+            <td></td>
+            <td class="djathtas">{{ r.totali.shumat.MKD|floatformat:"0g" }}</td>
+            <td class="djathtas">{{ r.totali.shumat.EUR|floatformat:"2g" }}</td>
+            <td class="djathtas">{{ r.totali.shumat.CHF|floatformat:"2g" }}</td>
+            <td class="djathtas">{{ r.totali.shumat.USD|floatformat:"2g" }}</td>
+            {% if me_vite %}<td>{{ r.totali.vite }} vite</td>{% endif %}
+          </tr>
+          {% endif %}
+        {% empty %}
+        {% endfor %}
+        {% if not gjithsej.nr %}
+        <tr><td colspan="12" style="text-align:center; padding:40px; color:var(--tekst-dytësor);">Asnjë pagesë në këtë periudhë.</td></tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

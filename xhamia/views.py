@@ -26,11 +26,12 @@ from .forms import (
     LoginForm, StafForm, KategoriaForm, ShtepiaForm,
     PagesaAntaresiaForm, PagesaFondiForm, HarxhimiForm,
     PagesaVarrezaveForm, KonfigurimiVarrezaveForm, KonfigurimiSistemitForm,
-    sugjero_nr_fature,
+    sugjero_faturen,
 )
 from .utils import dërgo_email_antaresia, dërgo_email_fondi, dërgo_email_varrezat
 from . import sms
 from .importi_pdf import importo
+from . import raporti
 
 
 def _gjenero_kod():
@@ -388,6 +389,39 @@ def dashboard_varrezat(request):
     return render(request, 'dashboard/varrezat.html', konteksti)
 
 
+@login_required
+def regjistri(request):
+    """Regjistri i pagesave si fletorja: sipas radhës, me totale për bllok, muaj, 3/6 muaj dhe vit."""
+    lloji = request.GET.get('lloji', 'antaresia')
+    if lloji not in raporti.LLOJET:
+        lloji = 'antaresia'
+    periudha = request.GET.get('periudha', 'vit')
+    if periudha not in dict(raporti.PERIUDHAT):
+        periudha = 'vit'
+    try:
+        viti = int(request.GET.get('viti', timezone.now().year))
+    except ValueError:
+        viti = timezone.now().year
+
+    if request.GET.get('eksporto') == 'excel':
+        resp = HttpResponse(
+            raporti.regjistri_excel(lloji, viti, periudha),
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        )
+        resp['Content-Disposition'] = f'attachment; filename="regjistri_{lloji}_{viti}_{periudha}.xlsx"'
+        return resp
+
+    rreshtat, gjithsej = raporti.ndertoj_regjistrin(lloji, viti, periudha)
+    return render(request, 'dashboard/regjistri.html', {
+        'rreshtat': rreshtat, 'gjithsej': gjithsej,
+        'lloji': lloji, 'llojet': [(k, v[0]) for k, v in raporti.LLOJET.items()],
+        'periudha': periudha, 'periudhat': raporti.PERIUDHAT,
+        'viti': viti, 'vitit_lista': list(range(2020, timezone.now().year + 2)),
+        'me_vite': lloji != 'fondi',
+        'faqja_aktive': 'regjistri',
+    })
+
+
 # ─── Shtëpitë ───────────────────────────────────────────────────────────────
 
 @login_required
@@ -494,7 +528,7 @@ def importo_shtepite(request):
         return redirect('lista_shtepive')
 
     raporti, vetem_prove = None, False
-    viti_paguar = timezone.now().year - 1
+    viti_paguar = timezone.now().year
     if request.method == 'POST':
         vetem_prove = request.POST.get('veprimi') != 'importo'
         try:
@@ -508,12 +542,16 @@ def importo_shtepite(request):
             try:
                 raporti = importo(
                     pdf_shtepite, request.FILES.get('pdf_paguara'), viti_paguar, request.user, vetem_prove,
+                    skedari_borxhlinjte=request.FILES.get('csv_borxhlinjte'),
+                    perditeso_ekzistuese=bool(request.POST.get('perditeso_ekzistuese')),
+                    skedari_paguara_para=request.FILES.get('pdf_paguara_para'),
                 )
             except Exception as e:
                 messages.error(request, f'PDF-ja nuk u lexua: {e}')
             else:
                 if not vetem_prove:
-                    messages.success(request, f"U regjistruan {raporti['te_reja']} shtëpi të reja.")
+                    messages.success(request, f"U regjistruan {raporti['te_reja']} shtëpi të reja "
+                                              f"dhe u përditësua gjendja e {raporti['perditesuara']} ekzistuese.")
 
     return render(request, 'shtepite/importo.html', {
         'raporti': raporti, 'vetem_prove': vetem_prove, 'viti_paguar': viti_paguar,
@@ -619,6 +657,7 @@ def lista_pagesa_antaresia(request):
     if kerkimi:
         pagesat = pagesat.filter(
             Q(nr_fatures__icontains=kerkimi) |
+            Q(blloku__icontains=kerkimi) |
             Q(shtepia__emri_kryefamiljarit__icontains=kerkimi) |
             Q(shtepia__emri_prindit__icontains=kerkimi) |
             Q(shtepia__mbiemri_kryefamiljarit__icontains=kerkimi) |
@@ -629,7 +668,7 @@ def lista_pagesa_antaresia(request):
         koka = ['Nr. Faturës', 'Shtëpia', 'Shuma (€)', 'Shuma (MKD)', 'Paguar në', 'Vitet', 'Data', 'Arktar']
         rreshtat = [
             [
-                p.nr_fatures, f'#{p.shtepia.nr_shtepise} {p.shtepia.emri_i_plote}',
+                p.fatura_tekst, f'#{p.shtepia.nr_shtepise} {p.shtepia.emri_i_plote}',
                 float(p.shuma_paguar), float(p.shuma_mkd or 0), p.monedha,
                 p.vitet_tekst, p.data_pageses.strftime('%d.%m.%Y'), p.arktar.get_full_name(),
             ]
@@ -656,7 +695,8 @@ VLERAT_SHPEJTA_ANTARESIA = [
 def _initial_pagese(request, model, te_dhenat_e_shtepise=None):
     """Vlerat fillestare: nr. i radhës nga blloku dhe — kur vjen nga faqja e shtëpisë —
     vitet e papaguara (nga viti i parë i papaguar deri sot)."""
-    initial = {'nr_fatures': sugjero_nr_fature(model), 'data_pageses': timezone.now().date()}
+    blloku, nr = sugjero_faturen(model)
+    initial = {'blloku': blloku, 'nr_fatures': nr, 'data_pageses': timezone.now().date()}
     shtepi_id = request.GET.get('shtepi')
     if shtepi_id and te_dhenat_e_shtepise:
         shtepi = Shtepia.objects.filter(pk=shtepi_id).first()
@@ -681,7 +721,7 @@ def shto_pagese_antaresia(request):
         pagese.kategoria_pageses = pagese.shtepia.kategoria
         pagese.arktar = request.user
         pagese.save()
-        messages.success(request, f'Pagesa {pagese.nr_fatures} u regjistrua me sukses.')
+        messages.success(request, f'Pagesa {pagese.fatura_tekst} u regjistrua me sukses.')
         return redirect('detaje_pagesa_antaresia', pk=pagese.pk)
     return render(request, 'pagesat/antaresia/forma.html', {
         'form': form, 'titulli': 'Regjistro Pagesë Antarësia', 'faqja_aktive': 'pagesat_antaresia',
@@ -721,6 +761,7 @@ def lista_pagesa_fondi(request):
     if kerkimi:
         pagesat = pagesat.filter(
             Q(nr_fatures__icontains=kerkimi) |
+            Q(blloku__icontains=kerkimi) |
             Q(emri_donatorit__icontains=kerkimi) |
             Q(mbiemri_donatorit__icontains=kerkimi) |
             Q(arsyeja__icontains=kerkimi)
@@ -732,7 +773,7 @@ def lista_pagesa_fondi(request):
         koka = ['Nr. Faturës', 'Lloji', 'Emri', 'Mbiemri', 'Arsyeja', 'Shuma (€)', 'Data', 'Arktar']
         rreshtat = [
             [
-                p.nr_fatures, p.get_lloji_display(), p.emri_donatorit, p.mbiemri_donatorit,
+                p.fatura_tekst, p.get_lloji_display(), p.emri_donatorit, p.mbiemri_donatorit,
                 p.arsyeja, float(p.shuma), p.data_pageses.strftime('%d.%m.%Y'), p.arktar.get_full_name(),
             ]
             for p in pagesat
@@ -757,7 +798,7 @@ def shto_pagese_fondi(request):
         pagese = form.apliko_shumen(form.save(commit=False))
         pagese.arktar = request.user
         pagese.save()
-        messages.success(request, f'Pagesa {pagese.nr_fatures} u regjistrua me sukses.')
+        messages.success(request, f'Pagesa {pagese.fatura_tekst} u regjistrua me sukses.')
         return redirect('detaje_pagesa_fondi', pk=pagese.pk)
     return render(request, 'pagesat/fondi/forma.html', {
         'form': form, 'titulli': 'Regjistro Pagesë Fondi', 'faqja_aktive': 'pagesat_fondi'
@@ -796,6 +837,7 @@ def lista_pagesa_varrezave(request):
     if kerkimi:
         pagesat = pagesat.filter(
             Q(nr_fatures__icontains=kerkimi) |
+            Q(blloku__icontains=kerkimi) |
             Q(shtepia__emri_kryefamiljarit__icontains=kerkimi) |
             Q(shtepia__emri_prindit__icontains=kerkimi) |
             Q(shtepia__mbiemri_kryefamiljarit__icontains=kerkimi) |
@@ -806,7 +848,7 @@ def lista_pagesa_varrezave(request):
         koka = ['Nr. Faturës', 'Shtëpia', 'Shuma (€)', 'Shuma (MKD)', 'Paguar në', 'Vitet', 'Data', 'Arktar']
         rreshtat = [
             [
-                p.nr_fatures, f'#{p.shtepia.nr_shtepise} {p.shtepia.emri_i_plote}',
+                p.fatura_tekst, f'#{p.shtepia.nr_shtepise} {p.shtepia.emri_i_plote}',
                 float(p.shuma_paguar), float(p.shuma_mkd or 0), p.monedha, p.vitet_tekst,
                 p.data_pageses.strftime('%d.%m.%Y'), p.arktar.get_full_name(),
             ]
@@ -838,7 +880,7 @@ def shto_pagese_varrezat(request):
         pagese = form.apliko_shumen(form.save(commit=False))
         pagese.arktar = request.user
         pagese.save()
-        messages.success(request, f'Pagesa {pagese.nr_fatures} u regjistrua me sukses.')
+        messages.success(request, f'Pagesa {pagese.fatura_tekst} u regjistrua me sukses.')
         return redirect('detaje_pagesa_varrezat', pk=pagese.pk)
     return render(request, 'pagesat/varrezat/forma.html', {
         'form': form, 'titulli': 'Regjistro Pagesë Varrezash',
@@ -871,7 +913,7 @@ def fshi_pagese_varrezat(request, pk):
         messages.error(request, 'Nuk keni leje.')
         return redirect('lista_pagesa_varrezave')
     pagese = get_object_or_404(PagesaVarrezave, pk=pk)
-    nr = pagese.nr_fatures
+    nr = pagese.fatura_tekst
 
     return _fshirje_3hap(
         request,
@@ -880,7 +922,7 @@ def fshi_pagese_varrezat(request, pk):
         redirect_sukses=reverse('lista_pagesa_varrezave'),
         info={
             'lloji':     'Pagesë Varrezash',
-            'emri':      pagese.nr_fatures,
+            'emri':      pagese.fatura_tekst,
             'detaje':    f'{pagese.shtepia} — {pagese.shuma_origjinale} ({pagese.vitet_tekst})',
             'url_anulo': reverse('detaje_pagesa_varrezat', args=[pk]),
         },
@@ -1431,7 +1473,7 @@ def fshi_pagese_antaresia(request, pk):
         messages.error(request, 'Nuk keni leje.')
         return redirect('lista_pagesa_antaresia')
     pagese = get_object_or_404(PagesaAntaresia, pk=pk)
-    nr = pagese.nr_fatures
+    nr = pagese.fatura_tekst
 
     return _fshirje_3hap(
         request,
@@ -1440,7 +1482,7 @@ def fshi_pagese_antaresia(request, pk):
         redirect_sukses=reverse('lista_pagesa_antaresia'),
         info={
             'lloji':     'Pagesë Antarësia',
-            'emri':      pagese.nr_fatures,
+            'emri':      pagese.fatura_tekst,
             'detaje':    f'{pagese.shtepia} — {pagese.shuma_origjinale} ({pagese.vitet_tekst})',
             'url_anulo': reverse('detaje_pagesa_antaresia', args=[pk]),
         },
@@ -1454,7 +1496,7 @@ def fshi_pagese_fondi(request, pk):
         messages.error(request, 'Nuk keni leje.')
         return redirect('lista_pagesa_fondi')
     pagese = get_object_or_404(PagesaFondi, pk=pk)
-    nr = pagese.nr_fatures
+    nr = pagese.fatura_tekst
 
     return _fshirje_3hap(
         request,
@@ -1463,7 +1505,7 @@ def fshi_pagese_fondi(request, pk):
         redirect_sukses=reverse('lista_pagesa_fondi'),
         info={
             'lloji':     'Donacion Fondi',
-            'emri':      pagese.nr_fatures,
+            'emri':      pagese.fatura_tekst,
             'detaje':    f'{pagese.emri_donatorit} {pagese.mbiemri_donatorit} — {pagese.shuma_origjinale}',
             'url_anulo': reverse('detaje_pagesa_fondi', args=[pk]),
         },

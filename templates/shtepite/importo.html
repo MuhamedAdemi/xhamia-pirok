@@ -20,27 +20,36 @@
   <div class="card-body">
     <div class="grid-4" style="margin-bottom:16px;">
       <div class="stat-card gjelbër">
-        <div class="stat-label">Shtëpi të reja</div>
-        <div class="stat-vlera gjelbër">{{ raporti.te_reja }}</div>
-        <div class="stat-nën">{% if raporti.nr_nga %}nr. {{ raporti.nr_nga }} – {{ raporti.nr_deri }}{% else %}nga {{ raporti.gjithsej_rreshta }} rreshta{% endif %}</div>
+        <div class="stat-label">Të reja / Përditësuara</div>
+        <div class="stat-vlera gjelbër">{{ raporti.te_reja }} / {{ raporti.perditesuara }}</div>
+        <div class="stat-nën">{% if raporti.nr_nga %}nr. {{ raporti.nr_nga }} – {{ raporti.nr_deri }}{% else %}{{ raporti.ekzistuese }} ekzistonin{% endif %}</div>
       </div>
       <div class="stat-card blu">
         <div class="stat-label">Paguar deri {{ viti_paguar }}</div>
         <div class="stat-vlera" style="color:#007AFF;">{{ raporti.shenuara_paguar }}</div>
-        <div class="stat-nën">fillojnë borxhin nga {{ viti_paguar|add:1 }}</div>
+        <div class="stat-nën">pa borxh</div>
       </div>
       <div class="stat-card portokalli">
-        <div class="stat-label">Me borxh</div>
-        <div class="stat-vlera" style="color:var(--paralajmërim);">{{ raporti.pa_paguar }}</div>
-        <div class="stat-nën">borxh nga viti {{ viti_paguar }}</div>
+        <div class="stat-label">Borxh më shumë vite</div>
+        <div class="stat-vlera" style="color:var(--gabim);">{{ raporti.me_borxh_te_vjeter }}</div>
+        <div class="stat-nën">nga lista e borxhlinjve</div>
       </div>
       <div class="stat-card kafe">
-        <div class="stat-label">Ekzistonin / Dyfishe</div>
-        <div class="stat-vlera kafe">{{ raporti.ekzistuese }} / {{ raporti.dyfishe|length }}</div>
-        <div class="stat-nën">nuk u regjistruan sërish</div>
+        <div class="stat-label">Borxh vetëm {{ viti_paguar }}</div>
+        <div class="stat-vlera kafe">{{ raporti.borxh_vetem_vitin }}</div>
+        <div class="stat-nën">të gjithë të tjerët</div>
       </div>
     </div>
 
+    {% if raporti.borxh_dy_vite %}
+    <p class="ndihma"><strong>{{ raporti.borxh_dy_vite }}</strong> shtëpi me borxh 2 vite (nuk janë as te të paguarat e vitit të kaluar).</p>
+    {% endif %}
+    {% if raporti.konflikte %}
+    <p class="ndihma" style="color:var(--paralajmërim);"><strong>Në të dyja listat</strong> (u shënuan si të paguar, sipas listës më të re): {{ raporti.konflikte|join:", " }}</p>
+    {% endif %}
+    {% if raporti.borxhlinj_pa_gjetur %}
+    <p class="ndihma" style="color:var(--gabim);"><strong>Te CSV e borxhlinjve por jo te lista e shtëpive:</strong> {{ raporti.borxhlinj_pa_gjetur|join:", " }}</p>
+    {% endif %}
     {% if raporti.dyfishe %}
     <p class="ndihma"><strong>Rreshta të dyfishtë në PDF</strong> (u regjistruan vetëm një herë): {{ raporti.dyfishe|join:", " }}</p>
     {% endif %}
@@ -83,22 +92,36 @@
         <input type="file" name="pdf_shtepite" accept="application/pdf" required>
       </div>
       <div class="forma-grup">
-        <label>2. Shtëpitë që kanë paguar ("Qytetaret qe kane paguar") — opsionale</label>
+        <label>2. Shtëpitë që kanë paguar ("Qytetaret qe kane paguar")</label>
         <input type="file" name="pdf_paguara" accept="application/pdf">
       </div>
       <div class="forma-grup">
-        <label>Lista e të paguarave është për vitin</label>
+        <label>… lista e të paguarave është për vitin</label>
         <input type="number" name="viti_paguar" value="{{ viti_paguar }}" min="2000" max="2100" style="max-width:140px;">
-        <p class="ndihma">
-          Shtëpitë te lista e të paguarave shënohen <strong>të paguara deri në këtë vit</strong>.
-          Të tjerat shënohen me borxh <strong>që nga ky vit</strong>. Nëse dikush ka borxh më të vjetër,
-          ndryshojeni te "Edito Shtëpinë" → "Antarësia Aktive nga Viti".
-        </p>
       </div>
-      <p class="ndihma">
-        Shtëpitë që ekzistojnë tashmë (i njëjti emër, emër i prindit dhe mbiemër) nuk regjistrohen sërish,
-        prandaj importi mund të përsëritet pa rrezik.
-      </p>
+      <div class="forma-grup">
+        <label>2b. Të paguarat e vitit të kaluar (PDF) — opsionale</label>
+        <input type="file" name="pdf_paguara_para" accept="application/pdf">
+        <p class="ndihma">Nëse e jepni: kush nuk është te asnjëra listë e të paguarave dhe as te borxhlinjtë
+          shënohet me borxh <strong>2 vite</strong> (viti i kaluar + ky vit). Pa të: vetëm ky vit.</p>
+      </div>
+      <div class="forma-grup">
+        <label>3. Borxhlinjtë me më shumë vite (CSV) — opsionale</label>
+        <input type="file" name="csv_borxhlinjte" accept=".csv,text/csv">
+        <p class="ndihma">Kolonat: <code>emri;prindi;mbiemri;viti_nga</code>. Për listën e Amir Uzeirit përdorni
+          <code>borxhlinjte_amir_2026.csv</code>.</p>
+      </div>
+      <label class="checkbox-grup" style="margin-bottom:12px;">
+        <input type="checkbox" name="perditeso_ekzistuese" value="1" checked>
+        <span>Përditëso gjendjen edhe për shtëpitë që janë regjistruar më parë</span>
+      </label>
+      <div class="ndihma" style="line-height:1.7;">
+        <strong>Si caktohet gjendja e çdo shtëpie:</strong><br>
+        ✅ te lista e të paguarave → <strong>e paguar deri në atë vit</strong><br>
+        ⏳ te lista e borxhlinjve → <strong>borxh që nga viti i shënuar</strong><br>
+        🔸 të gjitha të tjerat → <strong>borxh vetëm për vitin e listës së të paguarave</strong><br>
+        Shtëpitë që ekzistojnë (i njëjti emër, prind dhe mbiemër) nuk regjistrohen sërish.
+      </div>
     </div>
   </div>
 

@@ -29,13 +29,13 @@
         {% if form.shuma_hyrese.errors %}<p class="gabim-fusha">{{ form.shuma_hyrese.errors.0 }}</p>{% endif %}
       </div>
       <div class="forma-grup">
-        <label>{{ form.kursi.label }}</label>
+        <label id="kursiEtiketa">{{ form.kursi.label }}</label>
         {% render_field form.kursi inputmode="decimal" %}
         {% if form.kursi.errors %}<p class="gabim-fusha">{{ form.kursi.errors.0 }}</p>{% endif %}
-        <p class="ndihma">Parazgjedhje 61.5. Ndryshoje vetëm nëse u pagua me kurs tjetër.</p>
+        <p class="ndihma" id="kursiNdihme">Ndryshoje vetëm nëse u pagua me kurs tjetër.</p>
       </div>
     </div>
-    <div class="konvertimi" id="konvertimi">Shkruani shumën…</div>
+    <div class="konvertimi" id="konvertimi" data-kurset='{{ form.kurset_json }}'>Shkruani shumën…</div>
   </div>
 </div>
 
@@ -45,29 +45,46 @@
   const kursi = document.querySelector('[name="kursi"]');
   const radiot = document.querySelectorAll('[name="monedha"]');
   const etiketa = document.getElementById('monedhaEtiketa');
+  const kursiEtiketa = document.getElementById('kursiEtiketa');
   const konvertimi = document.getElementById('konvertimi');
+  const kurset = JSON.parse(konvertimi.dataset.kurset);
+  const SIMBOLI = { MKD: 'den', EUR: '€', CHF: 'CHF', USD: '$' };
 
-  const monedha = () => (document.querySelector('[name="monedha"]:checked') || {}).value || 'EUR';
+  const monedha = () => (document.querySelector('[name="monedha"]:checked') || {}).value || 'MKD';
+  const nr = e => parseFloat((e.value || '').replace(',', '.'));
   const fmt = (n, d) => n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d });
+
+  // Te denarët dhe euro kursi është ai i euros; te frangat/dollarët kursi i tyre.
+  const monedhaKursit = m => (m === 'MKD' ? 'EUR' : m);
+
+  function ndryshoMonedhen() {
+    const m = monedhaKursit(monedha());
+    kursi.value = kurset[m];
+    perditeso();
+  }
 
   function perditeso() {
     const m = monedha();
-    etiketa.textContent = m === 'EUR' ? '€' : 'den';
-    const v = parseFloat((shuma.value || '').replace(',', '.'));
-    const k = parseFloat((kursi.value || '').replace(',', '.'));
+    etiketa.textContent = SIMBOLI[m];
+    kursiEtiketa.textContent = `Kursi: 1 ${SIMBOLI[monedhaKursit(m)]} = ? den`;
+    const v = nr(shuma), k = nr(kursi);
     if (!(v > 0) || !(k > 0)) { konvertimi.textContent = 'Shkruani shumën…'; return; }
-    konvertimi.innerHTML = m === 'EUR'
-      ? `${fmt(v, 2)} € = <strong>${fmt(Math.round(v * k), 0)} den</strong>`
-      : `${fmt(v, 0)} den = <strong>${fmt(v / k, 2)} €</strong>`;
+    const kEur = (m === 'MKD' || m === 'EUR') ? k : parseFloat(kurset.EUR);
+    const den = m === 'MKD' ? v : v * k;
+    const eur = m === 'EUR' ? v : den / kEur;
+    const pjeset = [];
+    if (m !== 'MKD') pjeset.push(`<strong>${fmt(Math.round(den), 0)} den</strong>`);
+    if (m !== 'EUR') pjeset.push(`<strong>${fmt(eur, 2)} €</strong>`);
+    konvertimi.innerHTML = `${fmt(v, m === 'MKD' ? 0 : 2)} ${SIMBOLI[m]} = ` + pjeset.join(' = ');
   }
 
   document.querySelectorAll('.chip-shume').forEach(b => b.addEventListener('click', () => {
     document.querySelector(`[name="monedha"][value="${b.dataset.monedha}"]`).checked = true;
     shuma.value = b.dataset.shuma;
-    perditeso();
+    ndryshoMonedhen();
   }));
   [shuma, kursi].forEach(e => e.addEventListener('input', perditeso));
-  radiot.forEach(r => r.addEventListener('change', perditeso));
-  perditeso();
+  radiot.forEach(r => r.addEventListener('change', ndryshoMonedhen));
+  if (!kursi.value) ndryshoMonedhen(); else perditeso();
 })();
 </script>

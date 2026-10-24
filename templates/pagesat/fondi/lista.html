@@ -49,7 +49,7 @@
       <tbody>
         {% for p in pagesat %}
         <tr>
-          <td><a href="{% url 'detaje_pagesa_fondi' p.pk %}" style="font-family:monospace; font-weight:600;">{{ p.nr_fatures }}</a></td>
+          <td><a href="{% url 'detaje_pagesa_fondi' p.pk %}" style="font-family:monospace; font-weight:600;">{{ p.fatura_tekst }}</a></td>
           <td>
             {% if p.lloji == 'AKTIVITET' %}
             <span class="badge-portokalli">Aktivitet</span>

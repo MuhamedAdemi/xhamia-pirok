@@ -1,12 +1,12 @@
 {% extends 'base.html' %}
-{% block titulli %}{{ pagese.nr_fatures }} — Xhamia Pirok{% endblock %}
+{% block titulli %}{{ pagese.fatura_tekst }} — Xhamia Pirok{% endblock %}
 
 {% block kontent %}
 <div class="page-header">
   <div class="flex items-center gap-3">
     <a href="{% url 'lista_pagesa_fondi' %}" class="btn-dytësor btn-sm">← Kthehu</a>
     <div>
-      <h2>{{ pagese.nr_fatures }}</h2>
+      <h2>{{ pagese.fatura_tekst }}</h2>
       <p>{% if pagese.lloji == 'AKTIVITET' %}Pagesë Aktiviteti{% else %}Donacion — Fondi i Xhamisë{% endif %}</p>
     </div>
   </div>
@@ -38,7 +38,7 @@
       <table style="width:100%; border-collapse:collapse;">
         <tr>
           <td style="padding:10px 0; color:var(--tekst-dytësor); font-size:13px; width:35%;">Nr. Faturës</td>
-          <td style="padding:10px 0; font-family:monospace; font-weight:700; color:var(--kafe);">{{ pagese.nr_fatures }}</td>
+          <td style="padding:10px 0; font-family:monospace; font-weight:700; color:var(--kafe);">{{ pagese.fatura_tekst }}</td>
         </tr>
         <tr>
           <td style="padding:10px 0; color:var(--tekst-dytësor); font-size:13px;">Lloji</td>

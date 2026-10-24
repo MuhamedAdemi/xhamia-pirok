@@ -1,3 +1,4 @@
+import json
 from decimal import Decimal, ROUND_HALF_UP
 
 from django import forms
@@ -84,8 +85,8 @@ class ShtepiaForm(forms.ModelForm):
 
 
 class ShumaMonedhaMixin(forms.Form):
-    """Shuma shkruhet në Euro ose Denar; vlera tjetër llogaritet me kursin (parazgjedhje 61.5).
-    Pagesa ruan gjithmonë të dyja: shumën në € (për totalet) dhe në MKD."""
+    """Shuma shkruhet në monedhën e pagesës (den, €, CHF, $). Ruhet ashtu siç u pagua, si dhe
+    e konvertuar në den dhe € (për totalet). Kursi parazgjedhur merret nga faqja e konfigurimit."""
     FUSHA_EUR = None   # emri i fushës në model ku ruhet shuma në €
 
     shuma_hyrese = forms.DecimalField(
@@ -95,30 +96,42 @@ class ShumaMonedhaMixin(forms.Form):
         label='Paguar në', choices=MONEDHA_CHOICES, initial='EUR', widget=forms.RadioSelect,
     )
     kursi = forms.DecimalField(
-        label='Kursi (1 € = ? den)', max_digits=8, decimal_places=4,
-        min_value=Decimal('1'), initial=KURSI_PARACAKTUAR,
+        label='Kursi (sa denarë)', max_digits=8, decimal_places=4,
+        min_value=Decimal('1'), required=False,
     )
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.konfigurimi = KonfigurimiSistemit.merr()
+        self.fields['kursi'].initial = self.konfigurimi.kursi_eur
+        self.fields['monedha'].initial = 'MKD'
+        self.kurset = {m: self.konfigurimi.kursi(m) for m, _ in MONEDHA_CHOICES}
+        self.kurset_json = json.dumps({m: str(k) for m, k in self.kurset.items()})
+
     def apliko_shumen(self, pagese):
-        shuma, kursi = self.cleaned_data['shuma_hyrese'], self.cleaned_data['kursi']
-        pagese.monedha = self.cleaned_data['monedha']
+        shuma, monedha = self.cleaned_data['shuma_hyrese'], self.cleaned_data['monedha']
+        kursi_eur = self.konfigurimi.kursi_eur
+        # Kursi i shkruar vlen për monedhën e pagesës; te denarët ai është kursi i euros.
+        kursi = self.cleaned_data.get('kursi') or self.konfigurimi.kursi(monedha if monedha != 'MKD' else 'EUR')
+        if monedha in ('EUR', 'MKD'):
+            kursi_eur = kursi
+        mkd = shuma if monedha == 'MKD' else shuma * kursi
+        eur = shuma if monedha == 'EUR' else mkd / kursi_eur
+
+        pagese.monedha = monedha
+        pagese.shuma_monedhe = shuma
         pagese.kursi_denar = kursi
-        if pagese.monedha == 'MKD':
-            pagese.shuma_mkd = shuma
-            eur = (shuma / kursi).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
-        else:
-            eur = shuma
-            pagese.shuma_mkd = (shuma * kursi).quantize(Decimal('1'), rounding=ROUND_HALF_UP)
-        setattr(pagese, self.FUSHA_EUR, eur)
+        pagese.shuma_mkd = mkd.quantize(Decimal('1'), rounding=ROUND_HALF_UP)
+        setattr(pagese, self.FUSHA_EUR, eur.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP))
         return pagese
 
 
-def sugjero_nr_fature(model):
-    """Numrat e bllokut të BFI-së janë njëri pas tjetrit — sugjero numrin pas faturës së fundit."""
-    for nr in model.objects.order_by('-data_regjistrimit').values_list('nr_fatures', flat=True)[:20]:
+def sugjero_faturen(model):
+    """Faturat e bllokut të BFI-së janë njëra pas tjetrës — sugjero bllokun e fundit dhe numrin pasues."""
+    for blloku, nr in model.objects.order_by('-data_regjistrimit').values_list('blloku', 'nr_fatures')[:20]:
         if nr and nr.isdigit():
-            return str(int(nr) + 1).zfill(len(nr))
-    return ''
+            return blloku, str(int(nr) + 1).zfill(len(nr))
+    return '', ''
 
 
 class VitetFormMixin(forms.Form):
@@ -166,13 +179,14 @@ class PagesaAntaresiaForm(ShumaMonedhaMixin, VitetFormMixin, forms.ModelForm):
 
     class Meta:
         model = PagesaAntaresia
-        fields = ['nr_fatures', 'shtepia', 'viti', 'viti_deri', 'data_pageses', 'shenime']
+        fields = ['blloku', 'nr_fatures', 'shtepia', 'viti', 'viti_deri', 'data_pageses', 'shenime']
         widgets = {
             'data_pageses': forms.DateInput(attrs={'type': 'date'}),
             'shenime': forms.Textarea(attrs={'rows': 2}),
         }
         labels = {
-            'nr_fatures': 'Nr. i Faturës (nga blloku i BFI-së)',
+            'blloku': 'Blloku (4 shifra)',
+            'nr_fatures': 'Nr. i Faturës (6 shifra)',
             'shtepia': 'Shtëpia',
             'viti': 'Nga Viti',
             'viti_deri': 'Deri Viti',
@@ -187,7 +201,7 @@ class PagesaFondiForm(ShumaMonedhaMixin, forms.ModelForm):
     class Meta:
         model = PagesaFondi
         fields = [
-            'nr_fatures', 'lloji', 'emri_donatorit', 'mbiemri_donatorit',
+            'blloku', 'nr_fatures', 'lloji', 'emri_donatorit', 'mbiemri_donatorit',
             'email_donatorit', 'nr_telefoni', 'data_pageses', 'arsyeja', 'shenime',
         ]
         widgets = {
@@ -196,7 +210,8 @@ class PagesaFondiForm(ShumaMonedhaMixin, forms.ModelForm):
             'arsyeja': forms.Textarea(attrs={'rows': 2}),
         }
         labels = {
-            'nr_fatures': 'Nr. i Faturës (nga blloku i BFI-së)',
+            'blloku': 'Blloku (4 shifra)',
+            'nr_fatures': 'Nr. i Faturës (6 shifra)',
             'lloji': 'Lloji i Pagesës',
             'emri_donatorit': 'Emri',
             'mbiemri_donatorit': 'Mbiemri',
@@ -216,13 +231,14 @@ class PagesaVarrezaveForm(ShumaMonedhaMixin, VitetFormMixin, forms.ModelForm):
 
     class Meta:
         model = PagesaVarrezave
-        fields = ['nr_fatures', 'shtepia', 'viti', 'viti_deri', 'data_pageses', 'shenime']
+        fields = ['blloku', 'nr_fatures', 'shtepia', 'viti', 'viti_deri', 'data_pageses', 'shenime']
         widgets = {
             'data_pageses': forms.DateInput(attrs={'type': 'date'}),
             'shenime': forms.Textarea(attrs={'rows': 2}),
         }
         labels = {
-            'nr_fatures': 'Nr. i Faturës (nga blloku i BFI-së)',
+            'blloku': 'Blloku (4 shifra)',
+            'nr_fatures': 'Nr. i Faturës (6 shifra)',
             'shtepia': 'Shtëpia',
             'viti': 'Nga Viti',
             'viti_deri': 'Deri Viti',
@@ -301,7 +317,8 @@ class KonfigurimiSistemitForm(forms.ModelForm):
 
     class Meta:
         model = KonfigurimiSistemit
-        fields = ['sms_username', 'sms_password', 'sms_sim_numri', 'gmail_app_password']
+        fields = ['sms_username', 'sms_password', 'sms_sim_numri', 'gmail_app_password',
+                  'kursi_eur', 'kursi_chf', 'kursi_usd']
         labels = {'sms_username': 'Username'}
 
     def clean_sms_password(self):

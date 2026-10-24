@@ -605,7 +605,8 @@ a:hover { text-decoration: underline; }
 }
 
 /* ─── Shuma: zgjedhja €/den dhe vlerat e shpejta ─────────────────────────── */
-.monedha-zgjedhje { display: flex; gap: 8px; }
+.monedha-zgjedhje { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+@media (max-width: 600px) { .monedha-zgjedhje { grid-template-columns: 1fr 1fr; } }
 .monedha-opsion {
   flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px;
   padding: 12px; border: 2px solid var(--kufi); border-radius: var(--rreze);
@@ -624,3 +625,13 @@ a:hover { text-decoration: underline; }
   font-size: 14px; color: var(--tekst-dytësor);
 }
 .konvertimi strong { color: var(--tekst-kryesor); font-size: 16px; }
+
+/* ─── Regjistri si fletorja ───────────────────────────────────────────────── */
+.tabela-regjistri td.djathtas, .tabela-regjistri th.djathtas { text-align: right; white-space: nowrap; }
+.tabela-regjistri .rresht-titull td { background: var(--gjelbër); color: #fff; font-weight: 700; padding: 8px 12px; }
+.tabela-regjistri .rresht-total td { font-weight: 700; }
+.tabela-regjistri .total-bllok td { background: var(--krem-errët); border-bottom: 2px solid var(--tekst-kryesor); }
+.tabela-regjistri .total-muaj td { background: #D9EAD3; }
+.tabela-regjistri .total-tremujor td { background: #C9DAF8; }
+.tabela-regjistri .total-gjashtemujor td { background: #B4C7E7; }
+.tabela-regjistri .total-gjithsej td { background: #F6B26B; font-size: 15px; }

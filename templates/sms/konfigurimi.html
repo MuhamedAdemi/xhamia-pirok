@@ -5,7 +5,7 @@
 {% block kontent %}
 <div class="page-header">
   <div>
-    <h2>⚙️ Konfigurimi SMS &amp; Email</h2>
+    <h2>⚙️ Konfigurimi: SMS, Email &amp; Kurset</h2>
     <p>Vendosni fjalëkalimet këtu — nuk ka nevojë për PythonAnywhere ose nano.</p>
   </div>
 </div>
@@ -73,6 +73,28 @@
             pasi të hyni me {{ email_adresa }}.
           </p>
         </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:20px;">
+      <div class="card-header"><h5>💱 Kurset e këmbimit (për pagesat)</h5></div>
+      <div class="card-body">
+        <div class="grid-3">
+          <div class="forma-grup">
+            <label>{{ form.kursi_eur.label }}</label>
+            {% render_field form.kursi_eur inputmode="decimal" %}
+          </div>
+          <div class="forma-grup">
+            <label>{{ form.kursi_chf.label }}</label>
+            {% render_field form.kursi_chf inputmode="decimal" %}
+          </div>
+          <div class="forma-grup">
+            <label>{{ form.kursi_usd.label }}</label>
+            {% render_field form.kursi_usd inputmode="decimal" %}
+          </div>
+        </div>
+        <p class="ndihma">Këto plotësohen vetë te forma e pagesës; mund të ndryshohen edhe për një pagesë të veçantë.
+          Pagesat e regjistruara më parë nuk ndryshojnë.</p>
       </div>
     </div>
 

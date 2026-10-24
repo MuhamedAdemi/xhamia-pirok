@@ -63,6 +63,10 @@
     </a>
     {% endif %}
 
+    <a href="{% url 'regjistri' %}" class="{% if faqja_aktive == 'regjistri' %}aktive{% endif %}">
+      <span class="ikona">📒</span> Regjistri (si fletorja)
+    </a>
+
     <div class="nav-section-label">Antarësia</div>
     <a href="{% url 'lista_shtepive' %}" class="{% if faqja_aktive == 'shtepite' %}aktive{% endif %}">
       <span class="ikona">🏠</span> Shtëpitë

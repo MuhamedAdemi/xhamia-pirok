@@ -154,7 +154,7 @@ def _vitet(pagese):
 def teksti_antaresia(pagese):
     return (
         f"Xhamia Pirok: U pranua pagesa juaj prej {_shuma(pagese)} "
-        f"per antaresine per {_vitet(pagese)}. Fatura: {pagese.nr_fatures}. "
+        f"per antaresine per {_vitet(pagese)}. Fatura: {pagese.fatura_tekst}. "
         f"Allahu ju shperbleft!"
     )
 
@@ -162,7 +162,7 @@ def teksti_antaresia(pagese):
 def teksti_varrezat(pagese):
     return (
         f"Xhamia Pirok: U pranua pagesa juaj prej {_shuma(pagese)} "
-        f"per mirembajtjen e varrezave per {_vitet(pagese)}. Fatura: {pagese.nr_fatures}. "
+        f"per mirembajtjen e varrezave per {_vitet(pagese)}. Fatura: {pagese.fatura_tekst}. "
         f"Allahu ju shperbleft!"
     )
 
@@ -172,11 +172,11 @@ def teksti_fondi(pagese):
         per = f"per aktivitetin {pagese.arsyeja}" if pagese.arsyeja else "per aktivitetin"
         return (
             f"Xhamia Pirok: U pranua pagesa juaj prej {_shuma(pagese)} {per}. "
-            f"Fatura: {pagese.nr_fatures}. Allahu ju shperbleft!"
+            f"Fatura: {pagese.fatura_tekst}. Allahu ju shperbleft!"
         )
     return (
         f"Xhamia Pirok: U pranua donacioni juaj prej {_shuma(pagese)} per xhamine. "
-        f"Fatura: {pagese.nr_fatures}. Allahu ju shperbleft!"
+        f"Fatura: {pagese.fatura_tekst}. Allahu ju shperbleft!"
     )
 
 
