@@ -13,6 +13,7 @@
   </div>
 </div>
 <p class="ndihma" id="vitetPermbledhje" style="margin-top:-6px;">Për një vit të vetëm, lëreni "Deri Viti" bosh.</p>
+{% if form.tarifat_json %}<p class="konvertimi" id="minimumi" data-tarifat='{{ form.tarifat_json }}' style="display:none;"></p>{% endif %}
 {% if form.non_field_errors %}<p class="gabim-fusha">{{ form.non_field_errors.0 }}</p>{% endif %}
 
 <script>
@@ -26,6 +27,18 @@
     if (b < a) { info.textContent = '⚠️ "Deri Viti" nuk mund të jetë para "Nga Viti".'; return; }
     const n = b - a + 1;
     info.textContent = n === 1 ? `Kjo faturë mbulon vitin ${a}.` : `Kjo faturë mbulon ${n} vite: ${a}–${b}.`;
+    const min = document.getElementById('minimumi');
+    if (min) {
+      const t = JSON.parse(min.dataset.tarifat);
+      let shuma = 0, kaluara = 0, aktual = 0;
+      for (let v = a; v <= b; v++) { if (v >= t.viti) { aktual++; shuma += +t.aktual; } else { kaluara++; shuma += +t.kaluara; } }
+      const pjeset = [];
+      if (kaluara) pjeset.push(`${kaluara} × ${+t.kaluara} €`);
+      if (aktual) pjeset.push(`${aktual} × ${+t.aktual} €`);
+      const den = Math.round(shuma * t.kursi_eur).toLocaleString('de-DE');
+      min.innerHTML = `Minimumi: ${pjeset.join(' + ')} = <strong>${shuma} €</strong> (≈ ${den} den). Mund të paguhet edhe më shumë.`;
+      min.style.display = 'block';
+    }
   }
   [nga, deri].forEach(e => e.addEventListener('input', perditeso));
   perditeso();

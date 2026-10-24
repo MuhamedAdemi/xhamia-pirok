@@ -77,6 +77,23 @@
     </div>
 
     <div class="card" style="margin-bottom:20px;">
+      <div class="card-header"><h5>🏠 Tarifa minimale e antarësisë</h5></div>
+      <div class="card-body">
+        <div class="grid-2">
+          <div class="forma-grup">
+            <label>{{ form.tarifa_vitet_kaluara.label }}</label>
+            {% render_field form.tarifa_vitet_kaluara inputmode="decimal" %}
+          </div>
+          <div class="forma-grup">
+            <label>{{ form.tarifa_viti_aktual.label }}</label>
+            {% render_field form.tarifa_viti_aktual inputmode="decimal" %}
+          </div>
+        </div>
+        <p class="ndihma">Me këto llogaritet borxhi i çdo shtëpie. Xhemati mund të paguajë më shumë — kjo është vetëm shuma minimale.</p>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:20px;">
       <div class="card-header"><h5>💱 Kurset e këmbimit (për pagesat)</h5></div>
       <div class="card-body">
         <div class="grid-3">

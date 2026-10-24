@@ -5,7 +5,7 @@
 <div class="page-header">
   <div>
     <h2>🏠 Shtëpitë</h2>
-    <p>{{ shtepite.count }} shtëpi të regjistruara</p>
+    <p>{{ total_ne_liste }} shtëpi në listë</p>
   </div>
   {% if request.user.profili.është_admin %}
   <div class="flex gap-3 no-print" style="flex-wrap:wrap;">
@@ -32,11 +32,9 @@
     <div class="stat-nën">ende pa pagesë</div>
   </div>
   <div class="stat-card kafe">
-    <div class="stat-label">Përqindja</div>
-    <div class="stat-vlera kafe">
-      {% if total_ne_liste > 0 %}{% widthratio kane_paguar_ne_liste total_ne_liste 100 %}%{% else %}0%{% endif %}
-    </div>
-    <div class="stat-nën">shkalla e pagesës</div>
+    <div class="stat-label">Borxhi minimal</div>
+    <div class="stat-vlera kafe">{{ borxhi_ne_liste|floatformat:"0g" }} €</div>
+    <div class="stat-nën">{{ vite_ne_liste }} vite pa paguar</div>
   </div>
 </div>
 
@@ -60,6 +58,14 @@
         <option value="{{ v }}" {% if viti == v|stringformat:'s' %}selected{% endif %}>{{ v }}</option>
       {% endfor %}
     </select>
+    <select name="borxhi">
+      <option value="">Borxhi</option>
+      <option value="pa" {% if borxhi_filter == 'pa' %}selected{% endif %}>Pa borxh</option>
+      <option value="1" {% if borxhi_filter == '1' %}selected{% endif %}>Borxh 1 vit</option>
+      <option value="2" {% if borxhi_filter == '2' %}selected{% endif %}>Borxh 2+ vite</option>
+      <option value="5" {% if borxhi_filter == '5' %}selected{% endif %}>Borxh 5+ vite</option>
+      <option value="10" {% if borxhi_filter == '10' %}selected{% endif %}>Borxh 10+ vite</option>
+    </select>
     <select name="pagesa_statusi">
       <option value="">Statusi i pagesës</option>
       <option value="paguar" {% if pagesa_statusi == 'paguar' %}selected{% endif %}>Ka Paguar</option>
@@ -77,9 +83,8 @@
         <tr>
           <th>Nr.</th>
           <th>Kryefamiljari</th>
-          <th>Anëtarë</th>
-          <th>Kategoria</th>
           <th>Telefoni</th>
+          <th>Pa paguar</th>
           <th>Statusi</th>
           <th>Pagesa {{ viti_status }}</th>
           <th class="no-print"></th>
@@ -94,9 +99,13 @@
               {{ sh.emri_i_plote }}
             </a>
           </td>
-          <td class="tekst-dytësor">{{ sh.nr_antareve_familjes }}</td>
-          <td><span class="badge-gjelbër">{{ sh.kategoria.emri }}</span></td>
           <td class="tekst-dytësor">{{ sh.nr_telefoni_kryesor|default:"—" }}</td>
+          <td>
+            {% if sh.nr_papaguara %}
+              <span class="{% if sh.nr_papaguara > 1 %}badge-portokalli{% else %}badge-gri{% endif %}">{{ sh.nr_papaguara }} vit{{ sh.nr_papaguara|pluralize:"e" }}</span>
+              <span class="tekst-dytësor" style="font-size:12px; display:block;">{{ sh.vitet_papaguara }} · {{ sh.borxhi_minimal|floatformat:"0" }} €</span>
+            {% else %}<span class="badge-gjelbër">—</span>{% endif %}
+          </td>
           <td>
             {% if sh.është_aktiv %}
               <span class="badge-gjelbër">Aktive</span>

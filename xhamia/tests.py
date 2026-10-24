@@ -65,7 +65,7 @@ class SmsViewsTest(TestCase):
         self.assertEqual(r.status_code, 200)
         nr = [b['shtepi'].nr_shtepise for b in r.context['borxhlinjte']]
         self.assertEqual(nr, ['0001', '0002'])
-        self.assertEqual(r.context['borxhlinjte'][0]['borxhi'], Decimal('180'))
+        self.assertEqual(r.context['borxhlinjte'][0]['borxhi'], Decimal('170'))  # 50 + 50 + 70
         self.assertEqual(r.context['pa_numer'], 1)
 
     @mock.patch('xhamia.sms.requests.post')
@@ -124,14 +124,16 @@ class KonfigurimiSistemitTest(TestCase):
         self.assertEqual(self.client.get(url).status_code, 200)
         self.client.post(url, {'veprimi': 'ruaj', 'sms_username': 'ABC', 'sms_password': 'sekret',
                                'sms_sim_numri': '1', 'gmail_app_password': 'abcd efgh ijkl mnop',
-                               'kursi_eur': '61.5', 'kursi_chf': '66', 'kursi_usd': '57'})
+                               'kursi_eur': '61.5', 'kursi_chf': '66', 'kursi_usd': '57',
+                               'tarifa_vitet_kaluara': '50', 'tarifa_viti_aktual': '70'})
         self.assertEqual(KonfigurimiSistemit.merr().sms_sim_numri, 1)
         k = KonfigurimiSistemit.merr()
         self.assertEqual((k.sms_username, k.sms_password, k.gmail_app_password),
                          ('ABC', 'sekret', 'abcdefghijklmnop'))
         # Fjalëkalimet bosh = mbeten të vjetrat
         self.client.post(url, {'veprimi': 'ruaj', 'sms_username': 'ABC2', 'sms_password': '', 'gmail_app_password': '',
-                               'kursi_eur': '61.5', 'kursi_chf': '66', 'kursi_usd': '57'})
+                               'kursi_eur': '61.5', 'kursi_chf': '66', 'kursi_usd': '57',
+                               'tarifa_vitet_kaluara': '50', 'tarifa_viti_aktual': '70'})
         k.refresh_from_db()
         self.assertEqual((k.sms_username, k.sms_password, k.gmail_app_password),
                          ('ABC2', 'sekret', 'abcdefghijklmnop'))
@@ -212,7 +214,8 @@ class PagesatShumeViteTest(TestCase):
     def test_borxhi_pa_kategori_numeron_vitet(self):
         detaje = self.client.get(reverse('detaje_shtepia', args=[self.sh.pk]))
         self.assertEqual(detaje.context['nr_papaguara'], timezone.now().year - 2000 + 1)
-        self.assertEqual(detaje.context['borxhi_total'], 0)
+        vite = timezone.now().year - 2000 + 1
+        self.assertEqual(detaje.context['borxhi_total'], Decimal('50') * (vite - 1) + Decimal('70'))
 
     def test_varrezat_dhe_fondi_me_denar(self):
         r = self.client.post(reverse('shto_pagese_varrezat'), {
@@ -296,3 +299,92 @@ class BllokuMonedhatRegjistriTest(TestCase):
         from .importi_pdf import lexo_borxhlinjte_csv, celesi
         csv_ = 'emri;prindi;mbiemri;viti_nga;viti_deri\nAbduraman;Belul;Ademi;2016;2026\n'.encode('utf-8-sig')
         self.assertEqual(lexo_borxhlinjte_csv(BytesIO(csv_)), {celesi('Abduraman', 'Belul', 'Ademi'): 2016})
+
+
+class ImportiExcelBackupTest(TestCase):
+    def setUp(self):
+        self.admin = User.objects.create_user('admin', password='x', first_name='A', last_name='B')
+        ProfilStafi.objects.create(user=self.admin, rol='ADMIN')
+        self.client.force_login(self.admin)
+
+    def _excel(self, rreshtat):
+        from io import BytesIO
+        from openpyxl import Workbook
+        from .backup import KOLONAT_SHTEPITE, shkruaj_shtepite, _fleta
+        wb = Workbook()
+        shkruaj_shtepite(_fleta(wb, 'Shtëpitë', KOLONAT_SHTEPITE, e_para=True), rreshtat)
+        b = BytesIO()
+        wb.save(b)
+        b.seek(0)
+        b.name = 'shtepite.xlsx'
+        return b
+
+    def test_importi_gjendja_dhe_borxhi(self):
+        viti = timezone.now().year
+        Shtepia.objects.create(nr_shtepise='0001', emri_kryefamiljarit='Gajur', emri_prindit='Shemsedin',
+                               mbiemri_kryefamiljarit='Aliu', viti_fillimit_antaresise=viti)
+        excel = self._excel([
+            {'Nr.': '0001', 'Emri': 'Gajur', 'Emri i Prindit': 'Shemsedin', 'Mbiemri': 'Aliu', 'Paguar deri viti': viti},
+            {'Nr.': '0002', 'Emri': 'Gajur', 'Emri i Prindit': 'Shemsedin', 'Mbiemri': 'Aliu', 'Paguar deri viti': viti},
+            {'Nr.': '0003', 'Emri': 'Abduraman', 'Emri i Prindit': 'Belul', 'Mbiemri': 'Ademi', 'Borxh nga viti': 2016},
+            {'Nr.': '', 'Emri': 'Agim', 'Emri i Prindit': '', 'Mbiemri': 'Rakipi', 'Borxh nga viti': viti},
+        ])
+        r = self.client.post(reverse('importo_shtepite'), {'burimi': 'excel', 'veprimi': 'importo', 'xlsx_shtepite': excel})
+        rap = r.context['raporti_excel']
+        self.assertEqual((rap['te_reja'], rap['perditesuara'], rap['paguar'], rap['borxh_shume_vite'],
+                          rap['borxh_vetem_aktual']), (3, 1, 2, 1, 1))
+        self.assertEqual(Shtepia.objects.filter(emri_kryefamiljarit='Gajur').count(), 2)
+
+        lista = self.client.get(reverse('lista_shtepive') + '?borxhi=2')
+        borxhliu = list(lista.context['shtepite'])
+        self.assertEqual([sh.mbiemri_kryefamiljarit for sh in borxhliu], ['Ademi'])
+        vite = viti - 2016 + 1
+        self.assertEqual(borxhliu[0].nr_papaguara, vite)
+        self.assertEqual(borxhliu[0].borxhi_minimal, Decimal('50') * (vite - 1) + Decimal('70'))
+
+        detaje = self.client.get(reverse('detaje_shtepia', args=[borxhliu[0].pk]))
+        self.assertEqual(detaje.context['nr_papaguara'], vite)
+
+    def test_importi_me_gabime_nuk_ruan(self):
+        excel = self._excel([{'Emri': 'A', 'Mbiemri': 'B', 'Borxh nga viti': 'abc'}])
+        r = self.client.post(reverse('importo_shtepite'), {'burimi': 'excel', 'veprimi': 'importo', 'xlsx_shtepite': excel})
+        self.assertTrue(r.context['raporti_excel']['gabime'])
+        self.assertFalse(Shtepia.objects.exists())
+
+    def test_backup_dhe_rikthimi(self):
+        import tempfile, zipfile
+        from pathlib import Path
+        from django.core import management
+        sh = Shtepia.objects.create(nr_shtepise='0007', emri_kryefamiljarit='Muhamed', emri_prindit='Mesud',
+                                    mbiemri_kryefamiljarit='Ademi', viti_fillimit_antaresise=2024)
+        PagesaAntaresia.objects.create(blloku='1100', nr_fatures='046386', shtepia=sh, shuma_paguar=Decimal('70'),
+                                       viti=2024, viti_deri=2026, data_pageses=date.today(), arktar=self.admin)
+        r = self.client.get(reverse('backup') + '?shkarko=tani')
+        self.assertEqual(r['Content-Type'], 'application/zip')
+        with tempfile.TemporaryDirectory() as d:
+            zip_rruga = Path(d) / 'b.zip'
+            zip_rruga.write_bytes(r.content)
+            self.assertEqual(len(zipfile.ZipFile(zip_rruga).namelist()), 3)
+            PagesaAntaresia.objects.all().delete()
+            Shtepia.objects.all().delete()
+            with override_settings(BACKUP_DIR=d):
+                management.call_command('rikthe_backup', str(zip_rruga), po=True, verbosity=0)
+        p = PagesaAntaresia.objects.get()
+        self.assertEqual((p.fatura_tekst, p.shtepia.emri_i_plote, p.arktar.username),
+                         ('Bllok 1100 nr 046386', 'Muhamed Mesud Ademi', 'admin'))
+        self.assertEqual(self.client.get(reverse('backup')).status_code, 302)  # sesioni u fshi me flush
+
+    def test_backup_automatik_dhe_pastrimi(self):
+        import tempfile
+        from pathlib import Path
+        from django.core import mail, management
+        with tempfile.TemporaryDirectory() as d, override_settings(BACKUP_DIR=d):
+            for emri in ['xhamia_2020-01-05_0300.zip', 'xhamia_2020-01-20_0300.zip', 'xhamia_2020-02-03_0300.zip']:
+                (Path(d) / emri).write_bytes(b'x')
+            management.call_command('backup_automatik', email=True, stdout=__import__('io').StringIO())
+            mbetur = sorted(f.name for f in Path(d).glob('*.zip'))
+        self.assertIn('xhamia_2020-01-05_0300.zip', mbetur)      # i pari i muajit mbahet
+        self.assertNotIn('xhamia_2020-01-20_0300.zip', mbetur)   # i vjetër, jo i pari i muajit
+        self.assertEqual(len(mbetur), 3)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertTrue(mail.outbox[0].attachments)

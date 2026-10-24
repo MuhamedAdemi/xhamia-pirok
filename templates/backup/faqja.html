@@ -1,0 +1,69 @@
+{% extends 'base.html' %}
+{% block titulli %}Backup — Xhamia Pirok{% endblock %}
+
+{% block kontent %}
+<div class="page-header">
+  <div>
+    <h2>💾 Backup i të dhënave</h2>
+    <p>Kopje e plotë e gjithçkaje — për raste fatkeqësie, humbjeje ose sulmi</p>
+  </div>
+</div>
+
+<div style="max-width:760px;">
+  <div class="card" style="margin-bottom:20px;">
+    <div class="card-header"><h5>⬇️ Shkarko tani</h5></div>
+    <div class="card-body">
+      <div class="flex gap-3" style="flex-wrap:wrap; margin-bottom:12px;">
+        <a href="?shkarko=tani" class="btn-kryesor">💾 Backup i plotë (ZIP)</a>
+        <a href="?shkarko=excel" class="btn-dytësor">📗 Vetëm Excel</a>
+      </div>
+      <p class="ndihma" style="line-height:1.7;">
+        <strong>ZIP-i</strong> ka dy skedarë: një <strong>.json</strong> me gjithçka (për rikthim të plotë të aplikacionit)
+        dhe një <strong>Excel</strong> për lexim — me fletët Shtëpitë, Pagesat (antarësi, varreza, fond) dhe Harxhimet.
+        Fleta <em>Shtëpitë</em> mund të importohet sërish te <a href="{% url 'importo_shtepite' %}">Shtëpitë → Importo</a>.<br>
+        Ruajeni backup-in në një vend tjetër (USB, Google Drive) — jo vetëm në këtë kompjuter.
+      </p>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:20px;">
+    <div class="card-header"><h5>🕒 Backup-et automatike në server</h5></div>
+    <div class="card-body">
+      {% if backupet %}
+      <div style="overflow-x:auto;">
+        <table class="tabela-xhami">
+          <thead><tr><th>Skedari</th><th>Data</th><th>Madhësia</th><th></th></tr></thead>
+          <tbody>
+            {% for skedari, kb, data in backupet %}
+            <tr>
+              <td style="font-family:monospace;">{{ skedari.name }}</td>
+              <td class="tekst-dytësor">{{ data|date:"d.m.Y H:i" }}</td>
+              <td class="tekst-dytësor">{{ kb }} KB</td>
+              <td><a href="?skedari={{ skedari.name|urlencode }}" class="btn-dytësor btn-sm">⬇️</a></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <p class="ndihma">Ende nuk ka backup automatik. Aktivizojeni sipas udhëzimit më poshtë.</p>
+      {% endif %}
+      <p class="ndihma" style="margin-top:12px; line-height:1.7;">
+        Ruhen te <code>{{ dosja }}</code>: <strong>çdo ditë për 30 ditët e fundit</strong>, dhe
+        <strong>i pari i çdo muaji përgjithmonë</strong> (pra edhe pas 3 muajve, 3 vjetëve, 15 vjetëve…).
+        Çdo backup i dërgohet edhe me email arkivit zyrtar në Gmail, ku ruhet jashtë serverit.
+      </p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><h5>⚙️ Si aktivizohet backup-i automatik (një herë)</h5></div>
+    <div class="card-body" style="line-height:1.7;">
+      Në PythonAnywhere → <strong>Tasks</strong> → <em>Scheduled tasks</em>: zgjidhni orën (p.sh. 03:00) dhe shkruani:
+      <pre style="background:var(--krem-errët); padding:10px; border-radius:8px; white-space:pre-wrap;">cd ~/xhamia-pirok && venv/bin/python manage.py backup_automatik --email</pre>
+      Rikthimi i plotë (vetëm në rast fatkeqësie), në Bash console:
+      <pre style="background:var(--krem-errët); padding:10px; border-radius:8px; white-space:pre-wrap;">cd ~/xhamia-pirok && venv/bin/python manage.py rikthe_backup ~/xhamia-backups/EMRI_I_SKEDARIT.zip --po</pre>
+    </div>
+  </div>
+</div>
+{% endblock %}

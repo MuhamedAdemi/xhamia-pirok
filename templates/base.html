@@ -104,6 +104,9 @@
     <a href="{% url 'konfigurimi_sistemit' %}" class="{% if faqja_aktive == 'konfigurimi_sistemit' %}aktive{% endif %}">
       <span class="ikona">⚙️</span> SMS &amp; Email
     </a>
+    <a href="{% url 'backup' %}" class="{% if faqja_aktive == 'backup' %}aktive{% endif %}">
+      <span class="ikona">💾</span> Backup
+    </a>
 
     <div class="nav-section-label">Administrata</div>
     <a href="{% url 'lista_stafit' %}" class="{% if faqja_aktive == 'stafi' %}aktive{% endif %}">

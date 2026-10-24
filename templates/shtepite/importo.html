@@ -6,11 +6,49 @@
   <div class="flex items-center gap-3">
     <a href="{% url 'lista_shtepive' %}" class="btn-dytësor btn-sm">← Kthehu</a>
     <div>
-      <h2>⬆️ Importo Shtëpitë nga PDF</h2>
-      <p>Nga eksporti i "Masjid Manager": lista e të gjitha shtëpive dhe lista e atyre që kanë paguar</p>
+      <h2>⬆️ Importo Shtëpitë</h2>
+      <p>Nga skedari Excel i përgatitur (ose nga një backup), ose nga PDF-të e "Masjid Manager"</p>
     </div>
   </div>
 </div>
+
+{% if raporti_excel %}
+<div class="card" style="margin-bottom:20px; border-left:4px solid {% if raporti_excel.gabime %}var(--gabim){% elif vetem_prove %}var(--paralajmërim){% else %}var(--gjelbër){% endif %};">
+  <div class="card-header">
+    <h5>{% if raporti_excel.gabime %}❌ Excel-i ka gabime{% elif vetem_prove %}🧪 Rezultati i provës — asgjë nuk u ruajt{% else %}✅ Importi përfundoi{% endif %}</h5>
+  </div>
+  <div class="card-body">
+    {% if raporti_excel.gabime %}
+      <ul>{% for g in raporti_excel.gabime %}<li class="gabim-fusha">{{ g }}</li>{% endfor %}</ul>
+    {% else %}
+    <div class="grid-4" style="margin-bottom:12px;">
+      <div class="stat-card gjelbër">
+        <div class="stat-label">Të reja / Përditësuara</div>
+        <div class="stat-vlera gjelbër">{{ raporti_excel.te_reja }} / {{ raporti_excel.perditesuara }}</div>
+        <div class="stat-nën">nga {{ raporti_excel.gjithsej_rreshta }} rreshta{% if raporti_excel.nr_nga %} · nr. {{ raporti_excel.nr_nga }}–{{ raporti_excel.nr_deri }}{% endif %}</div>
+      </div>
+      <div class="stat-card blu">
+        <div class="stat-label">Pa borxh</div>
+        <div class="stat-vlera" style="color:#007AFF;">{{ raporti_excel.paguar }}</div>
+        <div class="stat-nën">të paguara deri sot</div>
+      </div>
+      <div class="stat-card portokalli">
+        <div class="stat-label">Borxh 2+ vite</div>
+        <div class="stat-vlera" style="color:var(--gabim);">{{ raporti_excel.borxh_shume_vite }}</div>
+        <div class="stat-nën">{{ raporti_excel.vite_borxh }} vite borxh gjithsej</div>
+      </div>
+      <div class="stat-card kafe">
+        <div class="stat-label">Borxh vetëm {{ viti_paguar }}</div>
+        <div class="stat-vlera kafe">{{ raporti_excel.borxh_vetem_aktual }}</div>
+        <div class="stat-nën">{% if raporti_excel.pa_gjendje %}{{ raporti_excel.pa_gjendje }} pa gjendje{% else %}&nbsp;{% endif %}</div>
+      </div>
+    </div>
+    {% if vetem_prove %}<p>Nëse numrat janë në rregull, zgjidhni përsëri të njëjtin skedar dhe klikoni <strong>Importo</strong>.</p>
+    {% else %}<a href="{% url 'lista_shtepive' %}" class="btn-kryesor">Shih Shtëpitë →</a>{% endif %}
+    {% endif %}
+  </div>
+</div>
+{% endif %}
 
 {% if raporti %}
 <div class="card" style="margin-bottom:20px; border-left:4px solid {% if vetem_prove %}var(--paralajmërim){% else %}var(--gjelbër){% endif %};">
@@ -82,7 +120,34 @@
 </div>
 {% endif %}
 
-<form method="post" enctype="multipart/form-data" style="max-width:680px;">
+<form method="post" enctype="multipart/form-data" style="max-width:680px; margin-bottom:20px;">
+  {% csrf_token %}
+  <input type="hidden" name="burimi" value="excel">
+  <div class="card" style="margin-bottom:12px;">
+    <div class="card-header"><h5>📗 Importo nga Excel (rekomandohet)</h5></div>
+    <div class="card-body">
+      <div class="forma-grup">
+        <label>Skedari Excel (fleta "Shtëpitë")</label>
+        <input type="file" name="xlsx_shtepite" accept=".xlsx" required>
+        <p class="ndihma">
+          P.sh. <code>shtepite_importi_2026.xlsx</code> ose Excel-i nga një backup. Kolonat që lexohen:
+          <strong>Emri, Emri i Prindit, Mbiemri, Telefoni, Paguar deri viti, Borxh nga viti</strong>.
+          Shtëpitë ekzistuese (i njëjti emër + prind + mbiemër) përditësohen, të tjerat krijohen.
+          Kolonat e tjera (vite pa paguar, borxhi…) janë vetëm për lexim.
+        </p>
+      </div>
+      <div class="flex gap-3" style="flex-wrap:wrap;">
+        <button type="submit" name="veprimi" value="prove" class="btn-dytësor">🧪 Provo (pa ruajtur)</button>
+        <button type="submit" name="veprimi" value="importo" class="btn-kryesor"
+                onclick="return confirm('Të importohen shtëpitë nga Excel-i?');">⬆️ Importo</button>
+      </div>
+    </div>
+  </div>
+</form>
+
+<details style="max-width:680px;">
+<summary style="cursor:pointer; font-weight:600; margin-bottom:12px;">📄 Ose importo nga PDF-të e Masjid Manager (mënyra e vjetër)</summary>
+<form method="post" enctype="multipart/form-data">
   {% csrf_token %}
   <div class="card" style="margin-bottom:20px;">
     <div class="card-header"><h5>📄 Skedarët PDF</h5></div>
@@ -131,4 +196,5 @@
             onclick="return confirm('Të regjistrohen shtëpitë nga PDF-ja?');">⬆️ Importo</button>
   </div>
 </form>
+</details>
 {% endblock %}

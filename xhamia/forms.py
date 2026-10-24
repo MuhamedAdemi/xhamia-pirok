@@ -2,6 +2,7 @@ import json
 from decimal import Decimal, ROUND_HALF_UP
 
 from django import forms
+from django.utils import timezone
 from django.contrib.auth.models import User
 from .models import (
     ProfilStafi, Kategoria, Shtepia, PagesaAntaresia, PagesaFondi, Harxhimi,
@@ -174,6 +175,14 @@ def _vitet_e_mbuluara(pagesat, viti, viti_deri, paguar_deri):
 class PagesaAntaresiaForm(ShumaMonedhaMixin, VitetFormMixin, forms.ModelForm):
     FUSHA_EUR = 'shuma_paguar'
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        k = self.konfigurimi
+        self.tarifat_json = json.dumps({
+            'kaluara': str(k.tarifa_vitet_kaluara), 'aktual': str(k.tarifa_viti_aktual),
+            'viti': timezone.now().year, 'kursi_eur': str(k.kursi_eur),
+        })
+
     def _vitet_e_paguara(self, shtepia, viti, viti_deri):
         return _vitet_e_mbuluara(shtepia.pagesat, viti, viti_deri, shtepia.paguar_deri_viti)
 
@@ -318,7 +327,7 @@ class KonfigurimiSistemitForm(forms.ModelForm):
     class Meta:
         model = KonfigurimiSistemit
         fields = ['sms_username', 'sms_password', 'sms_sim_numri', 'gmail_app_password',
-                  'kursi_eur', 'kursi_chf', 'kursi_usd']
+                  'kursi_eur', 'kursi_chf', 'kursi_usd', 'tarifa_vitet_kaluara', 'tarifa_viti_aktual']
         labels = {'sms_username': 'Username'}
 
     def clean_sms_password(self):

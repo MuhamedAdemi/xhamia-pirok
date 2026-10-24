@@ -526,6 +526,12 @@ class KonfigurimiSistemit(models.Model):
     kursi_eur = models.DecimalField(max_digits=8, decimal_places=4, default=Decimal('61.5'), verbose_name='1 € = ? den')
     kursi_chf = models.DecimalField(max_digits=8, decimal_places=4, default=Decimal('66'), verbose_name='1 CHF = ? den')
     kursi_usd = models.DecimalField(max_digits=8, decimal_places=4, default=Decimal('57'), verbose_name='1 $ = ? den')
+    tarifa_vitet_kaluara = models.DecimalField(
+        max_digits=8, decimal_places=2, default=Decimal('50'), verbose_name='Antarësia — minimumi për çdo vit të kaluar (€)'
+    )
+    tarifa_viti_aktual = models.DecimalField(
+        max_digits=8, decimal_places=2, default=Decimal('70'), verbose_name='Antarësia — minimumi për vitin aktual e më tej (€)'
+    )
 
     class Meta:
         verbose_name = 'Konfigurimi i Sistemit'
@@ -538,6 +544,10 @@ class KonfigurimiSistemit(models.Model):
     def merr(cls):
         obj, _ = cls.objects.get_or_create(pk=1)
         return obj
+
+    def tarifa_antaresise(self, viti):
+        """Shuma minimale e antarësisë për një vit: vitet e kaluara më lirë, viti aktual (e më tej) me tarifën e plotë."""
+        return self.tarifa_viti_aktual if viti >= timezone.now().year else self.tarifa_vitet_kaluara
 
     def kursi(self, monedha):
         """Sa denarë vlen 1 njësi e monedhës."""

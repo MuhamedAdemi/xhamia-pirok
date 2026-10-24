@@ -31,7 +31,10 @@ from .forms import (
 from .utils import dërgo_email_antaresia, dërgo_email_fondi, dërgo_email_varrezat
 from . import sms
 from .importi_pdf import importo
-from . import raporti
+from .importi_excel import importo_excel
+from . import raporti, backup
+from pathlib import Path
+from .gjendja import gjendja_e_shtepive, vitet_tekst
 
 
 def _gjenero_kod():
@@ -98,28 +101,28 @@ def _tabela_vjetore(pagesat, viti_fillimit, paguar_deri, shuma_vjetore):
     """Gjendja vit për vit e një shtëpie (antarësi ose varreza).
 
     Një vit është i paguar nëse e mbulon një pagesë ose është ≤ paguar_deri (historik).
-    Borxhi llogaritet vetëm për vitet deri te ky vit, me shumën vjetore (nëse dihet).
-    Kthen (tabela, borxhi_total, vitet_papaguara)."""
+    Borxhi llogaritet vetëm për vitet deri te ky vit; `shuma_vjetore` është shumë fikse ose
+    funksion viti → shuma (tarifa e antarësisë). Kthen (tabela, borxhi_total, vitet_papaguara)."""
     viti_aktual = timezone.now().year
     pagesat = list(pagesat.values('viti', 'viti_deri', 'shuma_paguar'))
     for pg in pagesat:
         pg['viti_deri'] = pg['viti_deri'] or pg['viti']
     viti_nga = min([viti_fillimit] + [pg['viti'] for pg in pagesat])
     viti_deri = max([viti_aktual] + [pg['viti_deri'] for pg in pagesat])
-    shuma_vjetore = shuma_vjetore or Decimal('0')
+    tarifa = shuma_vjetore if callable(shuma_vjetore) else (lambda v, s=shuma_vjetore or Decimal('0'): s)
 
     tabela, borxhi_total, papaguara = {}, Decimal('0'), []
     for v in range(viti_nga, viti_deri + 1):
         mbulojne = [pg for pg in pagesat if pg['viti'] <= v <= pg['viti_deri']]
         if paguar_deri and v <= paguar_deri:
-            tabela[v] = {'shuma_paguar': shuma_vjetore, 'ka_paguar': True, 'borxhi': Decimal('0'), 'historike': True}
+            tabela[v] = {'shuma_paguar': tarifa(v), 'ka_paguar': True, 'borxhi': Decimal('0'), 'historike': True}
         elif mbulojne:
             shuma = sum(pg['shuma_paguar'] / (pg['viti_deri'] - pg['viti'] + 1) for pg in mbulojne)
             tabela[v] = {'shuma_paguar': shuma.quantize(Decimal('0.01')), 'ka_paguar': True,
                          'borxhi': Decimal('0'), 'historike': False}
         elif viti_fillimit <= v <= viti_aktual:
-            tabela[v] = {'shuma_paguar': Decimal('0'), 'ka_paguar': False, 'borxhi': shuma_vjetore, 'historike': False}
-            borxhi_total += shuma_vjetore
+            tabela[v] = {'shuma_paguar': Decimal('0'), 'ka_paguar': False, 'borxhi': tarifa(v), 'historike': False}
+            borxhi_total += tarifa(v)
             papaguara.append(v)
     return tabela, borxhi_total, papaguara
 
@@ -422,6 +425,39 @@ def regjistri(request):
     })
 
 
+@login_required
+def backup_faqja(request):
+    if not është_admin(request.user):
+        messages.error(request, 'Nuk keni leje.')
+        return redirect('dashboard')
+    if request.GET.get('shkarko') == 'tani':
+        emri, te_dhenat = backup.krijo_zip()
+        resp = HttpResponse(te_dhenat, content_type='application/zip')
+        resp['Content-Disposition'] = f'attachment; filename="{emri}"'
+        return resp
+    if request.GET.get('shkarko') == 'excel':
+        resp = HttpResponse(
+            backup.excel_i_plote(),
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        )
+        resp['Content-Disposition'] = f'attachment; filename="{backup.emri_backup()}.xlsx"'
+        return resp
+    skedari = request.GET.get('skedari')
+    if skedari:
+        rruga = backup.dosja_backup() / Path(skedari).name
+        if not rruga.exists() or rruga.suffix != '.zip':
+            messages.error(request, 'Backup-i nuk u gjet.')
+            return redirect('backup')
+        resp = HttpResponse(rruga.read_bytes(), content_type='application/zip')
+        resp['Content-Disposition'] = f'attachment; filename="{rruga.name}"'
+        return resp
+    return render(request, 'backup/faqja.html', {
+        'backupet': backup.lista_backup(),
+        'dosja': backup.dosja_backup(),
+        'faqja_aktive': 'backup',
+    })
+
+
 # ─── Shtëpitë ───────────────────────────────────────────────────────────────
 
 @login_required
@@ -431,6 +467,7 @@ def lista_shtepive(request):
     statusi = request.GET.get('statusi', 'aktive')
     viti = request.GET.get('viti', '')
     pagesa_statusi = request.GET.get('pagesa_statusi', '')
+    borxhi_filter = request.GET.get('borxhi', '')
 
     shtepite = Shtepia.objects.select_related('kategoria', 'regjistruar_nga')
 
@@ -460,24 +497,41 @@ def lista_shtepive(request):
     elif pagesa_statusi == 'paguar':
         shtepite = shtepite.filter(id__in=paguar_ids)
 
+    shtepite = list(shtepite)
+    gjendja = gjendja_e_shtepive(shtepite)
+    for sh in shtepite:
+        g = gjendja[sh.id]
+        sh.nr_papaguara, sh.vitet_papaguara, sh.borxhi_minimal = len(g['papaguara']), vitet_tekst(g['papaguara']), g['borxhi']
+    if borxhi_filter == 'pa':
+        shtepite = [sh for sh in shtepite if not sh.nr_papaguara]
+    elif borxhi_filter == '1':
+        shtepite = [sh for sh in shtepite if sh.nr_papaguara == 1]
+    elif borxhi_filter == '2':
+        shtepite = [sh for sh in shtepite if sh.nr_papaguara >= 2]
+    elif borxhi_filter == '5':
+        shtepite = [sh for sh in shtepite if sh.nr_papaguara >= 5]
+    elif borxhi_filter == '10':
+        shtepite = [sh for sh in shtepite if sh.nr_papaguara >= 10]
+
     if request.GET.get('eksporto') == 'excel':
         koka = [
-            'Nr.', 'Emri', 'Emri i Prindit', 'Mbiemri', 'Anëtarë', 'Kategoria', 'Telefoni', 'Email', 'Statusi',
-            f'Ka Paguar ({viti_status})',
+            'Nr.', 'Emri', 'Emri i Prindit', 'Mbiemri', 'Telefoni', 'Email', 'Statusi',
+            f'Ka Paguar ({viti_status})', 'Vite pa paguar', 'Vitet pa paguar', 'Borxhi minimal (€)',
         ]
         rreshtat = [
             [
                 sh.nr_shtepise, sh.emri_kryefamiljarit, sh.emri_prindit, sh.mbiemri_kryefamiljarit,
-                sh.nr_antareve_familjes, sh.kategoria.emri if sh.kategoria else '', sh.nr_telefoni_kryesor,
-                sh.email, 'Aktive' if sh.është_aktiv else 'Joaktive',
-                'Po' if sh.id in paguar_ids else 'Jo',
+                sh.nr_telefoni_kryesor, sh.email, 'Aktive' if sh.është_aktiv else 'Joaktive',
+                'Po' if sh.id in paguar_ids else 'Jo', sh.nr_papaguara, sh.vitet_papaguara, float(sh.borxhi_minimal),
             ]
             for sh in shtepite
         ]
         return _pergjigje_excel(f'shtepite_{timezone.now().date()}.xlsx', koka, rreshtat)
 
-    total_ne_liste = shtepite.count()
+    total_ne_liste = len(shtepite)
     kane_paguar_ne_liste = sum(1 for sh in shtepite if sh.id in paguar_ids)
+    borxhi_ne_liste = sum((sh.borxhi_minimal for sh in shtepite), Decimal('0'))
+    vite_ne_liste = sum(sh.nr_papaguara for sh in shtepite)
 
     konteksti = {
         'shtepite': shtepite,
@@ -492,6 +546,9 @@ def lista_shtepive(request):
         'kane_paguar_ne_liste': kane_paguar_ne_liste,
         'nuk_kane_paguar_ne_liste': total_ne_liste - kane_paguar_ne_liste,
         'pagesa_statusi': pagesa_statusi,
+        'borxhi_filter': borxhi_filter,
+        'borxhi_ne_liste': borxhi_ne_liste,
+        'vite_ne_liste': vite_ne_liste,
         'vitit_lista': list(range(2020, timezone.now().year + 2)),
         'faqja_aktive': 'shtepite',
     }
@@ -529,7 +586,27 @@ def importo_shtepite(request):
 
     raporti, vetem_prove = None, False
     viti_paguar = timezone.now().year
-    if request.method == 'POST':
+    if request.method == 'POST' and request.POST.get('burimi') == 'excel':
+        vetem_prove = request.POST.get('veprimi') != 'importo'
+        skedari = request.FILES.get('xlsx_shtepite')
+        if not skedari:
+            messages.error(request, 'Zgjidhni skedarin Excel.')
+        else:
+            try:
+                raporti_excel = importo_excel(skedari, request.user, vetem_prove)
+            except Exception as e:
+                messages.error(request, f'Excel-i nuk u lexua: {e}')
+            else:
+                if raporti_excel['gabime']:
+                    messages.error(request, 'Excel-i ka gabime — asgjë nuk u ruajt. Korrigjojini dhe provoni sërish.')
+                elif not vetem_prove:
+                    messages.success(request, f"U regjistruan {raporti_excel['te_reja']} shtëpi të reja dhe u "
+                                              f"përditësuan {raporti_excel['perditesuara']} ekzistuese.")
+                return render(request, 'shtepite/importo.html', {
+                    'raporti_excel': raporti_excel, 'vetem_prove': vetem_prove,
+                    'viti_paguar': viti_paguar, 'faqja_aktive': 'shtepite',
+                })
+    elif request.method == 'POST':
         vetem_prove = request.POST.get('veprimi') != 'importo'
         try:
             viti_paguar = int(request.POST.get('viti_paguar') or viti_paguar)
@@ -568,7 +645,7 @@ def detaje_shtepia(request, pk):
     viti_aktual = timezone.now().year
     pagesat_per_vit, borxhi_total, papaguara = _tabela_vjetore(
         shtepi.pagesat, shtepi.viti_fillimit_antaresise, shtepi.paguar_deri_viti,
-        shtepi.kategoria.shuma_vjetore if shtepi.kategoria else None,
+        KonfigurimiSistemit.merr().tarifa_antaresise,
     )
     pagesat_per_vit_varrezat, borxhi_total_varrezat, papaguara_varrezat = _tabela_vjetore(
         shtepi.pagesat_varrezave, shtepi.viti_fillimit_varrezave, shtepi.varrezat_paguar_deri_viti,
@@ -1051,22 +1128,9 @@ def dergo_sms_varrezat(request, pk):
 
 
 def _borxhet_antaresise(shtepite):
-    """Për çdo shtëpi: vitet e papaguara të antarësisë dhe shuma e borxhit (nëse dihet kategoria).
-    E njëjta logjikë si _tabela_vjetore, por me një query të vetëm për të gjitha pagesat."""
-    viti_aktual = timezone.now().year
-    mbuluara = {}
-    for sh_id, nga, deri in PagesaAntaresia.objects.values_list('shtepia_id', 'viti', 'viti_deri'):
-        mbuluara.setdefault(sh_id, set()).update(range(nga, (deri or nga) + 1))
-    rezultati = []
-    for sh in shtepite:
-        paguara = mbuluara.get(sh.id, set())
-        vitet = [
-            v for v in range(sh.viti_fillimit_antaresise, viti_aktual + 1)
-            if v not in paguara and not (sh.paguar_deri_viti and v <= sh.paguar_deri_viti)
-        ]
-        shuma_vjetore = sh.kategoria.shuma_vjetore if sh.kategoria else Decimal('0')
-        rezultati.append({'shtepi': sh, 'vitet': vitet, 'borxhi': shuma_vjetore * len(vitet)})
-    return rezultati
+    """Për çdo shtëpi: vitet e papaguara të antarësisë dhe borxhi minimal (sipas tarifës)."""
+    gj = gjendja_e_shtepive(shtepite)
+    return [{'shtepi': sh, 'vitet': gj[sh.id]['papaguara'], 'borxhi': gj[sh.id]['borxhi']} for sh in shtepite]
 
 
 @login_required
@@ -1571,7 +1635,7 @@ def portali_shtepi(request):
     viti_aktual = timezone.now().year
     pagesat_per_vit, borxhi_total, papaguara = _tabela_vjetore(
         shtepi.pagesat, shtepi.viti_fillimit_antaresise, shtepi.paguar_deri_viti,
-        shtepi.kategoria.shuma_vjetore if shtepi.kategoria else None,
+        KonfigurimiSistemit.merr().tarifa_antaresise,
     )
 
     total_gjithsej = pagesat_te_gjitha.aggregate(s=Sum('shuma_paguar'))['s'] or Decimal('0')
