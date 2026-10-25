@@ -121,7 +121,7 @@
   <div class="card" style="margin-bottom:20px;">
     <div class="card-header"><h5>🧪 Hapi 3 — Provoni</h5></div>
     <div class="card-body">
-      <form method="post" class="flex gap-3" style="flex-wrap:wrap; align-items:flex-end; margin-bottom:16px;">
+      <form method="post" class="flex gap-3" style="flex-wrap:wrap; align-items:flex-end; margin-bottom:16px;" onsubmit="var b=this.querySelector('button'); if(b.disabled) return false; b.disabled=true; b.textContent='⏳ Duke dërguar…'; return true;">
         {% csrf_token %}
         <input type="hidden" name="veprimi" value="prove_sms">
         <div class="forma-grup" style="margin:0; flex:1; min-width:200px;">

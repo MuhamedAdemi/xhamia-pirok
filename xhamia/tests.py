@@ -37,7 +37,7 @@ def _pergjigje(json_data):
     return r
 
 
-@override_settings(SMS_GATEWAY_USER='u', SMS_GATEWAY_PASSWORD='p')
+@override_settings(SMS_GATEWAY_USER='u', SMS_GATEWAY_PASSWORD='p', SMS_PRIT_SEKONDA=0)
 class SmsViewsTest(TestCase):
     def setUp(self):
         self.admin = User.objects.create_user('admin', password='x', first_name='A', last_name='B')
@@ -113,6 +113,7 @@ class SmsViewsTest(TestCase):
         self.assertIn('nuk është konfiguruar', m.gabimi)
 
 
+@override_settings(SMS_PRIT_SEKONDA=0)
 class KonfigurimiSistemitTest(TestCase):
     def setUp(self):
         self.admin = User.objects.create_user('admin', password='x')
@@ -243,6 +244,7 @@ class PagesatShumeViteTest(TestCase):
             self.assertEqual(self.client.get(url).status_code, 200, url)
 
 
+@override_settings(SMS_PRIT_SEKONDA=0)
 class BllokuMonedhatRegjistriTest(TestCase):
     def setUp(self):
         self.admin = User.objects.create_user('admin', password='x', first_name='A', last_name='B')
@@ -423,22 +425,67 @@ class FilloNgaZeroTest(TestCase):
         self.assertEqual(KonfigurimiSistemit.merr().sms_username, 'DC75HC')
 
 
-@override_settings(SMS_GATEWAY_USER='u', SMS_GATEWAY_PASSWORD='p')
-class SmsDyfishTest(TestCase):
-    @mock.patch('xhamia.sms.requests.post')
-    def test_i_njejti_sms_nuk_dergohet_dy_here(self, post):
-        post.return_value = _pergjigje({'id': 'x', 'state': 'Pending'})
+@override_settings(SMS_GATEWAY_USER='u', SMS_GATEWAY_PASSWORD='p', SMS_PRIT_SEKONDA=0)
+class SmsNjeNeKoheTest(TestCase):
+    def setUp(self):
+        from django.core.cache import cache
+        cache.clear()
         admin = User.objects.create_user('admin', password='x')
         ProfilStafi.objects.create(user=admin, rol='ADMIN')
         self.client.force_login(admin)
-        sh = Shtepia.objects.create(nr_shtepise='0001', emri_kryefamiljarit='A', mbiemri_kryefamiljarit='B',
-                                    viti_fillimit_antaresise=2026, nr_telefoni_kryesor='070123456')
-        p = PagesaAntaresia.objects.create(blloku='1', nr_fatures='1', shtepia=sh, shuma_paguar=Decimal('70'),
-                                           viti=2026, data_pageses=date.today(), arktar=admin)
-        url = reverse('dergo_sms_antaresia', args=[p.pk])
-        self.client.post(url)
-        r = self.client.post(url, follow=True)
+        self.sh = Shtepia.objects.create(nr_shtepise='0001', emri_kryefamiljarit='A', mbiemri_kryefamiljarit='B',
+                                         viti_fillimit_antaresise=2026, nr_telefoni_kryesor='070123456')
+        self.p1 = PagesaAntaresia.objects.create(blloku='1', nr_fatures='1', shtepia=self.sh, shuma_paguar=Decimal('70'),
+                                                 viti=2026, data_pageses=date.today(), arktar=admin)
+        self.p2 = PagesaAntaresia.objects.create(blloku='1', nr_fatures='2', shtepia=self.sh, shuma_paguar=Decimal('70'),
+                                                 viti=2025, data_pageses=date.today(), arktar=admin)
+
+    @mock.patch('xhamia.sms.requests.delete')
+    @mock.patch('xhamia.sms.requests.get')
+    @mock.patch('xhamia.sms.requests.post')
+    def test_sms_i_ri_pret_pergjigjen_e_te_mëparshmit(self, post, get, delete):
+        post.return_value = _pergjigje({'id': 'a', 'state': 'Pending'})
+        get.return_value = _pergjigje({'id': 'a', 'state': 'Pending'})
+        self.client.post(reverse('dergo_sms_antaresia', args=[self.p1.pk]))
+        body = post.call_args.kwargs['json']
+        self.assertEqual((body['ttl'], body['priority']), (120, 100))
+
+        # 30 klikime te një pagesë tjetër, ndërsa i pari pret ende → asnjë SMS i ri
+        for _ in range(30):
+            r = self.client.post(reverse('dergo_sms_antaresia', args=[self.p2.pk]), follow=True)
         self.assertEqual(post.call_count, 1)
-        self.assertContains(r, 'dërguar tashmë')
-        self.client.post(url, {'ridergo': '1'})
+        self.assertContains(r, 'ende pret përgjigje')
+
+        # Pas 2 minutash pa përgjigje: i pari anulohet dhe lejohet SMS i ri
+        MesazhSMS.objects.update(data_dergimit=timezone.now() - timezone.timedelta(minutes=3))
+        self.client.post(reverse('dergo_sms_antaresia', args=[self.p2.pk]))
+        self.assertEqual(delete.call_count, 1)
         self.assertEqual(post.call_count, 2)
+        i_pari = MesazhSMS.objects.order_by('data_dergimit').first()
+        self.assertEqual(i_pari.statusi, 'DESHTOI')
+        self.assertIn('Anuluar', i_pari.gabimi)
+
+    @mock.patch('xhamia.sms.requests.get')
+    @mock.patch('xhamia.sms.requests.post')
+    def test_ridergimi_kerkon_konfirmim(self, post, get):
+        post.return_value = _pergjigje({'id': 'a', 'state': 'Sent'})
+        url = reverse('dergo_sms_antaresia', args=[self.p1.pk])
+        r = self.client.post(url, follow=True)
+        self.assertContains(r, 'SMS-i u dërgua')
+        r = self.client.post(url)
+        self.assertTemplateUsed(r, 'sms/konfirmo_ridergim.html')
+        self.assertEqual(post.call_count, 1)
+        self.client.post(url, {'ridergo': 'po'})
+        self.assertEqual(post.call_count, 2)
+
+    @mock.patch('xhamia.sms.time', create=True)
+    @mock.patch('xhamia.sms.requests.get')
+    @mock.patch('xhamia.sms.requests.post')
+    def test_pret_pergjigjen_e_telefonit(self, post, get, _):
+        from . import sms as sms_modul
+        post.return_value = _pergjigje({'id': 'a', 'state': 'Pending'})
+        get.return_value = _pergjigje({'id': 'a', 'state': 'Sent'})
+        m = sms_modul.dergo_sms('070123456', 't', 'KONFIRMIM', None, ttl=120)
+        with mock.patch('time.sleep'):
+            sms_modul.prit_pergjigjen(m, sekonda=10)
+        self.assertEqual(m.statusi, 'DERGUAR')

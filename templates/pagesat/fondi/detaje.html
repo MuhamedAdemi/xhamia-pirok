@@ -20,7 +20,7 @@
     {% endif %}
     {% if pagese.nr_telefoni %}
     <form method="post" action="{% url 'dergo_sms_fondi' pagese.pk %}" style="display:inline;"
-          onsubmit="return confirm('Të dërgohet SMS konfirmimi te {{ pagese.nr_telefoni }}?');">
+          onsubmit="if (!confirm('Të dërgohet SMS konfirmimi te {{ pagese.nr_telefoni }}?')) return false; var b=this.querySelector('button'); if(b.disabled) return false; b.disabled=true; b.textContent='⏳ Duke dërguar…'; return true;">
       {% csrf_token %}
       <button type="submit" class="btn-dytësor">📱 Dërgo SMS</button>
     </form>

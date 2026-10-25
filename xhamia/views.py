@@ -8,6 +8,7 @@ from django.core.mail import send_mail
 from django.conf import settings
 from django.db.models import Sum, Count, Q
 from django.utils import timezone
+from django.core.cache import cache
 from datetime import timedelta
 from django.template.loader import render_to_string
 from django.urls import reverse
@@ -1106,29 +1107,58 @@ def dergo_email_varrezat_view(request, pk):
 
 # ─── SMS ────────────────────────────────────────────────────────────────────
 
-def _dergo_sms_pagese(request, nr_telefoni, teksti, shtepia):
+def _dergo_sms_pagese(request, nr_telefoni, teksti, shtepia, url_kthimi):
+    """Dërgon një SMS konfirmimi me kontrolle:
+    1. vetëm një SMS në një kohë — i radhës lejohet vetëm pasi i mëparshmi ka marrë përgjigje
+       (ose është anuluar sepse telefoni nuk u përgjigj brenda afatit);
+    2. klikimet e njëkohshme (p.sh. 30 klikime) dërgojnë vetëm një SMS;
+    3. ridërgimi i të njëjtit SMS kërkon konfirmim.
+    Kthen faqen e konfirmimit (HttpResponse) ose None."""
     if not nr_telefoni:
         messages.warning(request, 'Nuk ka numër telefoni të regjistruar.')
-        return
-    # Mbrojtje nga dërgimi i dyfishtë: i njëjti SMS te i njëjti numër në 24 orët e fundit.
-    # (Kur telefoni është offline, SMS-të presin në radhë — klikimet e përsëritura arrijnë të gjitha bashkë.)
-    numri = sms.normalizo_numrin(nr_telefoni)
-    i_meparshmi = MesazhSMS.objects.filter(
-        nr_telefoni=numri, teksti=sms.pastro_tekstin(teksti),
-        data_dergimit__gte=timezone.now() - timedelta(hours=24),
-    ).exclude(statusi='DESHTOI').first()
-    if i_meparshmi and not request.POST.get('ridergo'):
-        messages.warning(request, (
-            f'Ky SMS i është dërguar tashmë {numri} më {timezone.localtime(i_meparshmi.data_dergimit):%d.%m.%Y %H:%M} '
-            f'(statusi: {i_meparshmi.get_statusi_display()}). Nuk u dërgua sërish. Nëse statusi është "Në pritje", '
-            f'kontrolloni që telefoni me SMS Gateway të jetë i ndezur dhe me internet — SMS-i do të niset vetë.'
-        ))
-        return
-    mesazh = sms.dergo_sms(nr_telefoni, teksti, 'KONFIRMIM', request.user, shtepia=shtepia)
+        return None
+    if not cache.add('sms_dergim_ne_proces', True, 60):
+        messages.warning(request, 'Një SMS po dërgohet në këtë moment. Prisni pak dhe shikoni rezultatin.')
+        return None
+    try:
+        ne_pritje = sms.sms_ne_pritje()
+        if ne_pritje:
+            m = ne_pritje[0]
+            sekonda = int((timezone.now() - m.data_dergimit).total_seconds())
+            messages.warning(request, (
+                f'SMS-i i mëparshëm te {m.nr_telefoni} (para {sekonda} sekondash) ende pret përgjigje nga telefoni. '
+                f'SMS i ri lejohet pasi ai të dërgohet — ose anulohet vetë pas {sms.AFATI_PERGJIGJES // 60} minutash '
+                f'nëse telefoni nuk përgjigjet. Kontrolloni që telefoni me SMS Gateway të jetë i ndezur dhe me internet.'
+            ))
+            return None
+
+        numri = sms.normalizo_numrin(nr_telefoni)
+        i_meparshmi = MesazhSMS.objects.filter(
+            nr_telefoni=numri, teksti=sms.pastro_tekstin(teksti),
+        ).exclude(statusi='DESHTOI').order_by('-data_dergimit').first()
+        if i_meparshmi and request.POST.get('ridergo') != 'po':
+            return render(request, 'sms/konfirmo_ridergim.html', {
+                'i_meparshmi': i_meparshmi, 'url_kthimi': url_kthimi,
+                'nr_prove': request.POST.get('nr_prove', ''), 'veprimi': request.POST.get('veprimi', ''),
+            })
+
+        mesazh = sms.dergo_sms(nr_telefoni, teksti, 'KONFIRMIM', request.user, shtepia=shtepia,
+                               ttl=sms.AFATI_PERGJIGJES, prioriteti=100)
+        sms.prit_pergjigjen(mesazh)
+    finally:
+        cache.delete('sms_dergim_ne_proces')
+
     if mesazh.statusi == 'DESHTOI':
         messages.error(request, f'SMS-i nuk u dërgua: {mesazh.gabimi}')
+    elif mesazh.statusi in ('DERGUAR', 'DORZUAR'):
+        messages.success(request, f'✅ SMS-i u dërgua te {mesazh.nr_telefoni}.')
     else:
-        messages.success(request, f'SMS-i u dërgua te {mesazh.nr_telefoni}.')
+        messages.warning(request, (
+            f'SMS-i te {mesazh.nr_telefoni} iu dha telefonit, por ende pa përgjigje. Nëse telefoni nuk e dërgon '
+            f'brenda {sms.AFATI_PERGJIGJES // 60} minutash, anulohet vetë dhe mund ta dërgoni sërish. '
+            f'Statusin e shihni te Historiku SMS.'
+        ))
+    return None
 
 
 @login_required
@@ -1138,8 +1168,9 @@ def dergo_sms_antaresia(request, pk):
         return redirect('lista_pagesa_antaresia')
     pagese = get_object_or_404(PagesaAntaresia, pk=pk)
     if request.method == 'POST':
-        _dergo_sms_pagese(request, pagese.shtepia.nr_telefoni_kryesor,
-                          sms.teksti_antaresia(pagese), pagese.shtepia)
+        url = reverse('detaje_pagesa_antaresia', args=[pk])
+        return _dergo_sms_pagese(request, pagese.shtepia.nr_telefoni_kryesor,
+                                 sms.teksti_antaresia(pagese), pagese.shtepia, url) or redirect(url)
     return redirect('detaje_pagesa_antaresia', pk=pk)
 
 
@@ -1150,7 +1181,8 @@ def dergo_sms_fondi(request, pk):
         return redirect('lista_pagesa_fondi')
     pagese = get_object_or_404(PagesaFondi, pk=pk)
     if request.method == 'POST':
-        _dergo_sms_pagese(request, pagese.nr_telefoni, sms.teksti_fondi(pagese), None)
+        url = reverse('detaje_pagesa_fondi', args=[pk])
+        return _dergo_sms_pagese(request, pagese.nr_telefoni, sms.teksti_fondi(pagese), None, url) or redirect(url)
     return redirect('detaje_pagesa_fondi', pk=pk)
 
 
@@ -1161,8 +1193,9 @@ def dergo_sms_varrezat(request, pk):
         return redirect('lista_pagesa_varrezave')
     pagese = get_object_or_404(PagesaVarrezave, pk=pk)
     if request.method == 'POST':
-        _dergo_sms_pagese(request, pagese.shtepia.nr_telefoni_kryesor,
-                          sms.teksti_varrezat(pagese), pagese.shtepia)
+        url = reverse('detaje_pagesa_varrezat', args=[pk])
+        return _dergo_sms_pagese(request, pagese.shtepia.nr_telefoni_kryesor,
+                                 sms.teksti_varrezat(pagese), pagese.shtepia, url) or redirect(url)
     return redirect('detaje_pagesa_varrezat', pk=pk)
 
 
@@ -1207,7 +1240,8 @@ def borxhlinjte_sms(request):
             except (KeyError, IndexError, ValueError):
                 messages.error(request, 'Teksti ka një {fushë} të panjohur. Përdorni vetëm {emri}, {vitet}, {borxhi}, {nr}.')
                 break
-            mesazh = sms.dergo_sms(sh.nr_telefoni_kryesor, personal, 'KUJTESE', request.user, shtepia=sh)
+            mesazh = sms.dergo_sms(sh.nr_telefoni_kryesor, personal, 'KUJTESE', request.user, shtepia=sh,
+                                   ttl=sms.AFATI_KUJTESAVE, prioriteti=-10)
             if mesazh.statusi == 'DESHTOI':
                 deshtuara += 1
             else:
@@ -1267,16 +1301,11 @@ def konfigurimi_sistemit(request):
                 messages.success(request, 'Konfigurimi u ruajt.')
                 return redirect('konfigurimi_sistemit')
         elif veprimi == 'prove_sms':
-            mesazh = sms.dergo_sms(
-                request.POST.get('nr_prove', ''),
-                'Xhamia Pirok: SMS prove nga sistemi. Nese e merrni kete, SMS-te punojne!',
-                'KONFIRMIM', request.user,
-            )
-            if mesazh.statusi == 'DESHTOI':
-                messages.error(request, f'SMS prova dështoi: {mesazh.gabimi}')
-            else:
-                messages.success(request, f'SMS prova iu dërgua telefonit. Duhet të arrijë te {mesazh.nr_telefoni} brenda pak sekondave.')
-            return redirect('konfigurimi_sistemit')
+            url = reverse('konfigurimi_sistemit')
+            return _dergo_sms_pagese(
+                request, request.POST.get('nr_prove', ''),
+                'Xhamia Pirok: SMS prove nga sistemi. Nese e merrni kete, SMS-te punojne!', None, url,
+            ) or redirect(url)
         elif veprimi == 'prove_email':
             try:
                 send_mail(
