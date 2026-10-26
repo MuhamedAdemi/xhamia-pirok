@@ -5,7 +5,7 @@
 <div class="page-header">
   <div>
     <h2>🤲 Pagesat Fondit të Xhamisë</h2>
-    <p>{{ pagesat.count }} pagesa të gjetura</p>
+    <p>{{ pagesat|length }} pagesa të gjetura</p>
   </div>
   {% if request.user.profili.mund_regjistrojë_pagesa or request.user.profili.është_admin %}
   <a href="{% url 'shto_pagese_fondi' %}" class="btn-kryesor no-print">+ Regjistro Pagesë</a>
@@ -57,7 +57,8 @@
             <span class="badge-kafe">Dhuratë</span>
             {% endif %}
           </td>
-          <td class="font-semibold">{{ p.emri_donatorit }} {{ p.mbiemri_donatorit }}</td>
+          <td class="font-semibold">{{ p.emri_donatorit }} {{ p.mbiemri_donatorit }}
+            {% if p.shtepia %}<a href="{% url 'detaje_shtepia' p.shtepia.pk %}" class="tekst-dytësor" style="display:block; font-size:12px; font-weight:400;">🏠 #{{ p.shtepia.nr_shtepise }} {{ p.shtepia.emri_i_plote }}</a>{% endif %}</td>
           <td class="tekst-kafe font-semibold">{{ p.shuma_origjinale }}</td>
           <td class="tekst-dytësor">{{ p.arsyeja|default:"—"|truncatechars:40 }}</td>
           <td class="tekst-dytësor">{{ p.data_pageses|date:"d M Y" }}</td>

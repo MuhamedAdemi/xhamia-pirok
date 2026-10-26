@@ -51,8 +51,20 @@
   </div>
 
   <div class="card" style="margin-bottom:20px;">
-    <div class="card-header"><h5>👤 Të Dhënat e Donatorit / Paguesit</h5></div>
+    <div class="card-header"><h5>👤 Shtëpia & Paguesi</h5></div>
     <div class="card-body">
+      <div class="forma-grup">
+        <label>{{ form.shtepia.label }}</label>
+        {% include 'pagesat/_kerko_shtepine.html' %}
+        {% render_field form.shtepia %}
+        {% if form.shtepia.errors %}<p class="gabim-fusha">{{ form.shtepia.errors.0 }}</p>{% endif %}
+        <p class="ndihma">Lidheni pagesën me shtëpinë (p.sh. Florijani paguan rrymën për shtëpinë e Jusuf Nuri Jasharit) —
+          kështu te shtëpia shihen të gjitha pagesat. Emri, telefoni dhe email-i plotësohen vetë; mund t'i ndryshoni.</p>
+        <div id="paguesiButonat" class="flex gap-3" style="flex-wrap:wrap; display:none;">
+          <button type="button" class="chip-shume" id="paguesKryefamiljari"></button>
+          <button type="button" class="chip-shume" id="paguesSporadik" style="display:none;"></button>
+        </div>
+      </div>
       <div class="grid-2">
         <div class="forma-grup">
           <label>{{ form.emri_donatorit.label }}</label>
@@ -100,6 +112,42 @@
 {% endblock %}
 
 {% block skripte %}
+<script>
+(function () {
+  const zgjedhja = document.querySelector('[name="shtepia"]');
+  const f = n => document.querySelector(`[name="${n}"]`);
+  const butonat = document.getElementById('paguesiButonat');
+  const bKrye = document.getElementById('paguesKryefamiljari');
+  const bSp = document.getElementById('paguesSporadik');
+
+  function vendos(emri, mbiemri, tel, email) {
+    f('emri_donatorit').value = emri || '';
+    f('mbiemri_donatorit').value = mbiemri || '';
+    if (tel) f('nr_telefoni').value = tel;
+    if (email) f('email_donatorit').value = email;
+  }
+  function opsioni() { return zgjedhja.options[zgjedhja.selectedIndex] || {}; }
+
+  bKrye.addEventListener('click', () => { const d = opsioni().dataset; vendos(d.emri, d.mbiemri, d.tel, d.email); });
+  bSp.addEventListener('click', () => {
+    const d = opsioni().dataset, pjeset = (d.spEmri || '').trim().split(/\s+/);
+    const mbiemri = pjeset.length > 1 ? pjeset.pop() : d.mbiemri;
+    vendos(pjeset.join(' '), mbiemri, d.spTel || d.tel, d.spEmail || d.email);
+  });
+
+  function ndrysho(plotëso) {
+    const d = opsioni().dataset || {};
+    if (!zgjedhja.value) { butonat.style.display = 'none'; return; }
+    butonat.style.display = 'flex';
+    bKrye.textContent = `👤 Paguesi: ${d.emri} ${d.mbiemri} (kryefamiljari)`;
+    bSp.style.display = d.spEmri ? '' : 'none';
+    bSp.textContent = `👥 Paguesi: ${d.spEmri} (kontakti sporadik)`;
+    if (plotëso && !f('emri_donatorit').value) vendos(d.emri, d.mbiemri, d.tel, d.email);
+  }
+  zgjedhja.addEventListener('change', () => ndrysho(true));
+  ndrysho(false);
+})();
+</script>
 <script>
 const llojiFondSelect = document.getElementById('id_lloji_fond');
 const arsyejaInput = document.getElementById('id_arsyeja_fond');

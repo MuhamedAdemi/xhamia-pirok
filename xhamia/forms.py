@@ -85,6 +85,36 @@ class ShtepiaForm(forms.ModelForm):
         }
 
 
+class ZgjedhjaShtepise(forms.Select):
+    """<select> i shtëpive ku çdo opsion mban kontaktet (për t'i plotësuar vetë te forma)."""
+
+    def create_option(self, name, value, label, selected, index, subindex=None, attrs=None):
+        opsioni = super().create_option(name, value, label, selected, index, subindex, attrs)
+        sh = getattr(value, 'instance', None)
+        if sh is not None:
+            opsioni['attrs'].update({
+                'data-emri': sh.emri_kryefamiljarit, 'data-mbiemri': sh.mbiemri_kryefamiljarit,
+                'data-tel': sh.nr_telefoni_kryesor, 'data-email': sh.email,
+                'data-sp-emri': sh.kontakt_sporadik_emri, 'data-sp-tel': sh.kontakt_sporadik_telefoni,
+                'data-sp-email': sh.kontakt_sporadik_email,
+            })
+        return opsioni
+
+
+class FushaShtepise(forms.ModelChoiceField):
+    """Etiketa: "#0589 — Jusuf Nuri Jashari · Florijan · 070…" — që kërkimi të gjejë edhe sipas
+    kontaktit sporadik dhe telefonit."""
+    widget = ZgjedhjaShtepise
+
+    def __init__(self, **kwargs):
+        kwargs.setdefault('queryset', Shtepia.objects.order_by('nr_shtepise'))
+        super().__init__(**kwargs)
+
+    def label_from_instance(self, sh):
+        shtese = [x for x in (sh.kontakt_sporadik_emri, sh.nr_telefoni_kryesor) if x]
+        return f"#{sh.nr_shtepise} — {sh.emri_i_plote}" + (f" · {' · '.join(shtese)}" if shtese else '')
+
+
 class ShumaMonedhaMixin(forms.Form):
     """Shuma shkruhet në monedhën e pagesës (den, €, CHF, $). Ruhet ashtu siç u pagua, si dhe
     e konvertuar në den dhe € (për totalet). Kursi parazgjedhur merret nga faqja e konfigurimit."""
@@ -174,6 +204,7 @@ def _vitet_e_mbuluara(pagesat, viti, viti_deri, paguar_deri):
 
 class PagesaAntaresiaForm(ShumaMonedhaMixin, VitetFormMixin, forms.ModelForm):
     FUSHA_EUR = 'shuma_paguar'
+    shtepia = FushaShtepise(label='Shtëpia')
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -206,11 +237,12 @@ class PagesaAntaresiaForm(ShumaMonedhaMixin, VitetFormMixin, forms.ModelForm):
 
 class PagesaFondiForm(ShumaMonedhaMixin, forms.ModelForm):
     FUSHA_EUR = 'shuma'
+    shtepia = FushaShtepise(required=False, label='Shtëpia (opsionale)', empty_label='— Pa shtëpi (donator i jashtëm) —')
 
     class Meta:
         model = PagesaFondi
         fields = [
-            'blloku', 'nr_fatures', 'lloji', 'emri_donatorit', 'mbiemri_donatorit',
+            'blloku', 'nr_fatures', 'shtepia', 'lloji', 'emri_donatorit', 'mbiemri_donatorit',
             'email_donatorit', 'nr_telefoni', 'data_pageses', 'arsyeja', 'shenime',
         ]
         widgets = {
@@ -234,6 +266,7 @@ class PagesaFondiForm(ShumaMonedhaMixin, forms.ModelForm):
 
 class PagesaVarrezaveForm(ShumaMonedhaMixin, VitetFormMixin, forms.ModelForm):
     FUSHA_EUR = 'shuma_paguar'
+    shtepia = FushaShtepise(label='Shtëpia')
 
     def _vitet_e_paguara(self, shtepia, viti, viti_deri):
         return _vitet_e_mbuluara(shtepia.pagesat_varrezave, viti, viti_deri, shtepia.varrezat_paguar_deri_viti)

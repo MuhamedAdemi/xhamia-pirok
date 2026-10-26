@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load shumat %}
 {% block titulli %}Dashboard Antarësia — Xhamia Pirok{% endblock %}
 
 {% block kontent %}
@@ -23,7 +24,8 @@
 <div class="grid-4" style="margin-bottom:24px;">
   <div class="stat-card gjelbër">
     <div class="stat-label">Total Mbledhur {{ viti_zgjedhur }}</div>
-    <div class="stat-vlera gjelbër">{{ total_mbledhur }}€</div>
+    <div class="stat-vlera gjelbër" style="font-size:22px;">{{ total_mbledhur_m|monedhat }}</div>
+    <div class="stat-nën" style="font-weight:600;">≈ {{ total_mbledhur|euro }} gjithsej</div>
     <div class="stat-nën">nga pagesat e antarësisë</div>
   </div>
   <div class="stat-card blu">
@@ -49,12 +51,12 @@
 <div class="grid-4" style="margin-bottom:24px;">
   <div class="stat-card portokalli">
     <div class="stat-label">Harxhimet {{ viti_zgjedhur }}</div>
-    <div class="stat-vlera" style="color:var(--paralajmërim);">{{ total_harxhime }}€</div>
+    <div class="stat-vlera" style="color:var(--paralajmërim);">{{ total_harxhime|euro }}</div>
     <div class="stat-nën">rroga, mirëmbajtje, rrymë etj. nga antarësia</div>
   </div>
   <div class="stat-card {% if bilanci_antaresia >= 0 %}gjelbër{% else %}portokalli{% endif %}">
     <div class="stat-label">Bilanci {{ viti_zgjedhur }}</div>
-    <div class="stat-vlera" style="color:{% if bilanci_antaresia >= 0 %}#2D5A1B{% else %}var(--paralajmërim){% endif %};">{{ bilanci_antaresia }}€</div>
+    <div class="stat-vlera" style="color:{% if bilanci_antaresia >= 0 %}#2D5A1B{% else %}var(--paralajmërim){% endif %};">{{ bilanci_antaresia|euro }}</div>
     <div class="stat-nën">mbledhur − harxhime</div>
   </div>
 </div>
@@ -127,7 +129,7 @@
               <span class="nr-shtepi">{{ p.shtepia.nr_shtepise }}</span>
               {{ p.shtepia.emri_i_plote }}
             </td>
-            <td class="tekst-gjelbër font-semibold">{{ p.shuma_paguar }}€</td>
+            <td class="tekst-gjelbër font-semibold">{{ p.shuma_origjinale }}</td>
             <td class="tekst-dytësor">{{ p.data_pageses|date:"d M Y" }}</td>
           </tr>
           {% empty %}
@@ -181,7 +183,7 @@
           <td><a href="{% url 'detaje_harxhimi' h.pk %}">{{ h.nr_fatures }}</a></td>
           <td><span class="badge-gri">{{ h.get_lloji_display }}</span></td>
           <td class="tekst-dytësor">{{ h.stafi.get_full_name|default:"—" }}</td>
-          <td class="font-semibold" style="color:var(--paralajmërim);">{{ h.shuma_eur }}€</td>
+          <td class="font-semibold" style="color:var(--paralajmërim);">{{ h.shuma_eur|euro }}</td>
           <td class="tekst-dytësor">{{ h.data_pageses|date:"d M Y" }}</td>
         </tr>
         {% empty %}

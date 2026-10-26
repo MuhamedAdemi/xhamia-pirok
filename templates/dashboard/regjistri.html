@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load shumat %}
 {% block titulli %}Regjistri — Xhamia Pirok{% endblock %}
 
 {% block kontent %}
@@ -34,17 +35,17 @@
   </div>
   <div class="stat-card kafe">
     <div class="stat-label">Denarë</div>
-    <div class="stat-vlera kafe">{{ gjithsej.shumat.MKD|floatformat:"0g" }}</div>
+    <div class="stat-vlera kafe">{{ gjithsej.shumat.MKD|shuma:"MKD" }}</div>
     <div class="stat-nën">të marra në den</div>
   </div>
   <div class="stat-card blu">
     <div class="stat-label">Euro / Franga / Dollar</div>
-    <div class="stat-vlera" style="color:#007AFF; font-size:20px;">{{ gjithsej.shumat.EUR|floatformat:"2g" }} € · {{ gjithsej.shumat.CHF|floatformat:"2g" }} CHF · {{ gjithsej.shumat.USD|floatformat:"2g" }} $</div>
+    <div class="stat-vlera" style="color:#007AFF; font-size:20px;">{{ gjithsej.shumat|monedhat }}</div>
     <div class="stat-nën">të marra në valutë</div>
   </div>
   <div class="stat-card portokalli">
     <div class="stat-label">Gjithsej në €</div>
-    <div class="stat-vlera" style="color:var(--paralajmërim);">{{ gjithsej.eur|floatformat:"2g" }} €</div>
+    <div class="stat-vlera" style="color:var(--paralajmërim);">{{ gjithsej.eur|euro }}</div>
     <div class="stat-nën">gjithçka e konvertuar</div>
   </div>
 </div>
@@ -73,10 +74,10 @@
             <td>{{ r.blloku }}</td>
             <td style="font-family:monospace;">{{ r.nr_fatures }}</td>
             <td class="tekst-dytësor">{{ r.data|date:"d.m.Y" }}</td>
-            <td class="djathtas">{{ r.shumat.MKD|floatformat:"0g"|default:"–" }}</td>
-            <td class="djathtas">{{ r.shumat.EUR|floatformat:"2g"|default:"–" }}</td>
-            <td class="djathtas">{{ r.shumat.CHF|floatformat:"2g"|default:"–" }}</td>
-            <td class="djathtas">{{ r.shumat.USD|floatformat:"2g"|default:"–" }}</td>
+            <td class="djathtas">{{ r.shumat.MKD|shuma:"MKD"|default:"–" }}</td>
+            <td class="djathtas">{{ r.shumat.EUR|shuma:"EUR"|default:"–" }}</td>
+            <td class="djathtas">{{ r.shumat.CHF|shuma:"CHF"|default:"–" }}</td>
+            <td class="djathtas">{{ r.shumat.USD|shuma:"USD"|default:"–" }}</td>
             {% if me_vite %}<td>{{ r.vitet }}{% if r.nr_viteve > 1 %} <span class="tekst-dytësor">({{ r.nr_viteve }})</span>{% endif %}</td>{% endif %}
           </tr>
           {% elif r.tip == 'titull' %}
@@ -86,10 +87,10 @@
             <td></td>
             <td colspan="{% if me_vite %}5{% else %}5{% endif %}">{{ r.etiketa }} <span class="tekst-dytësor">· {{ r.totali.nr }} pagesa</span></td>
             <td></td>
-            <td class="djathtas">{{ r.totali.shumat.MKD|floatformat:"0g" }}</td>
-            <td class="djathtas">{{ r.totali.shumat.EUR|floatformat:"2g" }}</td>
-            <td class="djathtas">{{ r.totali.shumat.CHF|floatformat:"2g" }}</td>
-            <td class="djathtas">{{ r.totali.shumat.USD|floatformat:"2g" }}</td>
+            <td class="djathtas">{{ r.totali.shumat.MKD|shuma:"MKD" }}</td>
+            <td class="djathtas">{{ r.totali.shumat.EUR|shuma:"EUR" }}</td>
+            <td class="djathtas">{{ r.totali.shumat.CHF|shuma:"CHF" }}</td>
+            <td class="djathtas">{{ r.totali.shumat.USD|shuma:"USD" }}</td>
             {% if me_vite %}<td>{{ r.totali.vite }} vite</td>{% endif %}
           </tr>
           {% endif %}

@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load shumat %}
 {% block titulli %}Kujtesa për Borxh — Xhamia Pirok{% endblock %}
 
 {% block kontent %}
@@ -84,7 +85,7 @@
               <span class="badge-portokalli">{{ b.vitet|length }} vite</span>
               <span class="tekst-dytësor" style="font-size:12px;">{{ b.vitet|join:", " }}</span>
             </td>
-            <td style="font-weight:700;">{{ b.borxhi }}€</td>
+            <td style="font-weight:700;">{{ b.borxhi|euro }}</td>
           </tr>
           {% empty %}
           <tr>

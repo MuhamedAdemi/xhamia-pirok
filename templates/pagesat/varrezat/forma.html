@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load shumat %}
 {% load widget_tweaks %}
 {% block titulli %}Regjistro Pagesë Varrezash — Xhamia Pirok{% endblock %}
 
@@ -12,7 +13,7 @@
 
 <div class="card" style="margin-bottom:20px; max-width:680px; padding:14px 18px; background:var(--krem-errët);">
   <span style="font-size:13px; color:var(--tekst-dytësor);">
-    Shuma fikse vjetore për mirëmbajtjen e varrezave: <strong style="color:var(--tekst-kryesor);">{{ shuma_paracaktuar }}€</strong> — e njëjtë për çdo shtëpi.
+    Shuma fikse vjetore për mirëmbajtjen e varrezave: <strong style="color:var(--tekst-kryesor);">{{ shuma_paracaktuar|euro }}</strong> — e njëjtë për çdo shtëpi.
   </span>
 </div>
 

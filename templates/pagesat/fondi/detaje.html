@@ -51,9 +51,15 @@
           </td>
         </tr>
         <tr>
-          <td style="padding:10px 0; color:var(--tekst-dytësor); font-size:13px;">Donatori</td>
+          <td style="padding:10px 0; color:var(--tekst-dytësor); font-size:13px;">Paguesi</td>
           <td style="padding:10px 0; font-weight:700; font-size:17px;">{{ pagese.emri_donatorit }} {{ pagese.mbiemri_donatorit }}</td>
         </tr>
+        {% if pagese.shtepia %}
+        <tr>
+          <td style="padding:10px 0; color:var(--tekst-dytësor); font-size:13px;">Shtëpia</td>
+          <td style="padding:10px 0;"><a href="{% url 'detaje_shtepia' pagese.shtepia.pk %}"><span class="nr-shtepi">{{ pagese.shtepia.nr_shtepise }}</span> {{ pagese.shtepia.emri_i_plote }}</a></td>
+        </tr>
+        {% endif %}
         {% if pagese.email_donatorit %}
         <tr>
           <td style="padding:10px 0; color:var(--tekst-dytësor); font-size:13px;">Email</td>

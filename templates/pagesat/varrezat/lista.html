@@ -5,7 +5,7 @@
 <div class="page-header">
   <div>
     <h2>⚰️ Pagesat Varrezave</h2>
-    <p>{{ pagesat.count }} pagesa të gjetura</p>
+    <p>{{ pagesat|length }} pagesa të gjetura</p>
   </div>
   {% if request.user.profili.mund_regjistrojë_pagesa or request.user.profili.është_admin %}
   <a href="{% url 'shto_pagese_varrezat' %}" class="btn-kryesor no-print">+ Regjistro Pagesë</a>

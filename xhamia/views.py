@@ -23,6 +23,7 @@ from decimal import Decimal
 from .models import (
     ProfilStafi, ProfilShtepi, Kategoria, Shtepia, PagesaAntaresia, PagesaFondi, Harxhimi,
     PagesaVarrezave, KonfigurimiVarrezave, MesazhSMS, KonfigurimiSistemit, gjenero_nr_shtepi,
+    totalet_sipas_monedhes,
 )
 from .forms import (
     LoginForm, StafForm, KategoriaForm, ShtepiaForm,
@@ -37,6 +38,7 @@ from .importi_excel import importo_excel
 from . import raporti, backup
 from pathlib import Path
 from .gjendja import gjendja_e_shtepive, vitet_tekst
+from . import kerkimi as kerkimi_mod
 
 
 def _gjenero_kod():
@@ -270,6 +272,7 @@ def dashboard_antaresia(request):
         'kane_paguar': kane_paguar,
         'nuk_kane_paguar': nuk_kane_paguar,
         'total_mbledhur': total_mbledhur,
+        'total_mbledhur_m': totalet_sipas_monedhes(PagesaAntaresia.objects.filter(data_pageses__year=viti_zgjedhur)),
         'pagesat_mujore_json': json.dumps(pagesat_mujore),
         'muajt_etiketat_json': json.dumps(muajt_etiketat),
         'sipas_kategorise_json': json.dumps(sipas_kategorise),
@@ -330,9 +333,12 @@ def dashboard_fondi(request):
         'viti_zgjedhur': viti_zgjedhur,
         'vitit_lista': vitit_lista,
         'total_fondi': total_fondi,
+        'total_fondi_m': totalet_sipas_monedhes(PagesaFondi.objects.filter(data_pageses__year=viti_zgjedhur)),
         'total_donator': total_donator,
         'total_dhurata': total_dhurata,
+        'total_dhurata_m': totalet_sipas_monedhes(PagesaFondi.objects.filter(data_pageses__year=viti_zgjedhur, lloji='DHURATE')),
         'total_aktivitete': total_aktivitete,
+        'total_aktivitete_m': totalet_sipas_monedhes(PagesaFondi.objects.filter(data_pageses__year=viti_zgjedhur, lloji='AKTIVITET')),
         'pagesat_mujore_json': json.dumps(pagesat_mujore),
         'muajt_etiketat_json': json.dumps(muajt_etiketat),
         'krahasimi_viteve_json': json.dumps(krahasimi_viteve),
@@ -383,6 +389,7 @@ def dashboard_varrezat(request):
         'kane_paguar': kane_paguar,
         'nuk_kane_paguar': nuk_kane_paguar,
         'total_mbledhur': total_mbledhur,
+        'total_mbledhur_m': totalet_sipas_monedhes(PagesaVarrezave.objects.filter(data_pageses__year=viti_zgjedhur)),
         'total_harxhime': total_harxhime,
         'bilanci': bilanci,
         'harxhimet_e_fundit': harxhimet_e_fundit,
@@ -502,16 +509,6 @@ def lista_shtepive(request):
     elif statusi == 'joaktive':
         shtepite = shtepite.filter(është_aktiv=False)
 
-    if kerkimi:
-        shtepite = shtepite.filter(
-            Q(nr_shtepise__icontains=kerkimi) |
-            Q(emri_kryefamiljarit__icontains=kerkimi) |
-            Q(emri_prindit__icontains=kerkimi) |
-            Q(mbiemri_kryefamiljarit__icontains=kerkimi) |
-            Q(nr_telefoni_kryesor__icontains=kerkimi) |
-            Q(email__icontains=kerkimi)
-        )
-
     if kategoria_id:
         shtepite = shtepite.filter(kategoria_id=kategoria_id)
 
@@ -523,7 +520,7 @@ def lista_shtepive(request):
     elif pagesa_statusi == 'paguar':
         shtepite = shtepite.filter(id__in=paguar_ids)
 
-    shtepite = list(shtepite)
+    shtepite = kerkimi_mod.filtro(shtepite, kerkimi, kerkimi_mod.fushat_e_shtepise)
     gjendja = gjendja_e_shtepive(shtepite)
     for sh in shtepite:
         g = gjendja[sh.id]
@@ -667,6 +664,7 @@ def detaje_shtepia(request, pk):
     shtepi = get_object_or_404(Shtepia, pk=pk)
     pagesat = shtepi.pagesat.select_related('arktar').order_by('-viti', '-data_pageses')
     pagesat_varrezave = shtepi.pagesat_varrezave.select_related('arktar').order_by('-viti', '-data_pageses')
+    pagesat_fondit = shtepi.pagesat_fondit.select_related('arktar').order_by('-data_pageses')
 
     viti_aktual = timezone.now().year
     pagesat_per_vit, borxhi_total, papaguara = _tabela_vjetore(
@@ -686,6 +684,8 @@ def detaje_shtepia(request, pk):
         'pagesat_per_vit': pagesat_per_vit,
         'borxhi_total': borxhi_total,
         'pagesat_varrezave': pagesat_varrezave,
+        'pagesat_fondit': pagesat_fondit,
+        'pagesat_fondit_m': totalet_sipas_monedhes(pagesat_fondit),
         'pagesat_per_vit_varrezat': pagesat_per_vit_varrezat,
         'borxhi_total_varrezat': borxhi_total_varrezat,
         'nr_papaguara': len(papaguara),
@@ -758,13 +758,8 @@ def lista_pagesa_antaresia(request):
     if viti:
         pagesat = pagesat.filter(viti__lte=viti, viti_deri__gte=viti)
     if kerkimi:
-        pagesat = pagesat.filter(
-            Q(nr_fatures__icontains=kerkimi) |
-            Q(blloku__icontains=kerkimi) |
-            Q(shtepia__emri_kryefamiljarit__icontains=kerkimi) |
-            Q(shtepia__emri_prindit__icontains=kerkimi) |
-            Q(shtepia__mbiemri_kryefamiljarit__icontains=kerkimi) |
-            Q(shtepia__nr_shtepise__icontains=kerkimi)
+        pagesat = kerkimi_mod.filtro(
+            pagesat, kerkimi, lambda p: (p.blloku, p.nr_fatures) + kerkimi_mod.fushat_e_shtepise(p.shtepia),
         )
 
     if request.GET.get('eksporto') == 'excel':
@@ -801,13 +796,16 @@ def _initial_pagese(request, model, te_dhenat_e_shtepise=None):
     blloku, nr = sugjero_faturen(model)
     initial = {'blloku': blloku, 'nr_fatures': nr, 'data_pageses': timezone.now().date()}
     shtepi_id = request.GET.get('shtepi')
-    if shtepi_id and te_dhenat_e_shtepise:
-        shtepi = Shtepia.objects.filter(pk=shtepi_id).first()
-        if shtepi:
-            initial['shtepia'] = shtepi
+    shtepi = Shtepia.objects.filter(pk=shtepi_id).first() if shtepi_id and shtepi_id.isdigit() else None
+    if shtepi:
+        initial['shtepia'] = shtepi
+        if te_dhenat_e_shtepise:
             _, _, papaguara = _tabela_vjetore(*te_dhenat_e_shtepise(shtepi), None)
             if papaguara:
                 initial['viti'], initial['viti_deri'] = papaguara[0], papaguara[-1]
+        if model is PagesaFondi:
+            initial.update(emri_donatorit=shtepi.emri_kryefamiljarit, mbiemri_donatorit=shtepi.mbiemri_kryefamiljarit,
+                           nr_telefoni=shtepi.nr_telefoni_kryesor, email_donatorit=shtepi.email)
     return initial
 
 
@@ -861,16 +859,14 @@ def lista_pagesa_fondi(request):
     pagesat = PagesaFondi.objects.select_related('arktar')
     if viti:
         pagesat = pagesat.filter(data_pageses__year=viti)
-    if kerkimi:
-        pagesat = pagesat.filter(
-            Q(nr_fatures__icontains=kerkimi) |
-            Q(blloku__icontains=kerkimi) |
-            Q(emri_donatorit__icontains=kerkimi) |
-            Q(mbiemri_donatorit__icontains=kerkimi) |
-            Q(arsyeja__icontains=kerkimi)
-        )
     if lloji:
         pagesat = pagesat.filter(lloji=lloji)
+    if kerkimi:
+        pagesat = kerkimi_mod.filtro(
+            pagesat.select_related('shtepia'), kerkimi,
+            lambda p: (p.blloku, p.nr_fatures, p.emri_donatorit, p.mbiemri_donatorit, p.arsyeja, p.nr_telefoni,
+                       p.email_donatorit) + (kerkimi_mod.fushat_e_shtepise(p.shtepia) if p.shtepia else ()),
+        )
 
     if request.GET.get('eksporto') == 'excel':
         koka = ['Nr. Faturës', 'Lloji', 'Emri', 'Mbiemri', 'Arsyeja', 'Shuma (€)', 'Data', 'Arktar']
@@ -938,13 +934,8 @@ def lista_pagesa_varrezave(request):
     if viti:
         pagesat = pagesat.filter(viti__lte=viti, viti_deri__gte=viti)
     if kerkimi:
-        pagesat = pagesat.filter(
-            Q(nr_fatures__icontains=kerkimi) |
-            Q(blloku__icontains=kerkimi) |
-            Q(shtepia__emri_kryefamiljarit__icontains=kerkimi) |
-            Q(shtepia__emri_prindit__icontains=kerkimi) |
-            Q(shtepia__mbiemri_kryefamiljarit__icontains=kerkimi) |
-            Q(shtepia__nr_shtepise__icontains=kerkimi)
+        pagesat = kerkimi_mod.filtro(
+            pagesat, kerkimi, lambda p: (p.blloku, p.nr_fatures) + kerkimi_mod.fushat_e_shtepise(p.shtepia),
         )
 
     if request.GET.get('eksporto') == 'excel':
@@ -1459,12 +1450,14 @@ def dashboard_buxheti(request):
         'vitit_lista': vitit_lista,
         # Antarësia
         'hyra_ant': hyra_ant,
+        'hyra_ant_m': totalet_sipas_monedhes(PagesaAntaresia.objects.filter(data_pageses__year=viti_zgjedhur)),
         'sh_ant': sh_ant,
         'balanca_ant': balanca_ant,
         'rrogat_e_fundit': rrogat_e_fundit,
         'data_10_ant_json': json.dumps(data_10_ant),
         # Fondi
         'hyra_fond': hyra_fond,
+        'hyra_fond_m': totalet_sipas_monedhes(PagesaFondi.objects.filter(data_pageses__year=viti_zgjedhur)),
         'sh_fond': sh_fond,
         'balanca_fond': balanca_fond,
         'shpenzimet_e_fundit': shpenzimet_e_fundit,

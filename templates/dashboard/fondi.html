@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load shumat %}
 {% block titulli %}Dashboard Fondi — Xhamia Pirok{% endblock %}
 
 {% block kontent %}
@@ -23,7 +24,8 @@
 <div class="grid-3" style="margin-bottom:24px;">
   <div class="stat-card kafe">
     <div class="stat-label">Total Fondi {{ viti_zgjedhur }}</div>
-    <div class="stat-vlera kafe">{{ total_fondi }}€</div>
+    <div class="stat-vlera kafe" style="font-size:22px;">{{ total_fondi_m|monedhat }}</div>
+    <div class="stat-nën" style="font-weight:600;">≈ {{ total_fondi|euro }} gjithsej</div>
     <div class="stat-nën">donacione të mbledhura</div>
   </div>
   <div class="stat-card gjelbër">
@@ -44,12 +46,12 @@
 <div class="grid-2" style="margin-bottom:24px;">
   <div class="stat-card kafe">
     <div class="stat-label">Dhurata të Përgjithshme {{ viti_zgjedhur }}</div>
-    <div class="stat-vlera kafe">{{ total_dhurata }}€</div>
+    <div class="stat-vlera kafe" style="font-size:20px;">{{ total_dhurata_m|monedhat }}</div>
     <div class="stat-nën">donacione të lira, jo për aktivitet specifik</div>
   </div>
   <div class="stat-card portokalli">
     <div class="stat-label">Aktivitete {{ viti_zgjedhur }}</div>
-    <div class="stat-vlera" style="color:var(--paralajmërim);">{{ total_aktivitete }}€</div>
+    <div class="stat-vlera" style="color:var(--paralajmërim); font-size:20px;">{{ total_aktivitete_m|monedhat }}</div>
     <div class="stat-nën">pagesa për aktivitete të organizuara nga xhamia</div>
   </div>
 </div>
@@ -98,7 +100,7 @@
           <tr>
             <td><a href="{% url 'detaje_pagesa_fondi' p.pk %}">{{ p.fatura_tekst }}</a></td>
             <td>{{ p.emri_donatorit }} {{ p.mbiemri_donatorit }}</td>
-            <td class="tekst-kafe font-semibold">{{ p.shuma }}€</td>
+            <td class="tekst-kafe font-semibold">{{ p.shuma_origjinale }}</td>
             <td class="tekst-dytësor">{{ p.data_pageses|date:"d M Y" }}</td>
           </tr>
           {% empty %}
@@ -123,7 +125,7 @@
           </div>
           <span>{{ d.emri_donatorit }} {{ d.mbiemri_donatorit }}</span>
         </div>
-        <span class="tekst-kafe font-semibold">{{ d.total }}€</span>
+        <span class="tekst-kafe font-semibold">{{ d.total|euro }}</span>
       </div>
       {% empty %}
       <p style="text-align:center; color:var(--tekst-dytësor);">Asnjë donacion ende.</p>

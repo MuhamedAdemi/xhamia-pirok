@@ -1,4 +1,4 @@
-{% load widget_tweaks %}
+{% load shumat %}{% load widget_tweaks %}
 {# Shuma e pagesës në € ose den. Konteksti: form, vlerat_shpejta (opsionale: [(shuma, 'EUR'|'MKD'), ...]) #}
 <div class="card" style="margin-bottom:20px;">
   <div class="card-header"><h5>💶 Shuma e Paguar</h5></div>
@@ -16,7 +16,7 @@
     <div class="vlerat-shpejta">
       {% for shuma, monedha in vlerat_shpejta %}
       <button type="button" class="chip-shume" data-shuma="{{ shuma }}" data-monedha="{{ monedha }}">
-        {% if monedha == 'EUR' %}{{ shuma }} €{% else %}{{ shuma }} den{% endif %}
+        {% if monedha == 'EUR' %}{{ shuma|euro }}{% else %}{{ shuma }} den{% endif %}
       </button>
       {% endfor %}
     </div>

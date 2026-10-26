@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load shumat %}
 {% block titulli %}Shtëpitë — Xhamia Pirok{% endblock %}
 
 {% block kontent %}
@@ -33,14 +34,14 @@
   </div>
   <div class="stat-card kafe">
     <div class="stat-label">Borxhi minimal</div>
-    <div class="stat-vlera kafe">{{ borxhi_ne_liste|floatformat:"0g" }} €</div>
+    <div class="stat-vlera kafe">{{ borxhi_ne_liste|euro }}</div>
     <div class="stat-nën">{{ vite_ne_liste }} vite pa paguar</div>
   </div>
 </div>
 
 <div class="card">
   <form method="get" class="filtrat no-print">
-    <input type="text" name="kerkimi" value="{{ kerkimi }}" placeholder="Kërko nr., emër, telefon, email...">
+    <input type="text" name="kerkimi" value="{{ kerkimi }}" placeholder="Kërko: emër, prind, mbiemër, kontakt sporadik, telefon, nr. (p.sh. «nuri» ose «flor»)">
     <select name="kategoria">
       <option value="">Të gjitha kategoritë</option>
       {% for k in kategoritë %}

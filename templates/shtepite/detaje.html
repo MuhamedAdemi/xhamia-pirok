@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load shumat %}
 {% block titulli %}Shtëpia #{{ shtepi.nr_shtepise }} — Xhamia Pirok{% endblock %}
 
 {% block kontent %}
@@ -49,7 +50,7 @@
         </tr>
         <tr>
           <td style="padding:8px 0; color:var(--tekst-dytësor); font-size:13px;">Kategoria</td>
-          <td style="padding:8px 0;">{% if shtepi.kategoria %}<span class="badge-gjelbër">{{ shtepi.kategoria.emri }}</span> — {{ shtepi.kategoria.shuma_vjetore }}€/vit{% else %}<span class="tekst-dytësor">—</span>{% endif %}</td>
+          <td style="padding:8px 0;">{% if shtepi.kategoria %}<span class="badge-gjelbër">{{ shtepi.kategoria.emri }}</span> — {{ shtepi.kategoria.shuma_vjetore|euro }}/vit{% else %}<span class="tekst-dytësor">—</span>{% endif %}</td>
         </tr>
         <tr>
           <td style="padding:8px 0; color:var(--tekst-dytësor); font-size:13px;">Statusi</td>
@@ -153,7 +154,7 @@
     <div style="display:flex; align-items:center; gap:12px;">
       <span style="font-size:13px; color:var(--tekst-dytësor);">nga {{ shtepi.viti_fillimit_antaresise }} deri {{ viti_aktual }}</span>
       {% if borxhi_total > 0 or nr_papaguara %}
-      <span style="font-size:13px; background:rgba(255,59,48,0.1); color:var(--gabim); padding:4px 10px; border-radius:20px; font-weight:600;">{% if borxhi_total > 0 %}Borxh total: {{ borxhi_total }}€ — {% endif %}{{ nr_papaguara }} vit{{ nr_papaguara|pluralize:'e' }} pa paguar</span>
+      <span style="font-size:13px; background:rgba(255,59,48,0.1); color:var(--gabim); padding:4px 10px; border-radius:20px; font-weight:600;">{% if borxhi_total > 0 %}Borxh total: {{ borxhi_total|euro }} — {% endif %}{{ nr_papaguara }} vit{{ nr_papaguara|pluralize:'e' }} pa paguar</span>
       {% else %}
       <span style="font-size:13px; background:var(--gjelbër-shumë-i-çelur); color:var(--gjelbër); padding:4px 10px; border-radius:20px; font-weight:600;">✅ Pa borxh</span>
       {% endif %}
@@ -169,7 +170,7 @@
         </div>
         <div style="font-size:20px; margin:6px 0;">{% if info.ka_paguar %}✅{% else %}❌{% endif %}</div>
         <div style="font-size:12px; color:{% if info.ka_paguar %}var(--gjelbër){% else %}var(--gabim){% endif %}; font-weight:600;">
-          {% if info.historike %}historik{% elif info.ka_paguar %}{{ info.shuma_paguar }}€{% elif info.borxhi %}{{ info.borxhi }}€ borxh{% else %}papaguar{% endif %}
+          {% if info.historike %}historik{% elif info.ka_paguar %}{{ info.shuma_paguar|euro }}{% elif info.borxhi %}{{ info.borxhi|euro }} borxh{% else %}papaguar{% endif %}
         </div>
         {% if info.historike %}
         <div style="margin-top:5px; font-size:10px; background:rgba(107,68,35,0.12); color:#6B4423; padding:2px 6px; border-radius:8px; font-weight:600;">Historik</div>
@@ -259,7 +260,7 @@
     <div style="display:flex; align-items:center; gap:12px;">
       <span style="font-size:13px; color:var(--tekst-dytësor);">nga {{ shtepi.viti_fillimit_varrezave }} deri {{ viti_aktual }}</span>
       {% if borxhi_total_varrezat > 0 or nr_papaguara_varrezat %}
-      <span style="font-size:13px; background:rgba(255,59,48,0.1); color:var(--gabim); padding:4px 10px; border-radius:20px; font-weight:600;">{% if borxhi_total_varrezat > 0 %}Borxh total: {{ borxhi_total_varrezat }}€ — {% endif %}{{ nr_papaguara_varrezat }} vit{{ nr_papaguara_varrezat|pluralize:'e' }} pa paguar</span>
+      <span style="font-size:13px; background:rgba(255,59,48,0.1); color:var(--gabim); padding:4px 10px; border-radius:20px; font-weight:600;">{% if borxhi_total_varrezat > 0 %}Borxh total: {{ borxhi_total_varrezat|euro }} — {% endif %}{{ nr_papaguara_varrezat }} vit{{ nr_papaguara_varrezat|pluralize:'e' }} pa paguar</span>
       {% else %}
       <span style="font-size:13px; background:var(--gjelbër-shumë-i-çelur); color:var(--gjelbër); padding:4px 10px; border-radius:20px; font-weight:600;">✅ Pa borxh</span>
       {% endif %}
@@ -275,7 +276,7 @@
         </div>
         <div style="font-size:20px; margin:6px 0;">{% if info.ka_paguar %}✅{% else %}❌{% endif %}</div>
         <div style="font-size:12px; color:{% if info.ka_paguar %}var(--gjelbër){% else %}var(--gabim){% endif %}; font-weight:600;">
-          {% if info.historike %}historik{% elif info.ka_paguar %}{{ info.shuma_paguar }}€{% elif info.borxhi %}{{ info.borxhi }}€ borxh{% else %}papaguar{% endif %}
+          {% if info.historike %}historik{% elif info.ka_paguar %}{{ info.shuma_paguar|euro }}{% elif info.borxhi %}{{ info.borxhi|euro }} borxh{% else %}papaguar{% endif %}
         </div>
         {% if info.historike %}
         <div style="margin-top:5px; font-size:10px; background:rgba(107,68,35,0.12); color:#6B4423; padding:2px 6px; border-radius:8px; font-weight:600;">Historik</div>
@@ -357,5 +358,33 @@
     </table>
   </div>
 </div>
-{% endblock %}
 
+<!-- Pagesat e fondit të lidhura me shtëpinë -->
+<div class="card" style="margin-top:24px;">
+  <div class="card-header">
+    <h5>🤲 Pagesat e Fondit — {{ pagesat_fondit|length }} pagesa{% if pagesat_fondit %} · {{ pagesat_fondit_m|monedhat }}{% endif %}</h5>
+    <a href="{% url 'shto_pagese_fondi' %}?shtepi={{ shtepi.pk }}" class="btn-kryesor btn-sm">+ Pagesë Fondi</a>
+  </div>
+  <div style="overflow-x:auto;">
+    <table class="tabela-xhami">
+      <thead>
+        <tr><th>Nr. Faturës</th><th>Paguesi</th><th>Lloji / Arsyeja</th><th>Shuma</th><th>Data</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for p in pagesat_fondit %}
+        <tr>
+          <td><a href="{% url 'detaje_pagesa_fondi' p.pk %}">{{ p.fatura_tekst }}</a></td>
+          <td class="font-semibold">{{ p.emri_donatorit }} {{ p.mbiemri_donatorit }}</td>
+          <td class="tekst-dytësor">{{ p.get_lloji_display }}{% if p.arsyeja %} — {{ p.arsyeja }}{% endif %}</td>
+          <td class="tekst-kafe font-semibold">{{ p.shuma_origjinale }}</td>
+          <td class="tekst-dytësor">{{ p.data_pageses|date:"d M Y" }}</td>
+          <td><a href="{% url 'fatura_fondi_pdf' p.pk %}" class="btn-dytësor btn-sm" target="_blank">🖨️ Fatura</a></td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" style="text-align:center; padding:30px; color:var(--tekst-dytësor);">Asnjë pagesë fondi e lidhur me këtë shtëpi.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

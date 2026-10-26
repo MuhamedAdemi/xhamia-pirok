@@ -276,7 +276,7 @@ class BllokuMonedhatRegjistriTest(TestCase):
         p = PagesaAntaresia.objects.get()
         self.assertEqual((p.monedha, p.shuma_monedhe, p.shuma_mkd), ('CHF', Decimal('100'), Decimal('6600')))
         self.assertEqual(p.shuma_paguar, Decimal('107.32'))  # 6600 / 61.5
-        self.assertEqual(p.shuma_origjinale, '100.00 CHF')
+        self.assertEqual(p.shuma_origjinale, '100 CHF')
 
     def test_regjistri_me_totale_per_bllok_dhe_muaj(self):
         from . import raporti
@@ -489,3 +489,56 @@ class SmsNjeNeKoheTest(TestCase):
         with mock.patch('time.sleep'):
             sms_modul.prit_pergjigjen(m, sekonda=10)
         self.assertEqual(m.statusi, 'DERGUAR')
+
+
+class FondiShtepiaKerkimiMonedhatTest(TestCase):
+    def setUp(self):
+        self.admin = User.objects.create_user('admin', password='x')
+        ProfilStafi.objects.create(user=self.admin, rol='ADMIN')
+        self.client.force_login(self.admin)
+        self.sh = Shtepia.objects.create(
+            nr_shtepise='0589', emri_kryefamiljarit='Jusuf', emri_prindit='Nuri', mbiemri_kryefamiljarit='Jashari',
+            viti_fillimit_antaresise=2026, nr_telefoni_kryesor='070111222',
+            kontakt_sporadik_emri='Florijan Jashari', kontakt_sporadik_telefoni='070333444',
+        )
+        Shtepia.objects.create(nr_shtepise='0001', emri_kryefamiljarit='Agim', emri_prindit='Bexhet',
+                               mbiemri_kryefamiljarit='Asipi', viti_fillimit_antaresise=2026)
+
+    def test_kerkimi_gjen_me_pjese_emri_prindi_dhe_kontakt_sporadik(self):
+        for q in ['nuri', 'jusu', 'flor', 'JASH flor', '0589', '333444', 'jashari nuri']:
+            r = self.client.get(reverse('lista_shtepive') + f'?kerkimi={q}&statusi=te_gjitha')
+            self.assertEqual([sh.nr_shtepise for sh in r.context['shtepite']], ['0589'], q)
+        r = self.client.get(reverse('lista_shtepive') + '?kerkimi=xyz&statusi=te_gjitha')
+        self.assertEqual(list(r.context['shtepite']), [])
+
+    def test_pagesa_e_fondit_lidhet_me_shtepine(self):
+        forma = self.client.get(reverse('shto_pagese_fondi') + f'?shtepi={self.sh.pk}')
+        self.assertEqual(forma.context['form'].initial['nr_telefoni'], '070111222')
+        self.assertContains(forma, 'data-sp-emri="Florijan Jashari"')
+        self.assertContains(forma, '#0589 — Jusuf Nuri Jashari · Florijan Jashari')
+        r = self.client.post(reverse('shto_pagese_fondi'), {
+            'blloku': '1100', 'nr_fatures': '000001', 'shtepia': self.sh.pk, 'lloji': 'DHURATE',
+            'emri_donatorit': 'Florijan', 'mbiemri_donatorit': 'Jashari', 'nr_telefoni': '070333444',
+            'data_pageses': '2026-10-26', 'arsyeja': 'Rryma', 'shuma_hyrese': '100', 'monedha': 'EUR', 'kursi': '61.5',
+        })
+        self.assertEqual(r.status_code, 302)
+        detaje = self.client.get(reverse('detaje_shtepia', args=[self.sh.pk]))
+        self.assertContains(detaje, 'Florijan Jashari')
+        self.assertContains(detaje, 'Rryma')
+        fondi = self.client.get(reverse('lista_pagesa_fondi') + '?viti=2026&kerkimi=nuri')
+        self.assertEqual(len(fondi.context['pagesat']), 1)
+
+    def test_totalet_sipas_monedhes(self):
+        from .models import PagesaFondi, formato_shumen, totalet_sipas_monedhes
+        for nr, (shuma, monedha) in enumerate([('1380', 'EUR'), ('75000', 'MKD'), ('200', 'CHF')], 1):
+            self.client.post(reverse('shto_pagese_fondi'), {
+                'blloku': '1', 'nr_fatures': str(nr), 'lloji': 'DHURATE', 'emri_donatorit': 'A',
+                'mbiemri_donatorit': 'B', 'data_pageses': f'{timezone.now().year}-01-0{nr}',
+                'shuma_hyrese': shuma, 'monedha': monedha, 'kursi': '',
+            })
+        tot = totalet_sipas_monedhes(PagesaFondi.objects.all())
+        self.assertEqual((tot['EUR'], tot['MKD'], tot['CHF'], tot['USD']),
+                         (Decimal('1380'), Decimal('75000'), Decimal('200'), Decimal('0')))
+        r = self.client.get(reverse('dashboard_fondi'))
+        self.assertContains(r, '75.000 den · 1.380 € · 200 CHF')
+        self.assertEqual(formato_shumen(Decimal('69.92'), 'EUR'), '69,92 €')

@@ -1,6 +1,6 @@
-{# Shuma në monedhën e pagesës + vlera e barasvlershme. Konteksti: pagese, ngjyra #}
+{% load shumat %}{# Shuma në monedhën e pagesës + vlera e barasvlershme. Konteksti: pagese, ngjyra #}
 <span style="font-size:22px; font-weight:700; color:{{ ngjyra|default:'var(--gjelbër)' }};">{{ pagese.shuma_origjinale }}</span>
 <span style="font-size:13px; color:var(--tekst-dytësor); display:block;">
-  {% if pagese.monedha == 'MKD' %}= {{ pagese.shuma_eur }} €{% elif pagese.shuma_mkd %}= {{ pagese.shuma_mkd|floatformat:0 }} den{% endif %}
+  {% if pagese.monedha == 'MKD' %}= {{ pagese.shuma_eur|euro }}{% elif pagese.shuma_mkd %}= {{ pagese.shuma_mkd|floatformat:0 }} den{% endif %}
   {% if pagese.kursi_denar %}(kursi 1 € = {{ pagese.kursi_denar|floatformat:"-2" }} den){% endif %}
 </span>

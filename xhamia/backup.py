@@ -98,10 +98,11 @@ def excel_i_plote():
                    p.viti, p.viti_deri, p.monedha, float(p.shuma_ne_monedhe or 0), float(p.shuma_mkd or 0),
                    float(p.shuma_paguar), p.arktar.get_full_name(), p.shenime])
 
-    ws = _fleta(wb, 'Pagesat Fondi', ['Blloku', 'Nr. Faturës', 'Data', 'Lloji', 'Emri', 'Mbiemri', 'Telefoni',
-                                       'Arsyeja', 'Paguar në', 'Shuma', 'Shuma (den)', 'Shuma (€)', 'Arkëtari'])
-    for p in PagesaFondi.objects.select_related('arktar').order_by('data_pageses', 'pk'):
-        ws.append([p.blloku, p.nr_fatures, p.data_pageses, p.get_lloji_display(), p.emri_donatorit,
+    ws = _fleta(wb, 'Pagesat Fondi', ['Blloku', 'Nr. Faturës', 'Data', 'Nr. Shtëpisë', 'Lloji', 'Emri', 'Mbiemri',
+                                       'Telefoni', 'Arsyeja', 'Paguar në', 'Shuma', 'Shuma (den)', 'Shuma (€)', 'Arkëtari'])
+    for p in PagesaFondi.objects.select_related('arktar', 'shtepia').order_by('data_pageses', 'pk'):
+        ws.append([p.blloku, p.nr_fatures, p.data_pageses, p.shtepia.nr_shtepise if p.shtepia else '',
+                   p.get_lloji_display(), p.emri_donatorit,
                    p.mbiemri_donatorit, p.nr_telefoni, p.arsyeja, p.monedha, float(p.shuma_ne_monedhe or 0),
                    float(p.shuma_mkd or 0), float(p.shuma), p.arktar.get_full_name()])
 

@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load shumat %}
 {% block titulli %}Portali Im — Xhamia Pirok{% endblock %}
 
 {% block kontent %}
@@ -24,9 +25,9 @@
       {% endif %}
     </h3>
     <div style="display:flex; gap:20px; flex-wrap:wrap; font-size:14px; color:var(--tekst-dytësor);">
-      <span>Total paguar: <strong style="color:var(--gjelbër);">{{ total_gjithsej }}€</strong></span>
+      <span>Total paguar: <strong style="color:var(--gjelbër);">{{ total_gjithsej|euro }}</strong></span>
       {% if nr_papaguara %}
-      <span>Pa paguar: <strong style="color:var(--gabim);">{{ nr_papaguara }} vit{{ nr_papaguara|pluralize:'e' }}{% if borxhi_total > 0 %} ({{ borxhi_total }}€){% endif %}</strong></span>
+      <span>Pa paguar: <strong style="color:var(--gabim);">{{ nr_papaguara }} vit{{ nr_papaguara|pluralize:'e' }}{% if borxhi_total > 0 %} ({{ borxhi_total|euro }}){% endif %}</strong></span>
       {% endif %}
       {% if pagesa_e_fundit %}
       <span>Pagesa e fundit: <strong>{{ pagesa_e_fundit.data_pageses|date:"d M Y" }}</strong></span>
@@ -50,7 +51,7 @@
         </div>
         <div style="font-size:22px; margin:6px 0;">{% if info.ka_paguar %}✅{% else %}❌{% endif %}</div>
         <div style="font-size:12px; font-weight:600; color:{% if info.ka_paguar %}var(--gjelbër){% else %}var(--gabim){% endif %};">
-          {% if info.historike %}paguar (historik){% elif info.ka_paguar %}{{ info.shuma_paguar }}€ paguar{% elif info.borxhi %}{{ info.borxhi }}€ borxh{% else %}papaguar{% endif %}
+          {% if info.historike %}paguar (historik){% elif info.ka_paguar %}{{ info.shuma_paguar|euro }} paguar{% elif info.borxhi %}{{ info.borxhi|euro }} borxh{% else %}papaguar{% endif %}
         </div>
         {% if info.historike %}
         <div style="margin-top:5px; font-size:10px; background:rgba(107,68,35,0.12); color:#6B4423; padding:2px 6px; border-radius:8px; font-weight:600;">Historik</div>

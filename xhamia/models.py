@@ -12,12 +12,28 @@ KURSI_PARACAKTUAR = Decimal('61.5')
 KURSET_PARACAKTUARA = {'EUR': Decimal('61.5'), 'CHF': Decimal('66'), 'USD': Decimal('57')}
 
 
+MONEDHAT_RENDI = ['MKD', 'EUR', 'CHF', 'USD']
+
+
 def formato_shumen(vlera, monedha):
+    """75000 → '75.000 den'; 1380 → '1.380 €'; 69.92 → '69,92 €' (pa ,00 kur është e plotë)."""
     if vlera is None:
         return ''
-    if monedha == 'MKD':
-        return f"{vlera:,.0f} den".replace(',', '.')
-    return f"{vlera:,.2f} {SIMBOLET.get(monedha, monedha)}".replace(',', ' ')
+    vlera = Decimal(vlera)
+    decimale = 0 if monedha == 'MKD' or vlera == vlera.to_integral() else 2
+    teksti = f"{vlera:,.{decimale}f}".replace(',', ' ').replace('.', ',').replace(' ', '.')
+    return f"{teksti} {SIMBOLET.get(monedha, monedha)}"
+
+
+def totalet_sipas_monedhes(pagesat):
+    """Shuma e pagesave (queryset) sipas monedhës në të cilën janë marrë: {'MKD': .., 'EUR': .., ...}."""
+    fusha_eur = pagesat.model.FUSHA_EUR
+    totali = {m: Decimal('0') for m in MONEDHAT_RENDI}
+    for monedha, shuma, mkd, eur in pagesat.values_list('monedha', 'shuma_monedhe', 'shuma_mkd', fusha_eur):
+        if shuma is None:
+            shuma = mkd if monedha == 'MKD' else eur
+        totali[monedha] = totali.get(monedha, Decimal('0')) + (shuma or 0)
+    return totali
 
 
 class MonedhaMixin:
@@ -290,6 +306,10 @@ class PagesaFondi(MonedhaMixin, models.Model):
     lloji = models.CharField(
         max_length=15, choices=LLOJI_CHOICES, default='DHURATE',
         verbose_name='Lloji i Pagesës'
+    )
+    shtepia = models.ForeignKey(
+        'Shtepia', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='pagesat_fondit', verbose_name='Shtëpia',
     )
     emri_donatorit = models.CharField(max_length=100, verbose_name='Emri')
     mbiemri_donatorit = models.CharField(max_length=100, verbose_name='Mbiemri')
