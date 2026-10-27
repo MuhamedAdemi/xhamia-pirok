@@ -304,48 +304,26 @@ class KonfigurimiVarrezaveForm(forms.ModelForm):
         }
 
 
-class HarxhimiForm(forms.ModelForm):
-    muaji = forms.ChoiceField(
-        choices=[('', '—')] + list(MUAJT),
-        required=False, label='Muaji (vetëm për rroge)'
+class HarxhimiForm(ShumaMonedhaMixin, forms.ModelForm):
+    """Harxhimet mbahen vetëm për Fondin dhe Varrezat; antarësia i dorëzohet Myftinisë."""
+    FUSHA_EUR = 'shuma_eur'
+    burimi = forms.ChoiceField(
+        label='Paguhet nga buxheti', choices=Harxhimi.BURIMI_CHOICES[:2], initial='FONDI',
     )
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.fields['stafi'].queryset = User.objects.filter(
-            profili__isnull=False, profili__është_aktiv=True
-        ).order_by('last_name', 'first_name')
-        self.fields['stafi'].required = False
-        self.fields['shuma_mkd'].required = False
-        self.fields['kursi_denar'].required = False
-
-    def clean_muaji(self):
-        val = self.cleaned_data.get('muaji')
-        return int(val) if val else None
-
-    def clean(self):
-        cleaned = super().clean()
-        if cleaned.get('lloji') == 'RROGE' and not cleaned.get('stafi'):
-            self.add_error('stafi', 'Zgjidhni stafin për pagesën e rrogës.')
-        return cleaned
 
     class Meta:
         model = Harxhimi
-        fields = [
-            'lloji', 'burimi', 'stafi', 'muaji', 'viti', 'data_pageses',
-            'pershkrimi', 'shuma_eur', 'shuma_mkd', 'kursi_denar',
-        ]
+        fields = ['lloji', 'burimi', 'data_pageses', 'pershkrimi']
         widgets = {
+            'lloji': forms.TextInput(attrs={'list': 'llojet', 'autocomplete': 'off',
+                                            'placeholder': 'p.sh. Rrymë elektrike, Riparim i çatisë…'}),
             'pershkrimi': forms.Textarea(attrs={'rows': 3}),
             'data_pageses': forms.DateInput(attrs={'type': 'date'}),
         }
         labels = {
-            'lloji': 'Lloji i Harxhimit',
-            'burimi': 'Paguhet nga Buxheti',
-            'stafi': 'Stafi (vetëm për rroge)',
-            'shuma_eur': 'Shuma (€)',
-            'shuma_mkd': 'Shuma (MKD) — Opsionale',
-            'kursi_denar': 'Kursi EUR/MKD',
+            'lloji': 'Lloji i harxhimit',
+            'data_pageses': 'Data',
+            'pershkrimi': 'Përshkrimi',
         }
 
 

@@ -54,7 +54,7 @@
 <div class="grid-4" style="margin-bottom:24px;">
   <div class="stat-card portokalli">
     <div class="stat-label">Harxhimet {{ viti_zgjedhur }}</div>
-    <div class="stat-vlera" style="color:var(--paralajmërim);">{{ total_harxhime|euro }}</div>
+    <div class="stat-vlera" style="color:var(--paralajmërim); font-size:20px;">{{ total_harxhime_m|monedhat }}</div>
     <div class="stat-nën">pagesa te kompania e mirëmbajtjes</div>
   </div>
   <div class="stat-card {% if bilanci >= 0 %}gjelbër{% else %}portokalli{% endif %}">
@@ -139,8 +139,8 @@
         {% for h in harxhimet_e_fundit %}
         <tr>
           <td><a href="{% url 'detaje_harxhimi' h.pk %}">{{ h.nr_fatures }}</a></td>
-          <td><span class="badge-gri">{{ h.get_lloji_display }}</span></td>
-          <td class="font-semibold" style="color:var(--paralajmërim);">{{ h.shuma_eur|euro }}</td>
+          <td><span class="badge-gri">{{ h.lloji }}</span></td>
+          <td class="font-semibold" style="color:var(--paralajmërim);">{{ h.shuma_origjinale }}</td>
           <td class="tekst-dytësor">{{ h.data_pageses|date:"d M Y" }}</td>
         </tr>
         {% empty %}

@@ -47,20 +47,6 @@
   </div>
 </div>
 
-<!-- Harxhimet -->
-<div class="grid-4" style="margin-bottom:24px;">
-  <div class="stat-card portokalli">
-    <div class="stat-label">Harxhimet {{ viti_zgjedhur }}</div>
-    <div class="stat-vlera" style="color:var(--paralajmërim);">{{ total_harxhime|euro }}</div>
-    <div class="stat-nën">rroga, mirëmbajtje, rrymë etj. nga antarësia</div>
-  </div>
-  <div class="stat-card {% if bilanci_antaresia >= 0 %}gjelbër{% else %}portokalli{% endif %}">
-    <div class="stat-label">Bilanci {{ viti_zgjedhur }}</div>
-    <div class="stat-vlera" style="color:{% if bilanci_antaresia >= 0 %}#2D5A1B{% else %}var(--paralajmërim){% endif %};">{{ bilanci_antaresia|euro }}</div>
-    <div class="stat-nën">mbledhur − harxhime</div>
-  </div>
-</div>
-
 <div class="grid-2" style="margin-bottom:24px;">
   <!-- Grafiku mujor -->
   <div class="card">
@@ -167,32 +153,6 @@
   </div>
 </div>
 
-<div class="card" style="margin-top:24px;">
-  <div class="card-header">
-    <h5>💸 Harxhimet e Fundit — nga Antarësia ({{ viti_zgjedhur }})</h5>
-    <a href="{% url 'lista_harxhimeve' %}?viti={{ viti_zgjedhur }}" class="btn-dytësor btn-sm">Shih të gjitha</a>
-  </div>
-  <div style="overflow-x:auto;">
-    <table class="tabela-xhami">
-      <thead>
-        <tr><th>Dokumenti</th><th>Lloji</th><th>Stafi</th><th>Shuma</th><th>Data</th></tr>
-      </thead>
-      <tbody>
-        {% for h in harxhimet_e_fundit %}
-        <tr>
-          <td><a href="{% url 'detaje_harxhimi' h.pk %}">{{ h.nr_fatures }}</a></td>
-          <td><span class="badge-gri">{{ h.get_lloji_display }}</span></td>
-          <td class="tekst-dytësor">{{ h.stafi.get_full_name|default:"—" }}</td>
-          <td class="font-semibold" style="color:var(--paralajmërim);">{{ h.shuma_eur|euro }}</td>
-          <td class="tekst-dytësor">{{ h.data_pageses|date:"d M Y" }}</td>
-        </tr>
-        {% empty %}
-        <tr><td colspan="5" style="text-align:center; padding:24px; color:var(--tekst-dytësor);">Asnjë harxhim ende për {{ viti_zgjedhur }}.</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-</div>
 {% endblock %}
 
 {% block skripte %}

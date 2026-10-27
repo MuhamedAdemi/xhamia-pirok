@@ -6,7 +6,7 @@
 <div class="page-header">
   <div>
     <h2>📤 Harxhimet</h2>
-    <p>Rrogat dhe shpenzimet e xhamisë</p>
+    <p>Shpenzimet e Fondit dhe të Varrezave</p>
   </div>
   <div class="flex items-center gap-3">
     <form method="get" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
@@ -17,19 +17,26 @@
       </select>
       <select name="lloji" onchange="this.form.submit()" style="padding:8px 12px; border:1.5px solid var(--kufi); border-radius:10px; font-family:'Inter',sans-serif; font-size:14px; background:var(--e-bardhë);">
         <option value="">Të gjitha llojet</option>
-        {% for val, emri in lloji_choices %}
-          <option value="{{ val }}" {% if val == lloji %}selected{% endif %}>{{ emri }}</option>
+        {% for l in llojet %}
+          <option value="{{ l }}" {% if l == lloji %}selected{% endif %}>{{ l }}</option>
+        {% endfor %}
+      </select>
+      <select name="burimi" onchange="this.form.submit()" style="padding:8px 12px; border:1.5px solid var(--kufi); border-radius:10px; font-size:14px; background:var(--e-bardhë);">
+        <option value="">Fondi + Varrezat</option>
+        {% for val, emri in burimet %}
+          <option value="{{ val }}" {% if val == burimi %}selected{% endif %}>{{ emri }}</option>
         {% endfor %}
       </select>
     </form>
-    <a href="{% url 'shto_harxhim' %}" class="btn-kryesor">+ Regjistro Harxhim</a>
+    {% if request.user.profili.është_admin %}<a href="{% url 'shto_harxhim' %}" class="btn-kryesor">+ Regjistro Harxhim</a>{% endif %}
   </div>
 </div>
 
 <div class="card" style="margin-bottom:16px; padding:16px 24px; background:rgba(255,59,48,0.04); border:1.5px solid rgba(255,59,48,0.2);">
   <div style="display:flex; justify-content:space-between; align-items:center;">
     <span style="font-size:14px; color:var(--tekst-dytësor);">Total harxhimet {{ viti }}</span>
-    <span style="font-size:24px; font-weight:800; color:var(--gabim);">{{ total|euro }}</span>
+    <span style="text-align:right;"><span style="font-size:22px; font-weight:800; color:var(--gabim);">{{ total_m|monedhat }}</span>
+      <span style="display:block; font-size:12px; color:var(--tekst-dytësor);">≈ {{ total|euro }} gjithsej</span></span>
   </div>
 </div>
 
@@ -40,10 +47,9 @@
         <tr>
           <th>Nr. Dok.</th>
           <th>Lloji</th>
-          <th>Stafi / Përshkrimi</th>
+          <th>Përshkrimi</th>
           <th>Buxheti</th>
           <th>Shuma</th>
-          <th>MKD</th>
           <th>Data</th>
           <th></th>
         </tr>
@@ -52,37 +58,26 @@
         {% for h in harxhimet %}
         <tr>
           <td><a href="{% url 'detaje_harxhimi' h.pk %}" style="font-family:monospace; font-weight:700; color:var(--gabim);">{{ h.nr_fatures }}</a></td>
-          <td>
-            {% if h.lloji == 'RROGE' %}
-            <span style="background:rgba(0,122,255,0.1); color:#007AFF; padding:3px 10px; border-radius:20px; font-size:12px; font-weight:600;">{{ h.get_lloji_display }}</span>
-            {% else %}
-            <span class="badge-gri">{{ h.get_lloji_display }}</span>
-            {% endif %}
-          </td>
-          <td>
-            {% if h.stafi %}{{ h.stafi.get_full_name }}{% if h.emri_muajit %} — {{ h.emri_muajit }} {{ h.viti }}{% endif %}
-            {% elif h.pershkrimi %}{{ h.pershkrimi|truncatechars:45 }}
-            {% else %}—{% endif %}
-          </td>
+          <td><span class="badge-gri">{{ h.lloji }}</span></td>
+          <td>{{ h.pershkrimi|default:"—"|truncatechars:50 }}</td>
           <td>
             {% if h.burimi == 'ANTARESIA' %}
-            <span class="badge-gjelbër">Antarësia</span>
+            <span class="badge-gri">Antarësia (e vjetër)</span>
             {% elif h.burimi == 'VARREZAT' %}
             <span class="badge-gri">Varrezat</span>
             {% else %}
             <span style="background:rgba(107,68,35,0.1); color:var(--kafe); padding:3px 10px; border-radius:20px; font-size:12px; font-weight:600;">Fondi</span>
             {% endif %}
           </td>
-          <td style="font-weight:700; color:var(--gabim);">{{ h.shuma_eur|euro }}</td>
-          <td class="tekst-dytësor" style="font-size:12px;">{% if h.shuma_mkd %}{{ h.shuma_mkd }}{% else %}—{% endif %}</td>
+          <td style="font-weight:700; color:var(--gabim);">{{ h.shuma_origjinale }}</td>
           <td class="tekst-dytësor">{{ h.data_pageses|date:"d M Y" }}</td>
           <td>
-            <a href="{% url 'fshi_harxhimin' h.pk %}" class="btn-rrezik btn-sm">Fshi</a>
+            {% if request.user.profili.është_admin %}<a href="{% url 'fshi_harxhimin' h.pk %}" class="btn-rrezik btn-sm">Fshi</a>{% endif %}
           </td>
         </tr>
         {% empty %}
         <tr>
-          <td colspan="8" style="text-align:center; padding:40px; color:var(--tekst-dytësor);">
+          <td colspan="7" style="text-align:center; padding:40px; color:var(--tekst-dytësor);">
             Nuk ka harxhime të regjistruara për {{ viti }}.
           </td>
         </tr>

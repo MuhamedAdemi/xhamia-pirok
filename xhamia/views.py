@@ -426,6 +426,7 @@ def dashboard_varrezat(request):
         'total_mbledhur': total_mbledhur,
         'total_mbledhur_m': totalet_sipas_monedhes(PagesaVarrezave.objects.filter(data_pageses__year=viti_zgjedhur)),
         'total_harxhime': total_harxhime,
+        'total_harxhime_m': totalet_sipas_monedhes(Harxhimi.objects.filter(data_pageses__year=viti_zgjedhur, burimi='VARREZAT')),
         'bilanci': bilanci,
         'harxhimet_e_fundit': harxhimet_e_fundit,
         'pagesat_e_fundit': pagesat_e_fundit,
@@ -1420,22 +1421,34 @@ def konfigurimi_sistemit(request):
 
 # ─── Harxhimet ───────────────────────────────────────────────────────────────
 
+def _llojet_e_harxhimeve():
+    ekzistuese = Harxhimi.objects.order_by().values_list('lloji', flat=True).distinct()
+    return sorted(set(Harxhimi.LLOJET_SUGJERIME) | set(ekzistuese), key=str.lower)
+
+
 @login_required
 def lista_harxhimeve(request):
     if not mund_shikoje(request.user):
         messages.error(request, 'Aksesi i refuzuar.')
         return redirect('dashboard')
-    viti = int(request.GET.get('viti', timezone.now().year))
+    try:
+        viti = int(request.GET.get('viti', timezone.now().year))
+    except ValueError:
+        viti = timezone.now().year
     lloji = request.GET.get('lloji', '')
-    harxhimet = Harxhimi.objects.select_related('stafi', 'arktar').filter(viti=viti)
+    burimi = request.GET.get('burimi', '')
+    harxhimet = Harxhimi.objects.select_related('arktar').filter(data_pageses__year=viti)
     if lloji:
         harxhimet = harxhimet.filter(lloji=lloji)
-    total = harxhimet.aggregate(s=Sum('shuma_eur'))['s'] or 0
+    if burimi:
+        harxhimet = harxhimet.filter(burimi=burimi)
     return render(request, 'harxhimet/lista.html', {
-        'harxhimet': harxhimet, 'viti': viti, 'lloji': lloji,
-        'total': total,
+        'harxhimet': harxhimet, 'viti': viti, 'lloji': lloji, 'burimi': burimi,
+        'total': harxhimet.aggregate(s=Sum('shuma_eur'))['s'] or 0,
+        'total_m': totalet_sipas_monedhes(harxhimet),
         'vitit_lista': list(range(2015, timezone.now().year + 2)),
-        'lloji_choices': Harxhimi.LLOJI_CHOICES,
+        'llojet': _llojet_e_harxhimeve(),
+        'burimet': Harxhimi.BURIMI_CHOICES[:2],
         'faqja_aktive': 'harxhimet',
     })
 
@@ -1444,16 +1457,20 @@ def lista_harxhimeve(request):
 def shto_harxhim(request):
     if not është_admin(request.user):
         messages.error(request, 'Nuk keni leje.')
-        return redirect('dashboard_buxheti')
-    form = HarxhimiForm(request.POST or None)
+        return redirect('lista_harxhimeve')
+    form = HarxhimiForm(request.POST or None, initial={
+        'data_pageses': timezone.now().date(), 'burimi': request.GET.get('burimi', 'FONDI'),
+    })
     if request.method == 'POST' and form.is_valid():
-        harxhim = form.save(commit=False)
+        harxhim = form.apliko_shumen(form.save(commit=False))
+        harxhim.viti = harxhim.data_pageses.year
         harxhim.arktar = request.user
         harxhim.save()
         messages.success(request, f'Harxhimi {harxhim.nr_fatures} u regjistrua me sukses.')
         return redirect('detaje_harxhimi', pk=harxhim.pk)
     return render(request, 'harxhimet/forma.html', {
-        'form': form, 'titulli': 'Regjistro Harxhim', 'faqja_aktive': 'harxhimet',
+        'form': form, 'titulli': 'Regjistro Harxhim', 'llojet': _llojet_e_harxhimeve(),
+        'faqja_aktive': 'harxhimet',
     })
 
 
@@ -1528,15 +1545,11 @@ def dashboard_buxheti(request):
         viti=viti_zgjedhur, burimi='FONDI'
     ).order_by('-data_pageses')[:6]
 
-    sipas_llojit_fond = []
-    for lloji_val, emri in Harxhimi.LLOJI_CHOICES:
-        if lloji_val == 'RROGE':
-            continue
-        shuma = Harxhimi.objects.filter(
-            viti=viti_zgjedhur, lloji=lloji_val, burimi='FONDI'
-        ).aggregate(s=Sum('shuma_eur'))['s'] or 0
-        if shuma > 0:
-            sipas_llojit_fond.append({'lloji': emri, 'shuma': float(shuma)})
+    sipas_llojit_fond = [
+        {'lloji': r['lloji'], 'shuma': float(r['s'])}
+        for r in Harxhimi.objects.filter(data_pageses__year=viti_zgjedhur, burimi='FONDI')
+        .values('lloji').annotate(s=Sum('shuma_eur')).order_by('-s') if r['s']
+    ]
 
     data_10_fond = []
     for v in range(viti_aktual - 9, viti_aktual + 1):
@@ -1558,6 +1571,7 @@ def dashboard_buxheti(request):
         'hyra_fond': hyra_fond,
         'hyra_fond_m': totalet_sipas_monedhes(PagesaFondi.objects.filter(data_pageses__year=viti_zgjedhur)),
         'sh_fond': sh_fond,
+        'sh_fond_m': totalet_sipas_monedhes(Harxhimi.objects.filter(data_pageses__year=viti_zgjedhur, burimi='FONDI')),
         'balanca_fond': balanca_fond,
         'shpenzimet_e_fundit': shpenzimet_e_fundit,
         'sipas_llojit_fond_json': json.dumps(sipas_llojit_fond),

@@ -455,20 +455,18 @@ def gjenero_nr_fature_harxhim():
     return f"{prefix}{nr:04d}"
 
 
-class Harxhimi(models.Model):
-    LLOJI_CHOICES = [
-        ('RROGE', 'Rroge Stafi'),
-        ('MIREMBAJTJE', 'Mirëmbajtje'),
-        ('RRYME', 'Rrymë Elektrike'),
-        ('UJI', 'Ujë'),
-        ('NXEMJE', 'Nxemje / Naftë'),
-        ('INTERNET', 'Internet'),
-        ('TJETER', 'Tjetër'),
+class Harxhimi(MonedhaMixin, models.Model):
+    FUSHA_EUR = 'shuma_eur'
+    URL_DETAJE = 'detaje_harxhimi'
+    # Lloji shkruhet lirisht; këto janë vetëm sugjerime te forma.
+    LLOJET_SUGJERIME = [
+        'Mirëmbajtje', 'Rrymë elektrike', 'Ujë', 'Nxemje / Naftë', 'Internet', 'Pastrim',
+        'Riparime', 'Material ndërtimi', 'Aktivitet', 'Mirëmbajtja e varrezave', 'Tjetër',
     ]
     BURIMI_CHOICES = [
-        ('ANTARESIA', 'Antarësia (Rrogat)'),
         ('FONDI', 'Fondi i Xhamisë'),
         ('VARREZAT', 'Varrezat (Mirëmbajtja)'),
+        ('ANTARESIA', 'Antarësia (e vjetër)'),
     ]
     MUAJT_MAP = {
         1: 'Janar', 2: 'Shkurt', 3: 'Mars', 4: 'Prill',
@@ -480,7 +478,7 @@ class Harxhimi(models.Model):
         max_length=25, unique=True, default=gjenero_nr_fature_harxhim,
         verbose_name='Nr. Dokumentit'
     )
-    lloji = models.CharField(max_length=20, choices=LLOJI_CHOICES, verbose_name='Lloji')
+    lloji = models.CharField(max_length=100, verbose_name='Lloji')
     burimi = models.CharField(
         max_length=20, choices=BURIMI_CHOICES, default='FONDI',
         verbose_name='Buxheti'
@@ -506,6 +504,10 @@ class Harxhimi(models.Model):
         User, on_delete=models.PROTECT,
         related_name='harxhimet_regjistruara', verbose_name='Regjistruar nga'
     )
+    monedha = models.CharField(max_length=3, choices=MONEDHA_CHOICES, default='EUR', verbose_name='Paguar në')
+    shuma_monedhe = models.DecimalField(
+        max_digits=12, decimal_places=2, null=True, blank=True, verbose_name='Shuma në monedhën e pagesës'
+    )
     data_regjistrimit = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -513,8 +515,11 @@ class Harxhimi(models.Model):
         verbose_name = 'Harxhim'
         verbose_name_plural = 'Harxhimet'
 
+    def get_lloji_display(self):
+        return self.lloji
+
     def __str__(self):
-        return f"{self.nr_fatures} — {self.get_lloji_display()} — {self.shuma_eur}€"
+        return f"{self.nr_fatures} — {self.lloji} — {self.shuma_origjinale}"
 
     @property
     def emri_muajit(self):

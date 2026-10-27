@@ -31,37 +31,19 @@
       <span style="font-size:28px;">🟢</span>
       <div>
         <div style="font-size:18px; font-weight:800; color:var(--gjelbër);">Buxheti i Antarësisë</div>
-        <div style="font-size:12px; color:var(--tekst-dytësor);">Të hyrat nga anëtarësia · Shpenzime: Rrogat e stafit</div>
-      </div>
-    </div>
-    <div style="text-align:right;">
-      <div style="font-size:11px; color:var(--tekst-dytësor); font-weight:500; text-transform:uppercase; letter-spacing:.5px;">Balanca {{ viti_zgjedhur }}</div>
-      <div style="font-size:28px; font-weight:800; color:{% if balanca_ant >= 0 %}var(--gjelbër){% else %}var(--gabim){% endif %};">
-        {% if balanca_ant >= 0 %}+{% endif %}{{ balanca_ant|euro }}
+        <div style="font-size:12px; color:var(--tekst-dytësor);">Vetëm të hyrat — paratë i dorëzohen Myftinisë (rrogat i paguan Myftinia)</div>
       </div>
     </div>
   </div>
 
   <div style="padding:20px 24px;">
     <!-- 3 stat cards -->
-    <div class="grid-3" style="margin-bottom:20px;">
+    <div class="grid-2" style="margin-bottom:20px;">
       <div class="stat-card gjelbër">
         <div class="stat-label">Të Hyrat Antarësia {{ viti_zgjedhur }}</div>
         <div class="stat-vlera gjelbër" style="font-size:20px;">{{ hyra_ant_m|monedhat }}</div>
         <div class="stat-nën" style="font-weight:600;">≈ {{ hyra_ant|euro }}</div>
         <div class="stat-nën">Pagesat e anëtarësisë</div>
-      </div>
-      <div class="stat-card" style="background:rgba(255,59,48,0.04); border-color:rgba(255,59,48,0.15);">
-        <div class="stat-label">Rrogat e Stafit {{ viti_zgjedhur }}</div>
-        <div class="stat-vlera" style="color:var(--gabim);">{{ sh_ant|euro }}</div>
-        <div class="stat-nën">Nga buxheti i antarësisë</div>
-      </div>
-      <div class="stat-card" style="background:{% if balanca_ant >= 0 %}var(--gjelbër-shumë-i-çelur){% else %}rgba(255,59,48,0.04){% endif %}; border-color:{% if balanca_ant >= 0 %}var(--gjelbër){% else %}var(--gabim){% endif %};">
-        <div class="stat-label">Balanca Antarësia</div>
-        <div class="stat-vlera" style="color:{% if balanca_ant >= 0 %}var(--gjelbër){% else %}var(--gabim){% endif %};">
-          {% if balanca_ant >= 0 %}+{% endif %}{{ balanca_ant|euro }}
-        </div>
-        <div class="stat-nën">Pas pagimit të rrogave</div>
       </div>
     </div>
 
@@ -71,31 +53,6 @@
         <div class="card-header"><h5>📊 Antarësia 10 Vjet</h5></div>
         <div class="card-body">
           <canvas id="grafikuAnt" height="220"></canvas>
-        </div>
-      </div>
-      <div class="card" style="border:1.5px solid rgba(45,90,27,0.2);">
-        <div class="card-header">
-          <h5>👔 Rrogat e Fundit — {{ viti_zgjedhur }}</h5>
-          <a href="{% url 'lista_harxhimeve' %}?viti={{ viti_zgjedhur }}&lloji=RROGE" class="btn-dytësor btn-sm">Shih të gjitha</a>
-        </div>
-        <div style="overflow-x:auto;">
-          <table class="tabela-xhami">
-            <thead>
-              <tr><th>Nr. Dok.</th><th>Stafi</th><th>Muaji</th><th>Shuma</th></tr>
-            </thead>
-            <tbody>
-              {% for h in rrogat_e_fundit %}
-              <tr>
-                <td><a href="{% url 'detaje_harxhimi' h.pk %}" style="font-family:monospace; font-size:12px; color:var(--gabim); font-weight:700;">{{ h.nr_fatures }}</a></td>
-                <td>{% if h.stafi %}{{ h.stafi.get_full_name }}{% else %}—{% endif %}</td>
-                <td class="tekst-dytësor">{% if h.emri_muajit %}{{ h.emri_muajit }} {{ h.viti }}{% else %}—{% endif %}</td>
-                <td style="font-weight:700; color:var(--gabim);">{{ h.shuma_eur|euro }}</td>
-              </tr>
-              {% empty %}
-              <tr><td colspan="4" style="text-align:center; padding:20px; color:var(--tekst-dytësor); font-size:13px;">Nuk ka rrogë të regjistruar.</td></tr>
-              {% endfor %}
-            </tbody>
-          </table>
         </div>
       </div>
     </div>
@@ -136,7 +93,7 @@
       </div>
       <div class="stat-card" style="background:rgba(255,59,48,0.04); border-color:rgba(255,59,48,0.15);">
         <div class="stat-label">Shpenzimet Fondi {{ viti_zgjedhur }}</div>
-        <div class="stat-vlera" style="color:var(--gabim);">{{ sh_fond|euro }}</div>
+        <div class="stat-vlera" style="color:var(--gabim); font-size:20px;">{{ sh_fond_m|monedhat }}</div>
         <div class="stat-nën">Mirëmbajtja dhe shërbimet</div>
       </div>
       <div class="stat-card" style="background:{% if balanca_fond >= 0 %}rgba(107,68,35,0.06){% else %}rgba(255,59,48,0.04){% endif %}; border-color:{% if balanca_fond >= 0 %}var(--kafe){% else %}var(--gabim){% endif %};">
@@ -170,8 +127,8 @@
               {% for h in shpenzimet_e_fundit %}
               <tr>
                 <td><a href="{% url 'detaje_harxhimi' h.pk %}" style="font-family:monospace; font-size:12px; color:var(--gabim); font-weight:700;">{{ h.nr_fatures }}</a></td>
-                <td><span class="badge-gri">{{ h.get_lloji_display }}</span></td>
-                <td style="font-weight:700; color:var(--gabim);">{{ h.shuma_eur|euro }}</td>
+                <td><span class="badge-gri">{{ h.lloji }}</span></td>
+                <td style="font-weight:700; color:var(--gabim);">{{ h.shuma_origjinale }}</td>
                 <td class="tekst-dytësor">{{ h.data_pageses|date:"d M Y" }}</td>
               </tr>
               {% empty %}

@@ -739,3 +739,40 @@ class HyrjaLlogaritePortaliTest(TestCase):
         r = self.client.post(reverse('harruar_fjalekalimin'), {'shtepia': '9999'}, follow=True)
         self.assertContains(r, 'kontaktoni arkëtarin')
         self.assertEqual(post.call_count, 1)
+
+
+class HarxhimetMonedhaTest(TestCase):
+    def setUp(self):
+        self.admin = User.objects.create_user('admin', password='x')
+        ProfilStafi.objects.create(user=self.admin, rol='ADMIN')
+        self.client.force_login(self.admin)
+
+    def test_harxhim_ne_denar_me_lloj_te_lire(self):
+        from .models import Harxhimi
+        forma = self.client.get(reverse('shto_harxhim'))
+        self.assertContains(forma, '<datalist id="llojet">')
+        self.assertNotContains(forma, 'Antarësia (e vjetër)')    # antarësia nuk ka harxhime
+        r = self.client.post(reverse('shto_harxhim'), {
+            'lloji': 'Riparimi i çatisë', 'burimi': 'FONDI', 'data_pageses': '2026-10-28',
+            'pershkrimi': 'Mjeshtri', 'shuma_hyrese': '12300', 'monedha': 'MKD', 'kursi': '61.5',
+        })
+        self.assertEqual(r.status_code, 302)
+        h = Harxhimi.objects.get()
+        self.assertEqual((h.lloji, h.monedha, h.shuma_origjinale, h.shuma_eur, h.viti),
+                         ('Riparimi i çatisë', 'MKD', '12.300 den', Decimal('200.00'), 2026))
+        self.client.post(reverse('shto_harxhim'), {
+            'lloji': 'Rrymë elektrike', 'burimi': 'VARREZAT', 'data_pageses': '2026-10-28',
+            'shuma_hyrese': '50', 'monedha': 'CHF', 'kursi': '66',
+        })
+        lista = self.client.get(reverse('lista_harxhimeve') + '?viti=2026')
+        self.assertContains(lista, '12.300 den · 50 CHF')
+        self.assertContains(lista, 'Riparimi i çatisë')
+        self.assertEqual(len(self.client.get(reverse('lista_harxhimeve') + '?viti=2026&burimi=VARREZAT').context['harxhimet']), 1)
+        self.assertEqual(self.client.get(reverse('dashboard_buxheti') + '?viti=2026').status_code, 200)
+        self.assertNotContains(self.client.get(reverse('dashboard')), 'Harxhimet e Fundit')
+
+    def test_regjistri_9_muaj(self):
+        from . import raporti
+        self.assertEqual(raporti.muajt_e_periudhes('n9'), (1, 9))
+        r = self.client.get(reverse('regjistri') + '?lloji=antaresia&viti=2026&periudha=n9')
+        self.assertContains(r, '9 muajt e parë')

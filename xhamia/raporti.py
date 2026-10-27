@@ -25,13 +25,16 @@ LLOJET = {
 }
 
 PERIUDHAT = (
-    [('vit', 'Gjithë viti'), ('h1', 'Gjashtëmujori I (Jan–Qer)'), ('h2', 'Gjashtëmujori II (Kor–Dhj)')]
-    + [(f'q{i}', f'Tremujori {r}') for i, r in zip(range(1, 5), ['I (Jan–Mar)', 'II (Pri–Qer)', 'III (Kor–Sht)', 'IV (Tet–Dhj)'])]
+    [('vit', 'Gjithë viti (12 muaj)'), ('n9', '9 muajt e parë (Jan–Sht)'), ('h1', '6 muajt e parë (Jan–Qer)'),
+     ('h2', 'Gjashtëmujori II (Kor–Dhj)')]
+    + [(f'q{i}', f'Tremujori {r}') for i, r in zip(range(1, 5), ['I — 3 muajt e parë (Jan–Mar)', 'II (Pri–Qer)', 'III (Kor–Sht)', 'IV (Tet–Dhj)'])]
     + [(f'm{i}', MUAJT[i - 1]) for i in range(1, 13)]
 )
 
 
 def muajt_e_periudhes(periudha):
+    if periudha == 'n9':
+        return 1, 9
     if periudha.startswith('h'):
         nga = 1 if periudha == 'h1' else 7
         return nga, nga + 5
