@@ -1,0 +1,9 @@
+{% if portali %}
+    <div style="margin-top:20px; padding:14px 16px; background:#E8F2E3; border-radius:10px; font-size:14px; color:#1C1C1E;">
+      <strong>🔑 Pagesat tuaja mund t'i shikoni gjithmonë online:</strong><br>
+      <a href="{{ portali.adresa }}" style="color:#2D5A1B;">{{ portali.adresa }}</a><br>
+      Përdoruesi: <strong style="font-family:monospace;">{{ portali.perdoruesi }}</strong>
+      {% if portali.fjalekalimi %} · Fjalëkalimi: <strong style="font-family:monospace;">{{ portali.fjalekalimi }}</strong><br>
+      <span style="font-size:12px; color:#6E6E73;">Fjalëkalimin mund ta ndryshoni pasi të hyni, te "Ndrysho Fjalëkalimin".</span>{% endif %}
+    </div>
+{% endif %}

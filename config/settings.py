@@ -112,6 +112,9 @@ SMS_GATEWAY_URL = 'https://api.sms-gate.app/3rdparty/v1/messages'
 SMS_GATEWAY_USER = os.environ.get('SMS_GATEWAY_USER', '')
 SMS_GATEWAY_PASSWORD = os.environ.get('SMS_GATEWAY_PASSWORD', '')
 
+# Adresa publike e aplikacionit (në SMS/email për portalin e shtëpive)
+SITE_URL = os.environ.get('SITE_URL', 'https://xhamiapirok.pythonanywhere.com')
+
 # Local settings override (gitignored - contains passwords)
 # Nëse skedari mungon ose ka gabim, faqja vazhdon të punojë — fjalëkalimet
 # mund të vendosen edhe nga faqja "SMS & Email" brenda aplikacionit.

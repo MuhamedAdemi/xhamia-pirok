@@ -6,6 +6,7 @@ urlpatterns = [
     # Auth
     path('login/', views.login_view, name='login'),
     path('logout/', views.logout_view, name='logout'),
+    path('fjalekalimi/harruar/', views.harruar_fjalekalimin, name='harruar_fjalekalimin'),
 
     # Rikuperimi i fjalëkalimit (me email)
     path('fjalekalimi/rivendos/', auth_views.PasswordResetView.as_view(

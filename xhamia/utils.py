@@ -2,6 +2,8 @@ from django.core.mail import EmailMessage
 from django.template.loader import render_to_string
 from django.conf import settings
 
+from . import llogarite
+
 
 def subjekti_fatures(emri, pagese, lloji):
     """P.sh. "Muhamed Mesud Ademi — Bl 1100 Nr 046386 — Antarësia 2024–2026 — Xhamia Pirok"
@@ -15,7 +17,12 @@ def subjekti_fatures(emri, pagese, lloji):
     return ' — '.join(p for p in pjeset if p)
 
 
-def _dergo(subjekti, template, pagese, email_i_paguesit, request):
+def _perdoruesi(request):
+    user = getattr(request, 'user', None)
+    return user if user is not None and user.is_authenticated else None
+
+
+def _dergo(subjekti, template, pagese, email_i_paguesit, request, shtepi=None):
     """Fatura shkon gjithmonë te emailat zyrtarë (arkëtari, këshilli, imami) — si arkiv dhe për monitorim —
     dhe te paguesi kur ka email. Kthen listën e marrësve."""
     marrësit = list(dict.fromkeys(filter(None, list(settings.EMAILET_ZYRTARE) + [email_i_paguesit])))
@@ -23,7 +30,10 @@ def _dergo(subjekti, template, pagese, email_i_paguesit, request):
         return []
     msg = EmailMessage(
         subject=subjekti,
-        body=render_to_string(template, {'pagese': pagese}, request=request),
+        body=render_to_string(template, {
+            'pagese': pagese,
+            'portali': llogarite.info(shtepi, _perdoruesi(request)) if shtepi else None,
+        }, request=request),
         from_email=settings.DEFAULT_FROM_EMAIL,
         to=marrësit,
     )
@@ -35,7 +45,7 @@ def _dergo(subjekti, template, pagese, email_i_paguesit, request):
 def dërgo_email_antaresia(pagese, request):
     lloji = f'Antarësia {pagese.vitet_tekst}'
     return _dergo(subjekti_fatures(pagese.shtepia.emri_i_plote, pagese, lloji),
-                  'email/fatura_antaresia.html', pagese, pagese.shtepia.email, request)
+                  'email/fatura_antaresia.html', pagese, pagese.shtepia.email, request, pagese.shtepia)
 
 
 def dërgo_email_fondi(pagese, request):
@@ -43,10 +53,10 @@ def dërgo_email_fondi(pagese, request):
     lloji = f'Aktivitet: {pagese.arsyeja}' if pagese.lloji == 'AKTIVITET' and pagese.arsyeja else (
         'Aktivitet' if pagese.lloji == 'AKTIVITET' else 'Fondi')
     return _dergo(subjekti_fatures(emri, pagese, lloji), 'email/fatura_fondi.html', pagese,
-                  pagese.email_donatorit, request)
+                  pagese.email_donatorit, request, pagese.shtepia)
 
 
 def dërgo_email_varrezat(pagese, request):
     lloji = f'Varrezat {pagese.vitet_tekst}'
     return _dergo(subjekti_fatures(pagese.shtepia.emri_i_plote, pagese, lloji),
-                  'email/fatura_varrezat.html', pagese, pagese.shtepia.email, request)
+                  'email/fatura_varrezat.html', pagese, pagese.shtepia.email, request, pagese.shtepia)

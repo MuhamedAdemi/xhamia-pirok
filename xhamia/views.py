@@ -35,7 +35,7 @@ from .utils import dërgo_email_antaresia, dërgo_email_fondi, dërgo_email_varr
 from . import sms
 from .importi_pdf import importo
 from .importi_excel import importo_excel
-from . import raporti, backup, letrat
+from . import raporti, backup, letrat, llogarite
 from django.core.mail import EmailMessage
 from pathlib import Path
 from .gjendja import gjendja_e_shtepive, vitet_tekst
@@ -181,9 +181,11 @@ def login_view(request):
         return redirect('dashboard')
     form = LoginForm(request.POST or None)
     if request.method == 'POST' and form.is_valid():
+        emri = form.cleaned_data['username'].strip()
+        ekziston = User.objects.filter(username__iexact=emri).values_list('username', flat=True).first()
         user = authenticate(
             request,
-            username=form.cleaned_data['username'],
+            username=ekziston or emri,
             password=form.cleaned_data['password']
         )
         if user:
@@ -199,6 +201,30 @@ def login_view(request):
             return redirect('dashboard')
         messages.error(request, 'Emri i përdoruesit ose fjalëkalimi është i gabuar.')
     return render(request, 'auth/login.html', {'form': form})
+
+
+def harruar_fjalekalimin(request):
+    """Fjalëkalimi i harruar i portalit të shtëpisë: dërgohet një fjalëkalim i përkohshëm me SMS te numri
+    i regjistruar i shtëpisë (e merr vetëm pronari i telefonit). Pa numër → kontaktoni arkëtarin."""
+    if request.method == 'POST':
+        teksti = request.POST.get('shtepia', '').strip().lower()
+        shifrat = ''.join(c for c in teksti if c.isdigit())
+        shtepi = Shtepia.objects.filter(nr_shtepise=shifrat.zfill(4), është_aktiv=True).first() if shifrat else None
+        if shtepi and shtepi.nr_telefoni_kryesor and cache.add(f'harruar_fjalekalimin_{shtepi.pk}', True, 15 * 60):
+            profil = llogarite.siguro_llogarine(shtepi)
+            fjalekalimi = llogarite.fjalekalim_i_perkohshem()
+            mesazh = sms.dergo_sms(
+                shtepi.nr_telefoni_kryesor,
+                f'Xhamia Pirok: Fjalekalimi juaj i ri per portalin eshte {fjalekalimi} '
+                f'(perdoruesi {profil.user.username}). Ndryshojeni pasi te hyni.',
+                'KONFIRMIM', None, shtepia=shtepi, ttl=sms.AFATI_PERGJIGJES, prioriteti=100,
+            )
+            if mesazh.statusi != 'DESHTOI':
+                llogarite.rivendos(profil, fjalekalimi)
+        messages.info(request, 'Nëse kjo shtëpi ka numër telefoni të regjistruar, fjalëkalimi i ri u dërgua me SMS '
+                               'brenda pak minutash. Nëse nuk ju vjen, kontaktoni arkëtarin e xhamisë.')
+        return redirect('harruar_fjalekalimin')
+    return render(request, 'auth/harruar.html')
 
 
 @login_required
@@ -1226,7 +1252,8 @@ def dergo_sms_antaresia(request, pk):
     if request.method == 'POST':
         url = reverse('detaje_pagesa_antaresia', args=[pk])
         return _dergo_sms_pagese(request, pagese.shtepia.nr_telefoni_kryesor,
-                                 sms.teksti_antaresia(pagese), pagese.shtepia, url) or redirect(url)
+                                 sms.teksti_antaresia(pagese) + llogarite.rreshti_sms(pagese.shtepia, request.user),
+                                 pagese.shtepia, url) or redirect(url)
     return redirect('detaje_pagesa_antaresia', pk=pk)
 
 
@@ -1238,7 +1265,10 @@ def dergo_sms_fondi(request, pk):
     pagese = get_object_or_404(PagesaFondi, pk=pk)
     if request.method == 'POST':
         url = reverse('detaje_pagesa_fondi', args=[pk])
-        return _dergo_sms_pagese(request, pagese.nr_telefoni, sms.teksti_fondi(pagese), None, url) or redirect(url)
+        teksti = sms.teksti_fondi(pagese)
+        if pagese.shtepia:
+            teksti += llogarite.rreshti_sms(pagese.shtepia, request.user)
+        return _dergo_sms_pagese(request, pagese.nr_telefoni, teksti, pagese.shtepia, url) or redirect(url)
     return redirect('detaje_pagesa_fondi', pk=pk)
 
 
@@ -1251,7 +1281,8 @@ def dergo_sms_varrezat(request, pk):
     if request.method == 'POST':
         url = reverse('detaje_pagesa_varrezat', args=[pk])
         return _dergo_sms_pagese(request, pagese.shtepia.nr_telefoni_kryesor,
-                                 sms.teksti_varrezat(pagese), pagese.shtepia, url) or redirect(url)
+                                 sms.teksti_varrezat(pagese) + llogarite.rreshti_sms(pagese.shtepia, request.user),
+                                 pagese.shtepia, url) or redirect(url)
     return redirect('detaje_pagesa_varrezat', pk=pk)
 
 
@@ -1554,8 +1585,11 @@ def shto_staf(request):
     form = StafForm(request.POST or None)
     if request.method == 'POST' and form.is_valid():
         cd = form.cleaned_data
-        if User.objects.filter(username=cd['username']).exists():
+        cd['username'] = cd['username'].strip().lower()
+        if User.objects.filter(username__iexact=cd['username']).exists():
             form.add_error('username', 'Ky emër përdoruesi ekziston tashmë.')
+        elif len(cd.get('password') or '') < 6:
+            form.add_error('password', 'Shkruani një fjalëkalim me së paku 6 karaktere.')
         else:
             user = User.objects.create_user(
                 username=cd['username'],
@@ -1782,6 +1816,7 @@ def portali_shtepi(request):
         'total_gjithsej': total_gjithsej,
         'pagesa_e_fundit': pagesa_e_fundit,
         'portali_shtepi': True,
+        'fjalekalimi_fillestar': profili.fjalekalimi_fillestar,
     })
 
 
@@ -1804,6 +1839,7 @@ def ndrysho_fjalekalim_shtepi(request):
         else:
             request.user.set_password(fjalëkalim_ri)
             request.user.save()
+            ProfilShtepi.objects.filter(user=request.user).update(fjalekalimi_fillestar=False)
             from django.contrib.auth import update_session_auth_hash
             update_session_auth_hash(request, request.user)
             messages.success(request, 'Fjalëkalimi u ndryshua me sukses.')
@@ -1814,41 +1850,20 @@ def ndrysho_fjalekalim_shtepi(request):
 
 @login_required
 def shto_llogari_shtepi(request, pk):
+    """Krijon llogarinë e portalit (sh0254 / 123456) ose ia rivendos fjalëkalimin në 123456."""
     if not është_admin(request.user):
         messages.error(request, 'Nuk keni leje.')
         return redirect('lista_shtepive')
     shtepi = get_object_or_404(Shtepia, pk=pk)
-
     if request.method == 'POST':
         if hasattr(shtepi, 'llogaria'):
-            fjalëkalimi_ri = request.POST.get('fjalëkalimi_ri', '').strip()
-            if len(fjalëkalimi_ri) < 6:
-                messages.error(request, 'Fjalëkalimi duhet të jetë të paktën 6 karaktere.')
-            else:
-                shtepi.llogaria.user.set_password(fjalëkalimi_ri)
-                shtepi.llogaria.user.save()
-                messages.success(request, f'Fjalëkalimi për sh{shtepi.nr_shtepise} u rivendos.')
+            llogarite.rivendos(shtepi.llogaria)
+            messages.success(request, f'Fjalëkalimi i {shtepi.llogaria.user.username} u rivendos në '
+                                      f'{llogarite.FJALEKALIMI_FILLESTAR}.')
         else:
-            fjalëkalimi = request.POST.get('fjalëkalimi', '').strip()
-            if len(fjalëkalimi) < 6:
-                messages.error(request, 'Fjalëkalimi duhet të jetë të paktën 6 karaktere.')
-            else:
-                username = f'sh{shtepi.nr_shtepise}'
-                if User.objects.filter(username=username).exists():
-                    messages.error(request, f'Username "{username}" ekziston tashmë.')
-                else:
-                    user = User.objects.create_user(
-                        username=username,
-                        password=fjalëkalimi,
-                        first_name=shtepi.emri_kryefamiljarit,
-                        last_name=shtepi.mbiemri_kryefamiljarit,
-                        email=shtepi.email or '',
-                    )
-                    profil = ProfilShtepi(shtepia=shtepi, krijuar_nga=request.user)
-                    profil.user = user
-                    profil.save()
-                    messages.success(request, f'Llogaria u krijua. Username: {username}')
-
+            profil = llogarite.siguro_llogarine(shtepi, request.user)
+            messages.success(request, f'Llogaria u krijua — përdoruesi: {profil.user.username}, '
+                                      f'fjalëkalimi: {llogarite.FJALEKALIMI_FILLESTAR}')
     return redirect('detaje_shtepia', pk=pk)
 
 

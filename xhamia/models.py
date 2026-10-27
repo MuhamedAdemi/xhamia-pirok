@@ -91,7 +91,7 @@ class ProfilStafi(models.Model):
     ROL_CHOICES = [
         ('ADMIN', 'Administrator'),
         ('STAF', 'Staf'),
-        ('MONITORUES', 'Monitorues (vetëm shikim)'),
+        ('MONITORUES', 'Monitorues'),
     ]
 
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profili')
@@ -206,6 +206,9 @@ class Shtepia(models.Model):
 class ProfilShtepi(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profili_shtepi')
     shtepia = models.OneToOneField('Shtepia', on_delete=models.CASCADE, related_name='llogaria')
+    fjalekalimi_fillestar = models.BooleanField(
+        default=False, help_text='Po — familja ende përdor fjalëkalimin fillestar/të përkohshëm.',
+    )
     krijuar_nga = models.ForeignKey(
         User, on_delete=models.SET_NULL, null=True, blank=True,
         related_name='llogarite_shtepive_krijuara'

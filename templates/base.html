@@ -130,7 +130,7 @@
       <div class="user-avatar">{{ request.user.first_name|first }}{{ request.user.last_name|first }}</div>
       <div class="user-info">
         <p>{{ request.user.get_full_name }}</p>
-        <span>{% if request.user.profili.pozita %}{{ request.user.profili.pozita }}{% else %}{{ request.user.profili.get_rol_display }}{% endif %}{% if request.user.profili.vetem_shikim %} · 👁️ vetëm shikim{% endif %}</span>
+        <span>{% if request.user.profili.pozita %}{{ request.user.profili.pozita }}{% else %}{{ request.user.profili.get_rol_display }}{% endif %}</span>
       </div>
     </div>
     <a href="{% url 'logout' %}" class="btn-logout">⬅ Dil nga sistemi</a>
@@ -176,6 +176,7 @@
 </script>
 
 {% block skripte %}{% endblock %}
+<script src="{% static 'js/syri.js' %}"></script>
 </body>
 </html>
 

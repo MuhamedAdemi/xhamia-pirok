@@ -635,3 +635,11 @@ a:hover { text-decoration: underline; }
 .tabela-regjistri .total-tremujor td { background: #C9DAF8; }
 .tabela-regjistri .total-gjashtemujor td { background: #B4C7E7; }
 .tabela-regjistri .total-gjithsej td { background: #F6B26B; font-size: 15px; }
+
+/* ─── Butoni 👁️ te fjalëkalimi ─────────────────────────────────────────── */
+.fjalekalimi-syri { position: relative; display: block; width: 100%; }
+.fjalekalimi-syri input { width: 100%; padding-right: 44px; }
+.syri-buton {
+  position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+  background: none; border: none; cursor: pointer; font-size: 18px; padding: 4px 6px; line-height: 1;
+}

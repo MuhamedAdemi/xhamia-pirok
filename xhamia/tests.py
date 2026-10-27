@@ -625,7 +625,6 @@ class MonitoruesEmailStafiTest(TestCase):
         faqja = self.client.get(reverse('detaje_pagesa_antaresia', args=[self.p.pk]))
         self.assertNotContains(faqja, 'Dërgo SMS')
         self.assertNotContains(faqja, '>Fshi<')
-        self.assertContains(self.client.get(reverse('dashboard')), 'vetëm shikim')
 
         # asgjë nuk ndryshon
         self.client.post(reverse('shto_pagese_antaresia'), {'blloku': '1', 'nr_fatures': '2', 'shtepia': self.sh.pk,
@@ -652,3 +651,91 @@ class MonitoruesEmailStafiTest(TestCase):
         self.assertEqual(sorted(mail.outbox[0].to), sorted(settings.EMAILET_ZYRTARE))
         self.assertEqual(mail.outbox[0].subject,
                          'Muhamed Mesud Ademi — Bl 1100 Nr 046386 — Antarësia 2024–2026 — Xhamia Pirok')
+
+
+@override_settings(SMS_GATEWAY_USER='u', SMS_GATEWAY_PASSWORD='p', SMS_PRIT_SEKONDA=0)
+class HyrjaLlogaritePortaliTest(TestCase):
+    def setUp(self):
+        from django.core.cache import cache
+        cache.clear()
+        self.admin = User.objects.create_user('arketari', password='x')
+        ProfilStafi.objects.create(user=self.admin, rol='ADMIN')
+        self.sh = Shtepia.objects.create(nr_shtepise='0254', emri_kryefamiljarit='Muhamed', emri_prindit='Mesud',
+                                         mbiemri_kryefamiljarit='Ademi', viti_fillimit_antaresise=2026,
+                                         nr_telefoni_kryesor='070123456')
+
+    def test_stafi_krijohet_dhe_hyn_pa_dallim_shkronjash(self):
+        self.client.force_login(self.admin)
+        r = self.client.post(reverse('shto_staf'), {
+            'first_name': 'Imami', 'last_name': 'Xhamise', 'email': 'imami.xhamispirok@gmail.com',
+            'username': ' Imami ', 'password': 'Imami1977$', 'rol': 'MONITORUES', 'nr_telefoni': '', 'pozita': 'Imam',
+        })
+        self.assertEqual(r.status_code, 302)
+        self.client.logout()
+        r = self.client.post(reverse('login'), {'username': 'IMAMI', 'password': 'Imami1977$'})
+        self.assertRedirects(r, reverse('dashboard'))
+        self.assertNotContains(self.client.get(reverse('dashboard')), 'vetëm shikim')
+
+    def test_stafi_pa_fjalekalim_nuk_krijohet(self):
+        self.client.force_login(self.admin)
+        r = self.client.post(reverse('shto_staf'), {
+            'first_name': 'K', 'last_name': 'K', 'email': 'k@example.com', 'username': 'kryetari',
+            'password': '', 'rol': 'MONITORUES',
+        })
+        self.assertEqual(r.status_code, 200)
+        self.assertFalse(User.objects.filter(username='kryetari').exists())
+
+    def test_llogaria_e_shtepise_123456_rivendosja_dhe_ndryshimi(self):
+        self.client.force_login(self.admin)
+        self.client.post(reverse('shto_llogari_shtepi', args=[self.sh.pk]))
+        self.sh.refresh_from_db()
+        self.assertEqual(self.sh.llogaria.user.username, 'sh0254')
+        self.assertTrue(self.sh.llogaria.fjalekalimi_fillestar)
+        self.client.logout()
+        self.assertRedirects(self.client.post(reverse('login'), {'username': 'sh0254', 'password': '123456'}),
+                             reverse('portali_shtepi'))
+        self.assertContains(self.client.get(reverse('portali_shtepi')), 'fjalëkalimin fillestar')
+        self.client.post(reverse('ndrysho_fjalekalim_shtepi'), {'fjalëkalim_vjetër': '123456',
+                                                                'fjalëkalim_ri': 'ime1234', 'konfirmimi': 'ime1234'})
+        self.sh.llogaria.refresh_from_db()
+        self.assertFalse(self.sh.llogaria.fjalekalimi_fillestar)
+        self.assertNotContains(self.client.get(reverse('portali_shtepi')), 'fjalëkalimin fillestar')
+        # arkëtari e rivendos në 123456
+        self.client.force_login(self.admin)
+        self.client.post(reverse('shto_llogari_shtepi', args=[self.sh.pk]))
+        self.client.logout()
+        self.assertTrue(self.client.login(username='sh0254', password='123456'))
+
+    @mock.patch('xhamia.sms.requests.post')
+    def test_sms_dhe_emaili_kane_te_dhenat_e_portalit(self, post):
+        from django.core import mail
+        post.return_value = _pergjigje({'id': 'a', 'state': 'Sent'})
+        self.sh.email = 'familja@example.com'
+        self.sh.save()
+        p = PagesaAntaresia.objects.create(blloku='1100', nr_fatures='046386', shtepia=self.sh,
+                                           shuma_paguar=Decimal('70'), viti=2026, data_pageses=date.today(),
+                                           arktar=self.admin)
+        self.client.force_login(self.admin)
+        self.client.post(reverse('dergo_sms_antaresia', args=[p.pk]))
+        teksti = post.call_args.kwargs['json']['textMessage']['text']
+        self.assertIn('xhamiapirok.pythonanywhere.com perdoruesi sh0254 fjalekalimi 123456', teksti)
+        self.client.post(reverse('dergo_email_antaresia', args=[p.pk]))
+        self.assertIn('sh0254', mail.outbox[0].body)
+        self.assertIn('123456', mail.outbox[0].body)
+
+    @mock.patch('xhamia.sms.requests.post')
+    def test_harruar_fjalekalimin_me_sms(self, post):
+        post.return_value = _pergjigje({'id': 'a', 'state': 'Pending'})
+        self.assertContains(self.client.get(reverse('login')), 'Kam harruar fjalëkalimin')
+        self.client.post(reverse('harruar_fjalekalimin'), {'shtepia': 'sh0254'})
+        teksti = post.call_args.kwargs['json']['textMessage']['text']
+        kodi = teksti.split('eshte ')[1].split(' ')[0]
+        self.assertEqual(len(kodi), 6)
+        self.assertTrue(self.client.login(username='sh0254', password=kodi))
+        # brenda 15 minutave: pa SMS të dytë
+        self.client.post(reverse('harruar_fjalekalimin'), {'shtepia': '254'})
+        self.assertEqual(post.call_count, 1)
+        # shtëpi pa telefon / e panjohur: asnjë SMS, i njëjti mesazh
+        r = self.client.post(reverse('harruar_fjalekalimin'), {'shtepia': '9999'}, follow=True)
+        self.assertContains(r, 'kontaktoni arkëtarin')
+        self.assertEqual(post.call_count, 1)

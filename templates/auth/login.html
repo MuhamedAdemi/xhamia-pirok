@@ -18,7 +18,7 @@
 
     {% if messages %}
       {% for msg in messages %}
-        <div class="njoftim gabim">❌ {{ msg }}</div>
+        <div class="njoftim {% if msg.tags == 'error' %}gabim{% else %}sukses{% endif %}">{% if msg.tags == 'error' %}❌{% else %}✅{% endif %} {{ msg }}</div>
       {% endfor %}
     {% endif %}
 
@@ -38,7 +38,7 @@
     </form>
 
     <p style="text-align:center; margin-top:16px; font-size:13px;">
-      <a href="{% url 'password_reset' %}">Kam harruar fjalëkalimin?</a>
+      <a href="{% url 'harruar_fjalekalimin' %}">Kam harruar fjalëkalimin?</a>
     </p>
 
     <p style="text-align:center; margin-top:8px; font-size:12px; color:var(--tekst-dytësor);">
@@ -46,6 +46,7 @@
     </p>
   </div>
 </div>
+<script src="{% static 'js/syri.js' %}"></script>
 </body>
 </html>
 
