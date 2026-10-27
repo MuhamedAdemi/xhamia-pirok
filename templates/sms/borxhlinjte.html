@@ -101,7 +101,7 @@
 
   {% if borxhlinjte %}
   <div class="flex gap-3" style="margin-top:20px; align-items:center;">
-    <button type="submit" class="btn-kryesor" {% if not gateway_gati %}disabled{% endif %}>📱 Dërgo SMS te të zgjedhurit</button>
+    {% if request.user.profili.është_admin %}<button type="submit" class="btn-kryesor" {% if not gateway_gati %}disabled{% endif %}>📱 Dërgo SMS te të zgjedhurit</button>{% endif %}
     <span class="tekst-dytësor" id="nr-zgjedhur">0 të zgjedhur</span>
   </div>
   {% endif %}

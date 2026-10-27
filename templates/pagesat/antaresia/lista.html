@@ -7,7 +7,7 @@
     <h2>📋 Pagesat Antarësia</h2>
     <p>{{ pagesat|length }} pagesa të gjetura</p>
   </div>
-  {% if request.user.profili.mund_regjistrojë_pagesa or request.user.profili.është_admin %}
+  {% if request.user.profili.mund_regjistroje %}
   <a href="{% url 'shto_pagese_antaresia' %}" class="btn-kryesor no-print">+ Regjistro Pagesë</a>
   {% endif %}
 </div>

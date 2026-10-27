@@ -3,63 +3,50 @@ from django.template.loader import render_to_string
 from django.conf import settings
 
 
-def dërgo_email_antaresia(pagese, request):
-    marrësit = list(settings.EMAILET_ZYRTARE)
-    if pagese.shtepia.email:
-        marrësit.append(pagese.shtepia.email)
-    marrësit = list(set(filter(None, marrësit)))
-    if not marrësit:
-        return
+def subjekti_fatures(emri, pagese, lloji):
+    """P.sh. "Muhamed Mesud Ademi — Bl 1100 Nr 046386 — Antarësia 2024–2026 — Xhamia Pirok"
+    (që në Gmail të gjendet lehtë sipas emrit, bllokut ose numrit)."""
+    pjeset = [emri]
+    if pagese.blloku:
+        pjeset.append(f'Bl {pagese.blloku} Nr {pagese.nr_fatures}')
+    else:
+        pjeset.append(f'Nr {pagese.nr_fatures}')
+    pjeset += [lloji, 'Xhamia Pirok']
+    return ' — '.join(p for p in pjeset if p)
 
-    html = render_to_string('email/fatura_antaresia.html', {'pagese': pagese}, request=request)
+
+def _dergo(subjekti, template, pagese, email_i_paguesit, request):
+    """Fatura shkon gjithmonë te emailat zyrtarë (arkëtari, këshilli, imami) — si arkiv dhe për monitorim —
+    dhe te paguesi kur ka email. Kthen listën e marrësve."""
+    marrësit = list(dict.fromkeys(filter(None, list(settings.EMAILET_ZYRTARE) + [email_i_paguesit])))
+    if not marrësit:
+        return []
     msg = EmailMessage(
-        subject=f'Fatura {pagese.fatura_tekst} — Xhamia Pirok',
-        body=html,
+        subject=subjekti,
+        body=render_to_string(template, {'pagese': pagese}, request=request),
         from_email=settings.DEFAULT_FROM_EMAIL,
         to=marrësit,
     )
     msg.content_subtype = 'html'
     msg.send()
+    return marrësit
+
+
+def dërgo_email_antaresia(pagese, request):
+    lloji = f'Antarësia {pagese.vitet_tekst}'
+    return _dergo(subjekti_fatures(pagese.shtepia.emri_i_plote, pagese, lloji),
+                  'email/fatura_antaresia.html', pagese, pagese.shtepia.email, request)
 
 
 def dërgo_email_fondi(pagese, request):
-    marrësit = list(settings.EMAILET_ZYRTARE)
-    if pagese.email_donatorit:
-        marrësit.append(pagese.email_donatorit)
-    marrësit = list(set(filter(None, marrësit)))
-    if not marrësit:
-        return
-
-    if pagese.lloji == 'AKTIVITET':
-        subjekti = f'Fatura {pagese.fatura_tekst} — Aktivitet: {pagese.arsyeja or "Xhamia Pirok"}'
-    else:
-        subjekti = f'Fatura {pagese.fatura_tekst} — Fondi i Xhamisë Pirok'
-
-    html = render_to_string('email/fatura_fondi.html', {'pagese': pagese}, request=request)
-    msg = EmailMessage(
-        subject=subjekti,
-        body=html,
-        from_email=settings.DEFAULT_FROM_EMAIL,
-        to=marrësit,
-    )
-    msg.content_subtype = 'html'
-    msg.send()
+    emri = pagese.shtepia.emri_i_plote if pagese.shtepia else f'{pagese.emri_donatorit} {pagese.mbiemri_donatorit}'
+    lloji = f'Aktivitet: {pagese.arsyeja}' if pagese.lloji == 'AKTIVITET' and pagese.arsyeja else (
+        'Aktivitet' if pagese.lloji == 'AKTIVITET' else 'Fondi')
+    return _dergo(subjekti_fatures(emri, pagese, lloji), 'email/fatura_fondi.html', pagese,
+                  pagese.email_donatorit, request)
 
 
 def dërgo_email_varrezat(pagese, request):
-    marrësit = list(settings.EMAILET_ZYRTARE)
-    if pagese.shtepia.email:
-        marrësit.append(pagese.shtepia.email)
-    marrësit = list(set(filter(None, marrësit)))
-    if not marrësit:
-        return
-
-    html = render_to_string('email/fatura_varrezat.html', {'pagese': pagese}, request=request)
-    msg = EmailMessage(
-        subject=f'Fatura {pagese.fatura_tekst} — Mirëmbajtja e Varrezave — Xhamia Pirok',
-        body=html,
-        from_email=settings.DEFAULT_FROM_EMAIL,
-        to=marrësit,
-    )
-    msg.content_subtype = 'html'
-    msg.send()
+    lloji = f'Varrezat {pagese.vitet_tekst}'
+    return _dergo(subjekti_fatures(pagese.shtepia.emri_i_plote, pagese, lloji),
+                  'email/fatura_varrezat.html', pagese, pagese.shtepia.email, request)

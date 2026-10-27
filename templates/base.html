@@ -57,7 +57,7 @@
     <a href="{% url 'dashboard_varrezat' %}" class="{% if faqja_aktive == 'dashboard_varrezat' %}aktive{% endif %}">
       <span class="ikona">⚰️</span> Varrezat
     </a>
-    {% if request.user.profili.është_admin %}
+    {% if request.user.profili.mund_shikoje %}
     <a href="{% url 'dashboard_buxheti' %}" class="{% if faqja_aktive == 'buxheti' %}aktive{% endif %}">
       <span class="ikona">💼</span> Buxheti
     </a>
@@ -85,11 +85,13 @@
       <span class="ikona">⚰️</span> Pagesat Varrezave
     </a>
 
-    {% if request.user.profili.është_admin %}
+    {% if request.user.profili.mund_shikoje %}
     <div class="nav-section-label">Harxhimet</div>
+    {% if request.user.profili.është_admin %}
     <a href="{% url 'shto_harxhim' %}" class="{% if faqja_aktive == 'harxhimet' and request.path == '/harxhimet/shto/' %}aktive{% endif %}">
       <span class="ikona">📤</span> Regjistro Harxhim
     </a>
+    {% endif %}
     <a href="{% url 'lista_harxhimeve' %}" class="{% if faqja_aktive == 'harxhimet' %}aktive{% endif %}">
       <span class="ikona">📋</span> Lista Harxhimeve
     </a>
@@ -104,12 +106,14 @@
     <a href="{% url 'historiku_sms' %}" class="{% if faqja_aktive == 'sms_historiku' %}aktive{% endif %}">
       <span class="ikona">📨</span> Historiku SMS
     </a>
+    {% if request.user.profili.është_admin %}
     <a href="{% url 'konfigurimi_sistemit' %}" class="{% if faqja_aktive == 'konfigurimi_sistemit' %}aktive{% endif %}">
       <span class="ikona">⚙️</span> SMS &amp; Email
     </a>
     <a href="{% url 'backup' %}" class="{% if faqja_aktive == 'backup' %}aktive{% endif %}">
       <span class="ikona">💾</span> Backup
     </a>
+    {% endif %}
 
     <div class="nav-section-label">Administrata</div>
     <a href="{% url 'lista_stafit' %}" class="{% if faqja_aktive == 'stafi' %}aktive{% endif %}">
@@ -126,7 +130,7 @@
       <div class="user-avatar">{{ request.user.first_name|first }}{{ request.user.last_name|first }}</div>
       <div class="user-info">
         <p>{{ request.user.get_full_name }}</p>
-        <span>{% if request.user.profili.pozita %}{{ request.user.profili.pozita }}{% else %}{{ request.user.profili.get_rol_display }}{% endif %}</span>
+        <span>{% if request.user.profili.pozita %}{{ request.user.profili.pozita }}{% else %}{{ request.user.profili.get_rol_display }}{% endif %}{% if request.user.profili.vetem_shikim %} · 👁️ vetëm shikim{% endif %}</span>
       </div>
     </div>
     <a href="{% url 'logout' %}" class="btn-logout">⬅ Dil nga sistemi</a>

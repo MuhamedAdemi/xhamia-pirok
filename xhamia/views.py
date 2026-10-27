@@ -89,10 +89,18 @@ def është_admin(user):
         return False
 
 
+def mund_shikoje(user):
+    """Admini + monitoruesit: shohin faqet e administratës, por nuk ndryshojnë asgjë."""
+    try:
+        return user.profili.mund_shikoje
+    except Exception:
+        return False
+
+
 def mund_regjistrojë(user):
     try:
         p = user.profili
-        return p.rol == 'ADMIN' or p.mund_regjistrojë_pagesa
+        return p.rol == 'ADMIN' or (p.rol == 'STAF' and p.mund_regjistrojë_pagesa)
     except Exception:
         return False
 
@@ -495,7 +503,7 @@ def fillo_nga_zero(request):
 @login_required
 def letrat_borxh(request):
     """Letrat "Informim" për anëtarët me borxh: PDF për postë (të gjitha ose një shtëpi) dhe dërgim me email."""
-    if not është_admin(request.user):
+    if not mund_shikoje(request.user):
         messages.error(request, 'Nuk keni leje.')
         return redirect('dashboard')
     params = request.POST if request.method == 'POST' else request.GET
@@ -517,7 +525,9 @@ def letrat_borxh(request):
         resp['Content-Disposition'] = f'inline; filename="{emri}"'
         return resp
 
-    if veprimi == 'email' and request.method == 'POST':
+    if veprimi == 'email' and request.method == 'POST' and not është_admin(request.user):
+        messages.error(request, 'Vetëm administratori mund të dërgojë letra.')
+    elif veprimi == 'email' and request.method == 'POST':
         te_derguara, deshtuara = 0, []
         for l in lista:
             sh = l['shtepi']
@@ -1110,14 +1120,12 @@ def dergo_email_antaresia(request, pk):
         return redirect('lista_pagesa_antaresia')
     pagese = get_object_or_404(PagesaAntaresia, pk=pk)
     if request.method == 'POST':
-        if not pagese.shtepia.email:
-            messages.warning(request, 'Kjo shtëpi nuk ka email të regjistruar.')
-        else:
-            try:
-                dërgo_email_antaresia(pagese, request)
-                messages.success(request, f'Emaili u dërgua me sukses te {pagese.shtepia.email}.')
-            except Exception as e:
-                messages.error(request, f'Emaili nuk u dërgua: {e}')
+        try:
+            marrësit = dërgo_email_antaresia(pagese, request)
+            messages.success(request, 'Emaili u dërgua te: ' + ', '.join(marrësit)
+                             + ('' if pagese.shtepia.email else ' (paguesi nuk ka email — shkoi vetëm te stafi)'))
+        except Exception as e:
+            messages.error(request, f'Emaili nuk u dërgua: {e}')
     return redirect('detaje_pagesa_antaresia', pk=pk)
 
 
@@ -1128,14 +1136,12 @@ def dergo_email_fondi_view(request, pk):
         return redirect('lista_pagesa_fondi')
     pagese = get_object_or_404(PagesaFondi, pk=pk)
     if request.method == 'POST':
-        if not pagese.email_donatorit:
-            messages.warning(request, 'Ky donacion nuk ka email të regjistruar.')
-        else:
-            try:
-                dërgo_email_fondi(pagese, request)
-                messages.success(request, f'Emaili u dërgua me sukses te {pagese.email_donatorit}.')
-            except Exception as e:
-                messages.error(request, f'Emaili nuk u dërgua: {e}')
+        try:
+            marrësit = dërgo_email_fondi(pagese, request)
+            messages.success(request, 'Emaili u dërgua te: ' + ', '.join(marrësit)
+                             + ('' if pagese.email_donatorit else ' (paguesi nuk ka email — shkoi vetëm te stafi)'))
+        except Exception as e:
+            messages.error(request, f'Emaili nuk u dërgua: {e}')
     return redirect('detaje_pagesa_fondi', pk=pk)
 
 
@@ -1146,14 +1152,12 @@ def dergo_email_varrezat_view(request, pk):
         return redirect('lista_pagesa_varrezave')
     pagese = get_object_or_404(PagesaVarrezave, pk=pk)
     if request.method == 'POST':
-        if not pagese.shtepia.email:
-            messages.warning(request, 'Kjo shtëpi nuk ka email të regjistruar.')
-        else:
-            try:
-                dërgo_email_varrezat(pagese, request)
-                messages.success(request, f'Emaili u dërgua me sukses te {pagese.shtepia.email}.')
-            except Exception as e:
-                messages.error(request, f'Emaili nuk u dërgua: {e}')
+        try:
+            marrësit = dërgo_email_varrezat(pagese, request)
+            messages.success(request, 'Emaili u dërgua te: ' + ', '.join(marrësit)
+                             + ('' if pagese.shtepia.email else ' (paguesi nuk ka email — shkoi vetëm te stafi)'))
+        except Exception as e:
+            messages.error(request, f'Emaili nuk u dërgua: {e}')
     return redirect('detaje_pagesa_varrezat', pk=pk)
 
 
@@ -1259,7 +1263,7 @@ def _borxhet_antaresise(shtepite):
 
 @login_required
 def borxhlinjte_sms(request):
-    if not është_admin(request.user):
+    if not mund_shikoje(request.user):
         messages.error(request, 'Nuk keni leje.')
         return redirect('dashboard')
 
@@ -1274,6 +1278,9 @@ def borxhlinjte_sms(request):
         b['numri'] = sms.normalizo_numrin(b['shtepi'].nr_telefoni_kryesor)
 
     teksti = sms.TEKSTI_KUJTESES_PARACAKTUAR
+    if request.method == 'POST' and not është_admin(request.user):
+        messages.error(request, 'Vetëm administratori mund të dërgojë SMS.')
+        return redirect('borxhlinjte_sms')
     if request.method == 'POST':
         teksti = request.POST.get('teksti', '').strip() or sms.TEKSTI_KUJTESES_PARACAKTUAR
         zgjedhura = set(request.POST.getlist('shtepite'))
@@ -1319,7 +1326,7 @@ def borxhlinjte_sms(request):
 
 @login_required
 def historiku_sms(request):
-    if not është_admin(request.user):
+    if not mund_shikoje(request.user):
         messages.error(request, 'Nuk keni leje.')
         return redirect('dashboard')
 
@@ -1384,7 +1391,7 @@ def konfigurimi_sistemit(request):
 
 @login_required
 def lista_harxhimeve(request):
-    if not është_admin(request.user):
+    if not mund_shikoje(request.user):
         messages.error(request, 'Aksesi i refuzuar.')
         return redirect('dashboard')
     viti = int(request.GET.get('viti', timezone.now().year))
@@ -1421,7 +1428,7 @@ def shto_harxhim(request):
 
 @login_required
 def detaje_harxhimi(request, pk):
-    if not është_admin(request.user):
+    if not mund_shikoje(request.user):
         messages.error(request, 'Aksesi i refuzuar.')
         return redirect('dashboard')
     harxhim = get_object_or_404(Harxhimi, pk=pk)
@@ -1451,7 +1458,7 @@ def fshi_harxhimin(request, pk):
 
 @login_required
 def dashboard_buxheti(request):
-    if not është_admin(request.user):
+    if not mund_shikoje(request.user):
         messages.error(request, 'Aksesi i refuzuar.')
         return redirect('dashboard')
     viti_aktual = timezone.now().year
@@ -1532,7 +1539,7 @@ def dashboard_buxheti(request):
 
 @login_required
 def lista_stafit(request):
-    if not është_admin(request.user):
+    if not mund_shikoje(request.user):
         messages.error(request, 'Aksesi i refuzuar.')
         return redirect('dashboard')
     stafi = ProfilStafi.objects.select_related('user', 'shtuar_nga').order_by('user__last_name')
@@ -1703,7 +1710,7 @@ def fshi_pagese_fondi(request, pk):
 
 @login_required
 def lista_kategorive(request):
-    if not është_admin(request.user):
+    if not mund_shikoje(request.user):
         messages.error(request, 'Aksesi i refuzuar.')
         return redirect('dashboard')
     kategoritë = Kategoria.objects.all()

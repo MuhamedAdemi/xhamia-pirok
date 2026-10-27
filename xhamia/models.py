@@ -91,6 +91,7 @@ class ProfilStafi(models.Model):
     ROL_CHOICES = [
         ('ADMIN', 'Administrator'),
         ('STAF', 'Staf'),
+        ('MONITORUES', 'Monitorues (vetëm shikim)'),
     ]
 
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profili')
@@ -116,6 +117,19 @@ class ProfilStafi(models.Model):
     @property
     def është_admin(self):
         return self.rol == 'ADMIN'
+
+    @property
+    def mund_shikoje(self):
+        """Admini dhe monitoruesit (p.sh. imami, kryetari i këshillit) shohin gjithçka; vetëm admini ndryshon."""
+        return self.rol in ('ADMIN', 'MONITORUES')
+
+    @property
+    def vetem_shikim(self):
+        return self.rol == 'MONITORUES'
+
+    @property
+    def mund_regjistroje(self):
+        return self.rol == 'ADMIN' or (self.rol == 'STAF' and self.mund_regjistrojë_pagesa)
 
 
 class Kategoria(models.Model):

@@ -2,6 +2,7 @@ from datetime import date
 from decimal import Decimal
 from unittest import mock
 
+from django.conf import settings
 from django.contrib.auth.models import User
 from django.test import TestCase, override_settings
 from django.urls import reverse
@@ -600,3 +601,54 @@ class LetratPaguesiTest(TestCase):
         self.assertContains(self.client.get(reverse('detaje_pagesa_antaresia', args=[p.pk])), 'Florijan Jashari')
         lista = self.client.get(reverse('lista_pagesa_antaresia') + '?viti=2014&kerkimi=flor')
         self.assertEqual(len(lista.context['pagesat']), 1)
+
+
+class MonitoruesEmailStafiTest(TestCase):
+    def setUp(self):
+        self.admin = User.objects.create_user('arketari', password='x')
+        ProfilStafi.objects.create(user=self.admin, rol='ADMIN')
+        self.imami = User.objects.create_user('imami', password='x')
+        ProfilStafi.objects.create(user=self.imami, rol='MONITORUES', mund_regjistrojë_pagesa=True)
+        self.sh = Shtepia.objects.create(nr_shtepise='0001', emri_kryefamiljarit='Muhamed', emri_prindit='Mesud',
+                                         mbiemri_kryefamiljarit='Ademi', viti_fillimit_antaresise=2024)
+        self.p = PagesaAntaresia.objects.create(blloku='1100', nr_fatures='046386', shtepia=self.sh,
+                                                shuma_paguar=Decimal('70'), viti=2024, viti_deri=2026,
+                                                data_pageses=date.today(), arktar=self.admin)
+
+    def test_monitoruesi_sheh_por_nuk_ndryshon(self):
+        self.client.force_login(self.imami)
+        for url in [reverse('dashboard'), reverse('dashboard_buxheti'), reverse('lista_harxhimeve'),
+                    reverse('lista_shtepive'), reverse('detaje_shtepia', args=[self.sh.pk]), reverse('regjistri'),
+                    reverse('letrat_borxh'), reverse('borxhlinjte_sms'), reverse('historiku_sms'),
+                    reverse('lista_pagesa_antaresia'), reverse('detaje_pagesa_antaresia', args=[self.p.pk])]:
+            self.assertEqual(self.client.get(url).status_code, 200, url)
+        faqja = self.client.get(reverse('detaje_pagesa_antaresia', args=[self.p.pk]))
+        self.assertNotContains(faqja, 'Dërgo SMS')
+        self.assertNotContains(faqja, '>Fshi<')
+        self.assertContains(self.client.get(reverse('dashboard')), 'vetëm shikim')
+
+        # asgjë nuk ndryshon
+        self.client.post(reverse('shto_pagese_antaresia'), {'blloku': '1', 'nr_fatures': '2', 'shtepia': self.sh.pk,
+                                                           'viti': 2023, 'data_pageses': '2026-10-27',
+                                                           'shuma_hyrese': '50', 'monedha': 'EUR'})
+        self.client.post(reverse('fshi_shtepi', args=[self.sh.pk]), {'veprimi': 'hapi1'})
+        self.client.post(reverse('edito_shtepi', args=[self.sh.pk]), {'emri_kryefamiljarit': 'X'})
+        self.client.post(reverse('letrat_borxh'), {'veprimi': 'email'})
+        self.assertEqual(PagesaAntaresia.objects.count(), 1)
+        self.sh.refresh_from_db()
+        self.assertEqual((self.sh.emri_kryefamiljarit, self.sh.është_aktiv), ('Muhamed', True))
+        for url in [reverse('backup'), reverse('konfigurimi_sistemit'), reverse('importo_shtepite'),
+                    reverse('shto_harxhim'), reverse('fillo_nga_zero')]:
+            self.assertEqual(self.client.get(url).status_code, 302, url)
+
+    def test_email_shkon_te_stafi_edhe_pa_email_te_paguesit(self):
+        from django.core import mail
+        self.client.force_login(self.admin)
+        faqja = self.client.get(reverse('detaje_pagesa_antaresia', args=[self.p.pk]))
+        self.assertContains(faqja, 'Email te stafi')
+        r = self.client.post(reverse('dergo_email_antaresia', args=[self.p.pk]), follow=True)
+        self.assertContains(r, 'shkoi vetëm te stafi')
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(sorted(mail.outbox[0].to), sorted(settings.EMAILET_ZYRTARE))
+        self.assertEqual(mail.outbox[0].subject,
+                         'Muhamed Mesud Ademi — Bl 1100 Nr 046386 — Antarësia 2024–2026 — Xhamia Pirok')

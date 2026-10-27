@@ -216,8 +216,8 @@
   <div class="card-header">
     <h5>📋 Historia e Pagesave — Antarësia</h5>
     <div class="flex gap-3">
-      {% if nr_papaguara and request.user.profili.është_admin %}<a href="{% url 'letrat_borxh' %}?shtepi={{ shtepi.pk }}&shkarko=pdf" target="_blank" class="btn-dytësor btn-sm">✉️ Letër për borxh</a>{% endif %}
-      <a href="{% url 'shto_pagese_antaresia' %}?shtepi={{ shtepi.pk }}" class="btn-kryesor btn-sm">+ Pagesë e Re</a>
+      {% if nr_papaguara and request.user.profili.mund_shikoje %}<a href="{% url 'letrat_borxh' %}?shtepi={{ shtepi.pk }}&shkarko=pdf" target="_blank" class="btn-dytësor btn-sm">✉️ Letër për borxh</a>{% endif %}
+      {% if request.user.profili.mund_regjistroje %}<a href="{% url 'shto_pagese_antaresia' %}?shtepi={{ shtepi.pk }}" class="btn-kryesor btn-sm">+ Pagesë e Re</a>{% endif %}
     </div>
   </div>
   <div style="overflow-x:auto;">
@@ -324,7 +324,7 @@
 <div class="card">
   <div class="card-header">
     <h5>📋 Historia e Pagesave — Varrezat</h5>
-    <a href="{% url 'shto_pagese_varrezat' %}?shtepi={{ shtepi.pk }}" class="btn-kryesor btn-sm">+ Pagesë e Re</a>
+    {% if request.user.profili.mund_regjistroje %}<a href="{% url 'shto_pagese_varrezat' %}?shtepi={{ shtepi.pk }}" class="btn-kryesor btn-sm">+ Pagesë e Re</a>{% endif %}
   </div>
   <div style="overflow-x:auto;">
     <table class="tabela-xhami">
@@ -366,7 +366,7 @@
 <div class="card" style="margin-top:24px;">
   <div class="card-header">
     <h5>🤲 Pagesat e Fondit — {{ pagesat_fondit|length }} pagesa{% if pagesat_fondit %} · {{ pagesat_fondit_m|monedhat }}{% endif %}</h5>
-    <a href="{% url 'shto_pagese_fondi' %}?shtepi={{ shtepi.pk }}" class="btn-kryesor btn-sm">+ Pagesë Fondi</a>
+    {% if request.user.profili.mund_regjistroje %}<a href="{% url 'shto_pagese_fondi' %}?shtepi={{ shtepi.pk }}" class="btn-kryesor btn-sm">+ Pagesë Fondi</a>{% endif %}
   </div>
   <div style="overflow-x:auto;">
     <table class="tabela-xhami">

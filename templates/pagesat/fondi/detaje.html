@@ -12,18 +12,18 @@
   </div>
   <div class="flex gap-3" style="flex-wrap:wrap;">
     <a href="{% url 'fatura_fondi_pdf' pagese.pk %}" class="btn-kryesor" target="_blank">🖨️ Shiko Faturën PDF</a>
-    {% if pagese.email_donatorit %}
+    {% if request.user.profili.mund_regjistroje %}
     <form method="post" action="{% url 'dergo_email_fondi' pagese.pk %}" style="display:inline;">
       {% csrf_token %}
-      <button type="submit" class="btn-dytësor">📧 Dërgo Email</button>
+      <button type="submit" class="btn-dytësor" title="Shkon gjithmonë te arkëtari, këshilli dhe imami{% if pagese.email_donatorit %} — dhe te paguesi{% endif %}">📧 {% if pagese.email_donatorit %}Dërgo Email{% else %}Email te stafi{% endif %}</button>
     </form>
-    {% endif %}
     {% if pagese.nr_telefoni %}
     <form method="post" action="{% url 'dergo_sms_fondi' pagese.pk %}" style="display:inline;"
           onsubmit="if (!confirm('Të dërgohet SMS konfirmimi te {{ pagese.nr_telefoni }}?')) return false; var b=this.querySelector('button'); if(b.disabled) return false; b.disabled=true; b.textContent='⏳ Duke dërguar…'; return true;">
       {% csrf_token %}
       <button type="submit" class="btn-dytësor">📱 Dërgo SMS</button>
     </form>
+    {% endif %}
     {% endif %}
     {% if request.user.profili.është_admin %}
     <a href="{% url 'fshi_pagese_fondi' pagese.pk %}" class="btn-rrezik">Fshi</a>

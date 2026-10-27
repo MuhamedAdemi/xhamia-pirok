@@ -59,9 +59,9 @@
       <div class="flex gap-3" style="flex-wrap:wrap;">
         <button type="submit" name="veprimi" value="shfaq" class="btn-dytësor">🔄 Përditëso listën</button>
         <button type="submit" name="veprimi" value="pdf" formtarget="_blank" class="btn-kryesor">📄 PDF për printim ({{ letrat|length }} letra)</button>
-        <button type="submit" name="veprimi" value="email" class="btn-dytësor"
+        {% if request.user.profili.është_admin %}<button type="submit" name="veprimi" value="email" class="btn-dytësor"
                 onclick="return confirm('Të dërgohet letra me email te {{ me_email }} shtëpi që kanë email?');"
-                {% if not me_email %}disabled{% endif %}>📧 Dërgo me email ({{ me_email }})</button>
+                {% if not me_email %}disabled{% endif %}>📧 Dërgo me email ({{ me_email }})</button>{% endif %}
       </div>
       <p class="ndihma" style="margin-top:10px;">PDF-ja ka <strong>një letër për faqe</strong>, gati për t'u printuar dhe futur në zarf.
         WhatsApp do të shtohet kur të vendosim mënyrën.</p>
