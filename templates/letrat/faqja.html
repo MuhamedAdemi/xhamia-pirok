@@ -1,0 +1,95 @@
+{% extends 'base.html' %}
+{% load shumat %}
+{% block titulli %}Letrat për Borxh — Xhamia Pirok{% endblock %}
+
+{% block kontent %}
+<div class="page-header">
+  <div>
+    <h2>✉️ Letrat "Informim" për borxh</h2>
+    <p>Një letër për çdo shtëpi me borxh — për t'i printuar e dërguar me postë, ose me email</p>
+  </div>
+</div>
+
+<form method="post">
+  {% csrf_token %}
+  <div class="card" style="margin-bottom:20px; max-width:860px;">
+    <div class="card-header"><h5>⚙️ Kush e merr letrën dhe çka shkruan</h5></div>
+    <div class="card-body">
+      <div class="grid-4">
+        <div class="forma-grup">
+          <label>Borxhi deri në vitin</label>
+          <select name="viti_deri">
+            {% for v in vitit_lista %}<option value="{{ v }}" {% if v == o.viti_deri %}selected{% endif %}>{{ v }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="forma-grup">
+          <label>Së paku sa vite borxh</label>
+          <select name="min_vite">
+            <option value="1" {% if o.min_vite == 1 %}selected{% endif %}>1 vit e më shumë</option>
+            <option value="2" {% if o.min_vite == 2 %}selected{% endif %}>2 vite e më shumë</option>
+            <option value="3" {% if o.min_vite == 3 %}selected{% endif %}>3 vite e më shumë</option>
+            <option value="5" {% if o.min_vite == 5 %}selected{% endif %}>5 vite e më shumë</option>
+            <option value="10" {% if o.min_vite == 10 %}selected{% endif %}>10 vite e më shumë</option>
+          </select>
+        </div>
+        <div class="forma-grup">
+          <label>Vendi dhe data</label>
+          <div class="flex gap-3">
+            <input type="text" name="vendi" value="{{ o.vendi }}" style="width:45%;">
+            <input type="text" name="data" value="{{ o.data }}" style="width:55%;">
+          </div>
+        </div>
+        <div class="forma-grup">
+          <label>Afati i pagesës</label>
+          <input type="text" name="afati" value="{{ o.afati }}" placeholder="p.sh. 31/01/2027">
+        </div>
+      </div>
+      <div class="forma-grup">
+        <label>Paragrafi kryesor</label>
+        <textarea name="paragrafi" rows="3">{{ o.paragrafi }}</textarea>
+      </div>
+      <div class="forma-grup">
+        <label>Vërejtja (në fund të letrës)</label>
+        <textarea name="verejtja" rows="3">{{ o.verejtja }}</textarea>
+      </div>
+      <label class="checkbox-grup" style="margin-bottom:14px;">
+        <input type="checkbox" name="me_shume" value="1" {% if o.me_shume %}checked{% endif %}>
+        <span>Shkruaj në letër edhe shumën minimale (50 €/vit i kaluar, 70 € viti aktual)</span>
+      </label>
+      <div class="flex gap-3" style="flex-wrap:wrap;">
+        <button type="submit" name="veprimi" value="shfaq" class="btn-dytësor">🔄 Përditëso listën</button>
+        <button type="submit" name="veprimi" value="pdf" formtarget="_blank" class="btn-kryesor">📄 PDF për printim ({{ letrat|length }} letra)</button>
+        <button type="submit" name="veprimi" value="email" class="btn-dytësor"
+                onclick="return confirm('Të dërgohet letra me email te {{ me_email }} shtëpi që kanë email?');"
+                {% if not me_email %}disabled{% endif %}>📧 Dërgo me email ({{ me_email }})</button>
+      </div>
+      <p class="ndihma" style="margin-top:10px;">PDF-ja ka <strong>një letër për faqe</strong>, gati për t'u printuar dhe futur në zarf.
+        WhatsApp do të shtohet kur të vendosim mënyrën.</p>
+    </div>
+  </div>
+</form>
+
+<div class="card">
+  <div class="card-header"><h5>📋 {{ letrat|length }} shtëpi · {{ gjithsej_vite }} vite borxh</h5></div>
+  <div style="overflow-x:auto;">
+    <table class="tabela-xhami">
+      <thead><tr><th>Nr.</th><th>Emri (në letër)</th><th>Periudha</th><th>Minimumi</th><th>Email</th><th></th></tr></thead>
+      <tbody>
+        {% for l in letrat %}
+        <tr>
+          <td><span class="nr-shtepi">{{ l.shtepi.nr_shtepise }}</span></td>
+          <td><a href="{% url 'detaje_shtepia' l.shtepi.pk %}" style="font-weight:600;">{{ l.emri }}</a></td>
+          <td>{{ l.periudha }}</td>
+          <td class="tekst-dytësor">{{ l.borxhi|euro }}</td>
+          <td class="tekst-dytësor">{{ l.shtepi.email|default:l.shtepi.kontakt_sporadik_email|default:"—" }}</td>
+          <td><a href="?shtepi={{ l.shtepi.pk }}&shkarko=pdf&viti_deri={{ o.viti_deri }}&data={{ o.data|urlencode }}&afati={{ o.afati|urlencode }}{% if o.me_shume %}&me_shume=1{% endif %}"
+                 target="_blank" class="btn-dytësor btn-sm">📄 Letra</a></td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" style="text-align:center; padding:40px; color:var(--tekst-dytësor);">Asnjë shtëpi me borxh sipas këtyre kritereve. 🎉</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

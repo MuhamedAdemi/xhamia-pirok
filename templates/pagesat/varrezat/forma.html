@@ -47,6 +47,11 @@
         {% render_field form.shtepia %}
         {% if form.shtepia.errors %}<p class="gabim-fusha">{{ form.shtepia.errors.0 }}</p>{% endif %}
       </div>
+      <div class="forma-grup">
+        <label>{{ form.paguesi.label }}</label>
+        {% render_field form.paguesi placeholder="Lëre bosh nëse paguan vetë kryefamiljari — p.sh. Florijan Jashari" %}
+        <p class="ndihma">Personi që solli paratë, nëse nuk është kryefamiljari.</p>
+      </div>
     </div>
   </div>
 

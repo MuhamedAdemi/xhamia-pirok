@@ -542,3 +542,61 @@ class FondiShtepiaKerkimiMonedhatTest(TestCase):
         r = self.client.get(reverse('dashboard_fondi'))
         self.assertContains(r, '75.000 den · 1.380 € · 200 CHF')
         self.assertEqual(formato_shumen(Decimal('69.92'), 'EUR'), '69,92 €')
+
+
+class LetratPaguesiTest(TestCase):
+    def setUp(self):
+        self.admin = User.objects.create_user('admin', password='x')
+        ProfilStafi.objects.create(user=self.admin, rol='ADMIN')
+        self.client.force_login(self.admin)
+        viti = timezone.now().year
+        self.inis = Shtepia.objects.create(nr_shtepise='0499', emri_kryefamiljarit='Inis', emri_prindit='',
+                                           mbiemri_kryefamiljarit='Arifi', viti_fillimit_antaresise=2014,
+                                           email='inis@example.com')
+        Shtepia.objects.create(nr_shtepise='0500', emri_kryefamiljarit='Pa', mbiemri_kryefamiljarit='Borxh',
+                               viti_fillimit_antaresise=viti, paguar_deri_viti=viti)
+        Shtepia.objects.create(nr_shtepise='0501', emri_kryefamiljarit='Vetem', mbiemri_kryefamiljarit='Sivjet',
+                               viti_fillimit_antaresise=viti)
+
+    def test_periudha(self):
+        from .letrat import periudha_tekst
+        self.assertEqual(periudha_tekst(list(range(2014, 2026))), 'Prej 2014 deri 2025 = 12 vite')
+        self.assertEqual(periudha_tekst([2025]), 'Për vitin 2025 = 1 vit')
+        self.assertEqual(periudha_tekst([2019, 2021, 2022]), 'Për vitet 2019, 2021–2022 = 3 vite')
+
+    def test_faqja_pdf_dhe_email(self):
+        from django.core import mail
+        viti = timezone.now().year
+        r = self.client.get(reverse('letrat_borxh') + f'?viti_deri={viti - 1}')
+        self.assertEqual([l['emri'] for l in r.context['letrat']], ['Inis Arifi'])
+        self.assertEqual(r.context['letrat'][0]['periudha'], f'Prej 2014 deri {viti - 1} = {viti - 2014} vite')
+
+        r = self.client.post(reverse('letrat_borxh'), {'veprimi': 'pdf', 'viti_deri': viti, 'min_vite': 1})
+        self.assertEqual(r['Content-Type'], 'application/pdf')
+        from io import BytesIO
+        from pypdf import PdfReader
+        self.assertEqual(len(PdfReader(BytesIO(r.content)).pages), 2)   # Inis + "Vetem Sivjet"
+
+        r = self.client.get(reverse('letrat_borxh') + f'?shtepi={self.inis.pk}&shkarko=pdf')
+        self.assertEqual(r['Content-Type'], 'application/pdf')
+        self.assertIn('Inis Arifi', PdfReader(BytesIO(r.content)).pages[0].extract_text().replace('INIS ARIFI', 'Inis Arifi'))
+
+        self.client.post(reverse('letrat_borxh'), {'veprimi': 'email', 'viti_deri': viti, 'min_vite': 2,
+                                                   'afati': '31/01/2027'})
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, ['inis@example.com'])
+        self.assertIn('Afati i pagesës deri më 31/01/2027', mail.outbox[0].body)
+        self.assertEqual(mail.outbox[0].attachments[0][2], 'application/pdf')
+
+    def test_paguar_nga(self):
+        r = self.client.post(reverse('shto_pagese_antaresia'), {
+            'blloku': '1100', 'nr_fatures': '046390', 'shtepia': self.inis.pk, 'paguesi': 'Florijan Jashari',
+            'viti': 2014, 'viti_deri': 2014, 'data_pageses': '2026-10-27', 'shuma_hyrese': '50',
+            'monedha': 'EUR', 'kursi': '61.5',
+        })
+        self.assertEqual(r.status_code, 302)
+        p = PagesaAntaresia.objects.get()
+        self.assertEqual(p.paguesi, 'Florijan Jashari')
+        self.assertContains(self.client.get(reverse('detaje_pagesa_antaresia', args=[p.pk])), 'Florijan Jashari')
+        lista = self.client.get(reverse('lista_pagesa_antaresia') + '?viti=2014&kerkimi=flor')
+        self.assertEqual(len(lista.context['pagesat']), 1)

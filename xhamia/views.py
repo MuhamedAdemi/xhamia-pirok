@@ -35,7 +35,8 @@ from .utils import dërgo_email_antaresia, dërgo_email_fondi, dërgo_email_varr
 from . import sms
 from .importi_pdf import importo
 from .importi_excel import importo_excel
-from . import raporti, backup
+from . import raporti, backup, letrat
+from django.core.mail import EmailMessage
 from pathlib import Path
 from .gjendja import gjendja_e_shtepive, vitet_tekst
 from . import kerkimi as kerkimi_mod
@@ -491,6 +492,66 @@ def fillo_nga_zero(request):
     )
 
 
+@login_required
+def letrat_borxh(request):
+    """Letrat "Informim" për anëtarët me borxh: PDF për postë (të gjitha ose një shtëpi) dhe dërgim me email."""
+    if not është_admin(request.user):
+        messages.error(request, 'Nuk keni leje.')
+        return redirect('dashboard')
+    params = request.POST if request.method == 'POST' else request.GET
+    o = letrat.opsionet_nga(params)
+    shtepite = Shtepia.objects.filter(është_aktiv=True).order_by('nr_shtepise')
+    shtepi_id = request.GET.get('shtepi', '')
+    if shtepi_id.isdigit():
+        shtepite = Shtepia.objects.filter(pk=shtepi_id)
+        o['min_vite'] = 1
+    lista = letrat.letrat_per(shtepite, o['viti_deri'], o['min_vite'])
+    veprimi = params.get('veprimi') or params.get('shkarko')
+
+    if veprimi == 'pdf':
+        if not lista:
+            messages.warning(request, 'Nuk ka asnjë shtëpi me borxh sipas këtyre kritereve.')
+            return redirect('letrat_borxh')
+        emri = f'letra_{lista[0]["shtepi"].nr_shtepise}.pdf' if len(lista) == 1 else f'letrat_borxh_{o["viti_deri"]}.pdf'
+        resp = HttpResponse(letrat.pdf(lista, o), content_type='application/pdf')
+        resp['Content-Disposition'] = f'inline; filename="{emri}"'
+        return resp
+
+    if veprimi == 'email' and request.method == 'POST':
+        te_derguara, deshtuara = 0, []
+        for l in lista:
+            sh = l['shtepi']
+            adresa = sh.email or sh.kontakt_sporadik_email
+            if not adresa:
+                continue
+            try:
+                msg = EmailMessage(
+                    subject='Informim — anëtarësia e Xhamisë Pirok',
+                    body=letrat.teksti_email(l, o),
+                    from_email=settings.DEFAULT_FROM_EMAIL,
+                    to=[adresa],
+                )
+                msg.attach(f'Informim_{sh.nr_shtepise}.pdf', letrat.pdf([l], o), 'application/pdf')
+                msg.send()
+                te_derguara += 1
+            except Exception as e:
+                deshtuara.append(f'{l["emri"]} ({e})')
+        if te_derguara:
+            messages.success(request, f'Letra u dërgua me email te {te_derguara} shtëpi.')
+        if deshtuara:
+            messages.error(request, 'Nuk u dërgua te: ' + '; '.join(deshtuara[:10]))
+        if not te_derguara and not deshtuara:
+            messages.warning(request, 'Asnjë nga këto shtëpi nuk ka email të regjistruar.')
+
+    return render(request, 'letrat/faqja.html', {
+        'letrat': lista, 'o': o,
+        'me_email': sum(1 for l in lista if l['shtepi'].email or l['shtepi'].kontakt_sporadik_email),
+        'gjithsej_vite': sum(len(l['vitet']) for l in lista),
+        'vitit_lista': list(range(timezone.localdate().year - 2, timezone.localdate().year + 1)),
+        'faqja_aktive': 'letrat',
+    })
+
+
 # ─── Shtëpitë ───────────────────────────────────────────────────────────────
 
 @login_required
@@ -759,7 +820,7 @@ def lista_pagesa_antaresia(request):
         pagesat = pagesat.filter(viti__lte=viti, viti_deri__gte=viti)
     if kerkimi:
         pagesat = kerkimi_mod.filtro(
-            pagesat, kerkimi, lambda p: (p.blloku, p.nr_fatures) + kerkimi_mod.fushat_e_shtepise(p.shtepia),
+            pagesat, kerkimi, lambda p: (p.blloku, p.nr_fatures, p.paguesi) + kerkimi_mod.fushat_e_shtepise(p.shtepia),
         )
 
     if request.GET.get('eksporto') == 'excel':
@@ -935,7 +996,7 @@ def lista_pagesa_varrezave(request):
         pagesat = pagesat.filter(viti__lte=viti, viti_deri__gte=viti)
     if kerkimi:
         pagesat = kerkimi_mod.filtro(
-            pagesat, kerkimi, lambda p: (p.blloku, p.nr_fatures) + kerkimi_mod.fushat_e_shtepise(p.shtepia),
+            pagesat, kerkimi, lambda p: (p.blloku, p.nr_fatures, p.paguesi) + kerkimi_mod.fushat_e_shtepise(p.shtepia),
         )
 
     if request.GET.get('eksporto') == 'excel':

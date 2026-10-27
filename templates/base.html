@@ -98,6 +98,9 @@
     <a href="{% url 'borxhlinjte_sms' %}" class="{% if faqja_aktive == 'sms_borxhlinjte' %}aktive{% endif %}">
       <span class="ikona">📱</span> Kujtesa për Borxh
     </a>
+    <a href="{% url 'letrat_borxh' %}" class="{% if faqja_aktive == 'letrat' %}aktive{% endif %}">
+      <span class="ikona">✉️</span> Letrat për Borxh
+    </a>
     <a href="{% url 'historiku_sms' %}" class="{% if faqja_aktive == 'sms_historiku' %}aktive{% endif %}">
       <span class="ikona">📨</span> Historiku SMS
     </a>

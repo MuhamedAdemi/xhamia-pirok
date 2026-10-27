@@ -219,7 +219,7 @@ class PagesaAntaresiaForm(ShumaMonedhaMixin, VitetFormMixin, forms.ModelForm):
 
     class Meta:
         model = PagesaAntaresia
-        fields = ['blloku', 'nr_fatures', 'shtepia', 'viti', 'viti_deri', 'data_pageses', 'shenime']
+        fields = ['blloku', 'nr_fatures', 'shtepia', 'paguesi', 'viti', 'viti_deri', 'data_pageses', 'shenime']
         widgets = {
             'data_pageses': forms.DateInput(attrs={'type': 'date'}),
             'shenime': forms.Textarea(attrs={'rows': 2}),
@@ -228,6 +228,7 @@ class PagesaAntaresiaForm(ShumaMonedhaMixin, VitetFormMixin, forms.ModelForm):
             'blloku': 'Blloku (4 shifra)',
             'nr_fatures': 'Nr. i Faturës (6 shifra)',
             'shtepia': 'Shtëpia',
+            'paguesi': 'Paguar nga (opsionale)',
             'viti': 'Nga Viti',
             'viti_deri': 'Deri Viti',
             'data_pageses': 'Data e Pagesës',
@@ -273,7 +274,7 @@ class PagesaVarrezaveForm(ShumaMonedhaMixin, VitetFormMixin, forms.ModelForm):
 
     class Meta:
         model = PagesaVarrezave
-        fields = ['blloku', 'nr_fatures', 'shtepia', 'viti', 'viti_deri', 'data_pageses', 'shenime']
+        fields = ['blloku', 'nr_fatures', 'shtepia', 'paguesi', 'viti', 'viti_deri', 'data_pageses', 'shenime']
         widgets = {
             'data_pageses': forms.DateInput(attrs={'type': 'date'}),
             'shenime': forms.Textarea(attrs={'rows': 2}),
@@ -282,6 +283,7 @@ class PagesaVarrezaveForm(ShumaMonedhaMixin, VitetFormMixin, forms.ModelForm):
             'blloku': 'Blloku (4 shifra)',
             'nr_fatures': 'Nr. i Faturës (6 shifra)',
             'shtepia': 'Shtëpia',
+            'paguesi': 'Paguar nga (opsionale)',
             'viti': 'Nga Viti',
             'viti_deri': 'Deri Viti',
             'data_pageses': 'Data e Pagesës',

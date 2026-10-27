@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="sq">
+<head>
+<meta charset="UTF-8">
+<style>
+  @page { size: a4 portrait; margin: 2.2cm 2.2cm 2cm 2.2cm; }
+  body { font-family: Helvetica; font-size: 12.5pt; color: #111; line-height: 1.5; }
+  .koka { text-align: right; font-family: Times-Roman; font-weight: bold; font-size: 13pt; line-height: 1.2; }
+  .titulli { text-align: center; font-size: 17pt; font-weight: bold; margin: 34pt 0 26pt 0; }
+  .emri { font-weight: bold; text-decoration: underline; text-transform: uppercase; }
+  .periudha { font-weight: bold; text-decoration: underline; margin: 10pt 0 14pt 30pt; }
+  p { margin: 0 0 10pt 0; text-align: justify; }
+  .selami { text-align: center; margin: 20pt 0 22pt 0; }
+  .nenshkrimi td { font-size: 12.5pt; vertical-align: top; }
+  .verejtja { font-family: Times-Italic; font-size: 10.5pt; margin-top: 46pt; text-align: justify; }
+  .afati { font-family: Times-Italic; font-size: 10.5pt; text-decoration: underline; }
+  .nr { font-size: 8pt; color: #888; text-align: right; margin-top: 18pt; }
+</style>
+</head>
+<body>
+{% for l in letrat %}
+  {% if not forloop.first %}<pdf:nextpage />{% endif %}
+  <div class="koka">KËSHILLI I XHAMISË<br>PIROK</div>
+
+  <div class="titulli">Informim</div>
+
+  <p>Deri te z. <span class="emri">{{ l.emri }}</span>&nbsp;&nbsp; anëtar i xhamisë Pirok.</p>
+
+  <p>Nëpërmjet kësaj thirrjeje ju informojmë se e keni të papaguar anëtarësinë e xhamisë edhe atë për vitet:</p>
+
+  <div class="periudha">{{ l.periudha }}.</div>
+  {% if o.me_shume %}<p>Shuma minimale për t'u paguar: <strong>{{ l.borxhi|floatformat:0 }} €</strong>.</p>{% endif %}
+
+  <p>{{ o.paragrafi|linebreaksbr }}</p>
+
+  <div class="selami">Vesselamu alejkum...</div>
+
+  <table class="nenshkrimi" width="100%">
+    <tr>
+      <td width="50%">{{ o.vendi }}<br>{{ o.data }}</td>
+      <td width="50%" align="right">Këshilli i Xhamisë Pirok</td>
+    </tr>
+  </table>
+
+  <div class="verejtja">Vërejtje: {{ o.verejtja|linebreaksbr }}</div>
+  {% if o.afati %}<div class="afati">Afati i pagesës deri më {{ o.afati }}.</div>{% endif %}
+
+  <div class="nr">Shtëpia nr. {{ l.shtepi.nr_shtepise }}</div>
+{% endfor %}
+</body>
+</html>

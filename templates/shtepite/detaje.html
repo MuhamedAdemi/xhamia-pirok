@@ -215,7 +215,10 @@
 <div class="card" style="margin-bottom:24px;">
   <div class="card-header">
     <h5>📋 Historia e Pagesave — Antarësia</h5>
-    <a href="{% url 'shto_pagese_antaresia' %}?shtepi={{ shtepi.pk }}" class="btn-kryesor btn-sm">+ Pagesë e Re</a>
+    <div class="flex gap-3">
+      {% if nr_papaguara and request.user.profili.është_admin %}<a href="{% url 'letrat_borxh' %}?shtepi={{ shtepi.pk }}&shkarko=pdf" target="_blank" class="btn-dytësor btn-sm">✉️ Letër për borxh</a>{% endif %}
+      <a href="{% url 'shto_pagese_antaresia' %}?shtepi={{ shtepi.pk }}" class="btn-kryesor btn-sm">+ Pagesë e Re</a>
+    </div>
   </div>
   <div style="overflow-x:auto;">
     <table class="tabela-xhami">

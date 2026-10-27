@@ -268,6 +268,10 @@ class PagesaAntaresia(VitetMixin, MonedhaMixin, models.Model):
         User, on_delete=models.PROTECT, related_name='pagesat_antaresise',
         verbose_name='Arktar'
     )
+    paguesi = models.CharField(
+        max_length=150, blank=True, verbose_name='Paguar nga',
+        help_text='Personi që pagoi, nëse nuk është kryefamiljari (p.sh. djali).',
+    )
     shenime = models.TextField(blank=True, verbose_name='Shënime')
     shuma_mkd = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, verbose_name='Shuma (MKD)')
     kursi_denar = models.DecimalField(max_digits=8, decimal_places=4, null=True, blank=True, verbose_name='Kursi EUR/MKD')
@@ -394,6 +398,10 @@ class PagesaVarrezave(VitetMixin, MonedhaMixin, models.Model):
     arktar = models.ForeignKey(
         User, on_delete=models.PROTECT, related_name='varrezat_regjistruara',
         verbose_name='Arktar'
+    )
+    paguesi = models.CharField(
+        max_length=150, blank=True, verbose_name='Paguar nga',
+        help_text='Personi që pagoi, nëse nuk është kryefamiljari (p.sh. djali).',
     )
     shenime = models.TextField(blank=True, verbose_name='Shënime')
     shuma_mkd = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, verbose_name='Shuma (MKD)')

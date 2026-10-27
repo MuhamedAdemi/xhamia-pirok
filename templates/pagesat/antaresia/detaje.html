@@ -49,6 +49,12 @@
             </a>
           </td>
         </tr>
+        {% if pagese.paguesi %}
+        <tr>
+          <td style="padding:10px 0; color:var(--tekst-dytësor); font-size:13px;">Paguar nga</td>
+          <td style="padding:10px 0; font-weight:600;">{{ pagese.paguesi }}</td>
+        </tr>
+        {% endif %}
         <tr>
           <td style="padding:10px 0; color:var(--tekst-dytësor); font-size:13px;">Shuma</td>
           <td style="padding:10px 0;">{% include 'pagesat/_shuma_detaje.html' %}</td>
