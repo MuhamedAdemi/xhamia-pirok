@@ -244,6 +244,13 @@ class PagesatShumeViteTest(TestCase):
         ]:
             self.assertEqual(self.client.get(url).status_code, 200, url)
 
+    def test_kerkimi_i_shtepise_ne_format_e_pagesave(self):
+        for url in [reverse('shto_pagese_antaresia'), reverse('shto_pagese_varrezat'), reverse('shto_pagese_fondi')]:
+            html = self.client.get(url).content.decode()
+            self.assertIn('class="kerko-shtepine" data-fusha="shtepia"', html, url)
+            self.assertIn('DOMContentLoaded', html, url)
+            self.assertIn(f'#{self.sh.nr_shtepise}', html, url)
+
 
 @override_settings(SMS_PRIT_SEKONDA=0)
 class BllokuMonedhatRegjistriTest(TestCase):

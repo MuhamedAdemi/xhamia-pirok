@@ -643,3 +643,29 @@ a:hover { text-decoration: underline; }
   position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
   background: none; border: none; cursor: pointer; font-size: 18px; padding: 4px 6px; line-height: 1;
 }
+
+/* ─── Kërkimi i shtëpisë me listë ───────────────────────────────────────── */
+.kerko-shtepine { position: relative; margin-bottom: 4px; }
+.kerko-shtepine-rreshti { position: relative; }
+.kerko-shtepine-input { width: 100%; padding-right: 36px; }
+.kerko-shtepine-pastro {
+  position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+  background: none; border: none; cursor: pointer; font-size: 15px; color: var(--tekst-dytësor);
+}
+.kerko-shtepine-lista {
+  position: absolute; z-index: 50; left: 0; right: 0; top: calc(100% + 4px);
+  max-height: 320px; overflow-y: auto; background: var(--e-bardhë);
+  border: 1.5px solid var(--kufi); border-radius: 10px; box-shadow: var(--hija-e-madhe);
+}
+.kerko-shtepine-opsion { padding: 9px 12px; cursor: pointer; font-size: 14px; border-bottom: 1px solid var(--krem-errët); }
+.kerko-shtepine-opsion:hover, .kerko-shtepine-opsion.aktiv { background: var(--krem); }
+.kerko-shtepine-opsion mark, .theksuar mark { background: #FFE58A; color: inherit; padding: 0 1px; border-radius: 3px; }
+.kerko-shtepine-me-shume { padding: 9px 12px; font-size: 13px; color: var(--tekst-dytësor); }
+.kerko-shtepine-zgjedhur {
+  margin-top: 6px; padding: 10px 12px; background: rgba(45,90,27,0.07);
+  border: 1.5px solid var(--gjelbër); border-radius: 10px; font-size: 14px;
+}
+.kerko-shtepine-ndrysho {
+  margin-left: 8px; background: none; border: 1px solid var(--kufi); border-radius: 6px;
+  padding: 2px 8px; cursor: pointer; font-size: 12px;
+}

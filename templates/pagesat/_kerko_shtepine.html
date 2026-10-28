@@ -1,21 +1,108 @@
-{# Kërkim mbi listën e shtëpive (mund të jenë mbi 1000): filtron opsionet sipas emrit ose numrit. #}
-<input type="search" id="kerkoShtepine" placeholder="🔎 Kërko: emri, mbiemri ose nr. i shtëpisë…" autocomplete="off" style="margin-bottom:6px;">
+{# Kërkim i shtëpisë me listë: shkruani "afr" → dalin të gjitha që përmbajnë "afr", me shkronjat e theksuara.
+   Zëvendëson <select>-in e shtëpive (që mbetet i fshehur në formë). Parametër opsional: emri_fushes. #}
+<div class="kerko-shtepine" data-fusha="{{ emri_fushes|default:'shtepia' }}">
+  <div class="kerko-shtepine-rreshti">
+    <input type="search" class="kerko-shtepine-input" autocomplete="off"
+           placeholder="🔎 Kërko: emri, prindi, mbiemri, kontakti sporadik, telefoni ose nr. — p.sh. «afr»">
+    <button type="button" class="kerko-shtepine-pastro" title="Pastro" hidden>✕</button>
+  </div>
+  <div class="kerko-shtepine-lista" hidden></div>
+  <div class="kerko-shtepine-zgjedhur" hidden></div>
+</div>
 <script>
-(function () {
-  const kerko = document.getElementById('kerkoShtepine');
-  const select = document.querySelector('[name="{{ emri_fushes|default:"shtepia" }}"]');
-  const opsionet = Array.from(select.options);
-  const pa_shenja = t => t.toLowerCase().replace(/ë/g, 'e').replace(/ç/g, 'c');
-  kerko.addEventListener('input', () => {
-    const fjalet = pa_shenja(kerko.value).split(/\s+/).filter(Boolean);
-    let ePara = null;
-    opsionet.forEach(o => {
-      const tekst = pa_shenja(o.text);
-      const shfaq = !o.value || fjalet.every(f => tekst.includes(f));
-      o.hidden = !shfaq;
-      if (shfaq && o.value && !ePara) ePara = o;
+document.addEventListener('DOMContentLoaded', function () {
+  document.querySelectorAll('.kerko-shtepine:not([data-gati])').forEach(function (kutia) {
+    kutia.dataset.gati = '1';
+    var select = document.querySelector('select[name="' + kutia.dataset.fusha + '"]');
+    if (!select) return;
+    var input = kutia.querySelector('.kerko-shtepine-input');
+    var lista = kutia.querySelector('.kerko-shtepine-lista');
+    var zgjedhur = kutia.querySelector('.kerko-shtepine-zgjedhur');
+    var pastro = kutia.querySelector('.kerko-shtepine-pastro');
+    select.style.display = 'none';
+    select.required = false;   // një fushë e fshehur "required" bllokon dërgimin pa asnjë mesazh; serveri e kontrollon
+
+    // ë→e, ç→c: zëvendësim 1 me 1, prandaj pozicionet e shkronjave mbeten të njëjta për theksimin
+    function normalizo(t) { return t.toLowerCase().replace(/ë/g, 'e').replace(/ç/g, 'c'); }
+    function escape(t) { return t.replace(/[&<>"]/g, function (c) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+
+    var opsionet = Array.prototype.filter.call(select.options, function (o) { return o.value; })
+      .map(function (o) { return { vlera: o.value, teksti: o.text, norm: normalizo(o.text) }; });
+
+    function thekso(teksti, norm, fjalet) {
+      var shenja = new Array(teksti.length).fill(false);
+      fjalet.forEach(function (f) {
+        var i = norm.indexOf(f);
+        while (i !== -1) { for (var k = i; k < i + f.length; k++) shenja[k] = true; i = norm.indexOf(f, i + f.length); }
+      });
+      var html = '', hapur = false;
+      for (var i = 0; i < teksti.length; i++) {
+        if (shenja[i] && !hapur) { html += '<mark>'; hapur = true; }
+        if (!shenja[i] && hapur) { html += '</mark>'; hapur = false; }
+        html += escape(teksti[i]);
+      }
+      return html + (hapur ? '</mark>' : '');
+    }
+
+    var aktivi = -1, rezultatet = [];
+    function shfaq() {
+      var fjalet = normalizo(input.value).split(/\s+/).filter(Boolean);
+      pastro.hidden = !input.value;
+      if (!fjalet.length) { lista.hidden = true; return; }
+      rezultatet = opsionet.filter(function (o) { return fjalet.every(function (f) { return o.norm.indexOf(f) !== -1; }); });
+      var te_shfaqura = rezultatet.slice(0, 40);
+      lista.innerHTML = te_shfaqura.length
+        ? te_shfaqura.map(function (o, i) {
+            return '<div class="kerko-shtepine-opsion" data-i="' + i + '">' + thekso(o.teksti, o.norm, fjalet) + '</div>';
+          }).join('') + (rezultatet.length > 40 ? '<div class="kerko-shtepine-me-shume">… edhe ' + (rezultatet.length - 40) + ' të tjera — shkruani më shumë shkronja</div>' : '')
+        : '<div class="kerko-shtepine-me-shume">Asnjë shtëpi me «' + escape(input.value) + '»</div>';
+      aktivi = te_shfaqura.length === 1 ? 0 : -1;
+      ngjyros();
+      lista.hidden = false;
+    }
+    function ngjyros() {
+      lista.querySelectorAll('.kerko-shtepine-opsion').forEach(function (el, i) { el.classList.toggle('aktiv', i === aktivi); });
+      var el = lista.querySelector('.kerko-shtepine-opsion.aktiv');
+      if (el) el.scrollIntoView({ block: 'nearest' });
+    }
+    function zgjidh(o) {
+      select.value = o.vlera;
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+      input.value = '';
+      lista.hidden = true;
+      pastro.hidden = true;
+      trego();
+    }
+    function trego() {
+      var o = select.options[select.selectedIndex];
+      if (o && o.value) {
+        zgjedhur.innerHTML = '✅ <strong>' + escape(o.text) + '</strong> <button type="button" class="kerko-shtepine-ndrysho">Ndrysho</button>';
+        zgjedhur.hidden = false;
+        zgjedhur.querySelector('button').onclick = function () {
+          select.value = ''; select.dispatchEvent(new Event('change', { bubbles: true }));
+          zgjedhur.hidden = true; input.focus();
+        };
+      } else {
+        zgjedhur.hidden = true;
+      }
+    }
+
+    input.addEventListener('input', shfaq);
+    input.addEventListener('focus', function () { if (input.value) shfaq(); });
+    input.addEventListener('keydown', function (e) {
+      var n = Math.min(rezultatet.length, 40);
+      if (e.key === 'ArrowDown') { aktivi = Math.min(aktivi + 1, n - 1); ngjyros(); e.preventDefault(); }
+      else if (e.key === 'ArrowUp') { aktivi = Math.max(aktivi - 1, 0); ngjyros(); e.preventDefault(); }
+      else if (e.key === 'Enter') { if (aktivi >= 0 && rezultatet[aktivi]) zgjidh(rezultatet[aktivi]); e.preventDefault(); }
+      else if (e.key === 'Escape') { lista.hidden = true; }
     });
-    if (ePara && fjalet.length) select.value = ePara.value;
+    lista.addEventListener('mousedown', function (e) {
+      var el = e.target.closest('.kerko-shtepine-opsion');
+      if (el) { e.preventDefault(); zgjidh(rezultatet[+el.dataset.i]); }
+    });
+    input.addEventListener('blur', function () { setTimeout(function () { lista.hidden = true; }, 150); });
+    pastro.addEventListener('click', function () { input.value = ''; shfaq(); input.focus(); });
+    trego();
   });
-})();
+});
 </script>
