@@ -138,7 +138,7 @@
       <tbody>
         {% for h in harxhimet_e_fundit %}
         <tr>
-          <td><a href="{% url 'detaje_harxhimi' h.pk %}">{{ h.nr_fatures }}</a></td>
+          <td><a href="{% url 'detaje_harxhimi' h.pk %}">{{ h.fatura_tekst }}</a></td>
           <td><span class="badge-gri">{{ h.lloji }}</span></td>
           <td class="font-semibold" style="color:var(--paralajmërim);">{{ h.shuma_origjinale }}</td>
           <td class="tekst-dytësor">{{ h.data_pageses|date:"d M Y" }}</td>

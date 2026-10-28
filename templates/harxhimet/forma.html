@@ -14,6 +14,26 @@
   {% csrf_token %}
 
   <div class="card" style="margin-bottom:20px;">
+    <div class="card-header"><h5>🧾 Fatura</h5></div>
+    <div class="card-body">
+      <div class="grid-2">
+        <div class="forma-grup">
+          <label>{{ form.blloku.label }}</label>
+          {% render_field form.blloku placeholder="p.sh. 1100" inputmode="numeric" autocomplete="off" %}
+          {% if form.blloku.errors %}<p class="gabim-fusha">{{ form.blloku.errors.0 }}</p>{% endif %}
+        </div>
+        <div class="forma-grup">
+          <label>{{ form.nr_fatures.label }}</label>
+          {% render_field form.nr_fatures placeholder="p.sh. 046386" inputmode="numeric" autocomplete="off" %}
+          {% if form.nr_fatures.errors %}<p class="gabim-fusha">{{ form.nr_fatures.errors.0 }}</p>{% endif %}
+        </div>
+      </div>
+      <p class="ndihma" style="margin-top:-6px;">Nga blloku i faturave të harxhimeve. Sugjerohet blloku i fundit dhe numri pasues.</p>
+      {% for e in form.non_field_errors %}<p class="gabim-fusha">{{ e }}</p>{% endfor %}
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:20px;">
     <div class="card-header"><h5>📋 Harxhimi</h5></div>
     <div class="card-body">
       <div class="grid-2">

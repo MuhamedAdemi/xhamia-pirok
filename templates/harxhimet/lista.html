@@ -45,7 +45,7 @@
     <table class="tabela-xhami">
       <thead>
         <tr>
-          <th>Nr. Dok.</th>
+          <th>Fatura</th>
           <th>Lloji</th>
           <th>Përshkrimi</th>
           <th>Buxheti</th>
@@ -57,7 +57,7 @@
       <tbody>
         {% for h in harxhimet %}
         <tr>
-          <td><a href="{% url 'detaje_harxhimi' h.pk %}" style="font-family:monospace; font-weight:700; color:var(--gabim);">{{ h.nr_fatures }}</a></td>
+          <td><a href="{% url 'detaje_harxhimi' h.pk %}" style="font-family:monospace; font-weight:700; color:var(--gabim);">{{ h.fatura_tekst }}</a></td>
           <td><span class="badge-gri">{{ h.lloji }}</span></td>
           <td>{{ h.pershkrimi|default:"—"|truncatechars:50 }}</td>
           <td>

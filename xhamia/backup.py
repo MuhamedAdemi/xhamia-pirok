@@ -106,10 +106,10 @@ def excel_i_plote():
                    p.mbiemri_donatorit, p.nr_telefoni, p.arsyeja, p.monedha, float(p.shuma_ne_monedhe or 0),
                    float(p.shuma_mkd or 0), float(p.shuma), p.arktar.get_full_name()])
 
-    ws = _fleta(wb, 'Harxhimet', ['Nr. Dokumentit', 'Data', 'Lloji', 'Buxheti', 'Përshkrimi', 'Shuma (€)',
+    ws = _fleta(wb, 'Harxhimet', ['Blloku', 'Nr. Faturës', 'Data', 'Lloji', 'Buxheti', 'Përshkrimi', 'Shuma (€)',
                                    'Shuma (den)', 'Regjistruar nga'])
     for h in Harxhimi.objects.select_related('arktar').order_by('data_pageses', 'pk'):
-        ws.append([h.nr_fatures, h.data_pageses, h.get_lloji_display(), h.get_burimi_display(), h.pershkrimi,
+        ws.append([h.blloku, h.nr_fatures, h.data_pageses, h.get_lloji_display(), h.get_burimi_display(), h.pershkrimi,
                    float(h.shuma_eur), float(h.shuma_mkd or 0), h.arktar.get_full_name()])
 
     for ws in wb.worksheets[1:]:

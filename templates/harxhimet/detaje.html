@@ -1,13 +1,13 @@
 {% extends 'base.html' %}
 {% load shumat %}
-{% block titulli %}{{ harxhim.nr_fatures }} — Xhamia Pirok{% endblock %}
+{% block titulli %}{{ harxhim.fatura_tekst }} — Xhamia Pirok{% endblock %}
 
 {% block kontent %}
 <div class="page-header">
   <div class="flex items-center gap-3">
     <a href="{% url 'lista_harxhimeve' %}" class="btn-dytësor btn-sm">← Kthehu</a>
     <div>
-      <h2>{{ harxhim.nr_fatures }}</h2>
+      <h2>{{ harxhim.fatura_tekst }}</h2>
       <p>{{ harxhim.get_lloji_display }} — {{ harxhim.data_pageses|date:"d F Y" }}</p>
     </div>
   </div>
@@ -24,8 +24,8 @@
     <div class="card-body">
       <table style="width:100%; border-collapse:collapse;">
         <tr>
-          <td style="padding:10px 0; color:var(--tekst-dytësor); font-size:13px; width:35%;">Nr. Dokumentit</td>
-          <td style="padding:10px 0; font-family:monospace; font-weight:700; color:var(--gabim);">{{ harxhim.nr_fatures }}</td>
+          <td style="padding:10px 0; color:var(--tekst-dytësor); font-size:13px; width:35%;">Fatura</td>
+          <td style="padding:10px 0; font-family:monospace; font-weight:700; color:var(--gabim);">{{ harxhim.fatura_tekst }}</td>
         </tr>
         <tr>
           <td style="padding:10px 0; color:var(--tekst-dytësor); font-size:13px;">Lloji</td>

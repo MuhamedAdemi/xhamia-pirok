@@ -753,6 +753,7 @@ class HarxhimetMonedhaTest(TestCase):
         self.assertContains(forma, '<datalist id="llojet">')
         self.assertNotContains(forma, 'Antarësia (e vjetër)')    # antarësia nuk ka harxhime
         r = self.client.post(reverse('shto_harxhim'), {
+            'blloku': '2001', 'nr_fatures': '000101',
             'lloji': 'Riparimi i çatisë', 'burimi': 'FONDI', 'data_pageses': '2026-10-28',
             'pershkrimi': 'Mjeshtri', 'shuma_hyrese': '12300', 'monedha': 'MKD', 'kursi': '61.5',
         })
@@ -760,7 +761,16 @@ class HarxhimetMonedhaTest(TestCase):
         h = Harxhimi.objects.get()
         self.assertEqual((h.lloji, h.monedha, h.shuma_origjinale, h.shuma_eur, h.viti),
                          ('Riparimi i çatisë', 'MKD', '12.300 den', Decimal('200.00'), 2026))
+        self.assertEqual(h.fatura_tekst, 'Bllok 2001 nr 000101')
+        self.assertContains(self.client.get(reverse('detaje_harxhimi', args=[h.pk])), 'Bllok 2001 nr 000101')
+        self.assertEqual(self.client.get(reverse('shto_harxhim')).context['form'].initial['nr_fatures'], '000102')
+        dyfish = self.client.post(reverse('shto_harxhim'), {
+            'blloku': '2001', 'nr_fatures': '000101', 'lloji': 'X', 'burimi': 'FONDI',
+            'data_pageses': '2026-10-28', 'shuma_hyrese': '1', 'monedha': 'EUR', 'kursi': '61.5',
+        })
+        self.assertContains(dyfish, 'regjistruar tashmë')
         self.client.post(reverse('shto_harxhim'), {
+            'blloku': '2001', 'nr_fatures': '000102',
             'lloji': 'Rrymë elektrike', 'burimi': 'VARREZAT', 'data_pageses': '2026-10-28',
             'shuma_hyrese': '50', 'monedha': 'CHF', 'kursi': '66',
         })

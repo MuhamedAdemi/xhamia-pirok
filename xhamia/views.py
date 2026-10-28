@@ -1458,7 +1458,9 @@ def shto_harxhim(request):
     if not është_admin(request.user):
         messages.error(request, 'Nuk keni leje.')
         return redirect('lista_harxhimeve')
+    blloku, nr = sugjero_faturen(Harxhimi)
     form = HarxhimiForm(request.POST or None, initial={
+        'blloku': blloku, 'nr_fatures': nr,
         'data_pageses': timezone.now().date(), 'burimi': request.GET.get('burimi', 'FONDI'),
     })
     if request.method == 'POST' and form.is_valid():
@@ -1466,7 +1468,7 @@ def shto_harxhim(request):
         harxhim.viti = harxhim.data_pageses.year
         harxhim.arktar = request.user
         harxhim.save()
-        messages.success(request, f'Harxhimi {harxhim.nr_fatures} u regjistrua me sukses.')
+        messages.success(request, f'Harxhimi {harxhim.fatura_tekst} u regjistrua me sukses.')
         return redirect('detaje_harxhimi', pk=harxhim.pk)
     return render(request, 'harxhimet/forma.html', {
         'form': form, 'titulli': 'Regjistro Harxhim', 'llojet': _llojet_e_harxhimeve(),
@@ -1491,14 +1493,14 @@ def fshi_harxhimin(request, pk):
         messages.error(request, 'Nuk keni leje.')
         return redirect('lista_harxhimeve')
     harxhim = get_object_or_404(Harxhimi, pk=pk)
-    info = f'{harxhim.nr_fatures} — {harxhim.get_lloji_display()} — {harxhim.shuma_eur}€'
+    info = f'{harxhim.fatura_tekst} — {harxhim.lloji} — {harxhim.shuma_origjinale}'
     return _fshirje_3hap(
         request,
         çelësi=f'hrx_{pk}',
         fshi_fn=harxhim.delete,
         redirect_sukses='lista_harxhimeve',
         info=info,
-        mesazh_sukses=f'Harxhimi {harxhim.nr_fatures} u fshi me sukses.',
+        mesazh_sukses=f'Harxhimi {harxhim.fatura_tekst} u fshi me sukses.',
     )
 
 

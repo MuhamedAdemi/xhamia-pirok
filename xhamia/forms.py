@@ -313,7 +313,7 @@ class HarxhimiForm(ShumaMonedhaMixin, forms.ModelForm):
 
     class Meta:
         model = Harxhimi
-        fields = ['lloji', 'burimi', 'data_pageses', 'pershkrimi']
+        fields = ['blloku', 'nr_fatures', 'lloji', 'burimi', 'data_pageses', 'pershkrimi']
         widgets = {
             'lloji': forms.TextInput(attrs={'list': 'llojet', 'autocomplete': 'off',
                                             'placeholder': 'p.sh. Rrymë elektrike, Riparim i çatisë…'}),
@@ -321,6 +321,8 @@ class HarxhimiForm(ShumaMonedhaMixin, forms.ModelForm):
             'data_pageses': forms.DateInput(attrs={'type': 'date'}),
         }
         labels = {
+            'blloku': 'Blloku (4 shifra)',
+            'nr_fatures': 'Nr. i Faturës (6 shifra)',
             'lloji': 'Lloji i harxhimit',
             'data_pageses': 'Data',
             'pershkrimi': 'Përshkrimi',

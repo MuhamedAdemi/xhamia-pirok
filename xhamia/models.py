@@ -474,10 +474,8 @@ class Harxhimi(MonedhaMixin, models.Model):
         9: 'Shtator', 10: 'Tetor', 11: 'Nëntor', 12: 'Dhjetor',
     }
 
-    nr_fatures = models.CharField(
-        max_length=25, unique=True, default=gjenero_nr_fature_harxhim,
-        verbose_name='Nr. Dokumentit'
-    )
+    blloku = models.CharField(max_length=10, blank=True, verbose_name='Blloku')
+    nr_fatures = models.CharField(max_length=30, verbose_name='Nr. i Faturës')
     lloji = models.CharField(max_length=100, verbose_name='Lloji')
     burimi = models.CharField(
         max_length=20, choices=BURIMI_CHOICES, default='FONDI',
@@ -514,12 +512,18 @@ class Harxhimi(MonedhaMixin, models.Model):
         ordering = ['-data_pageses']
         verbose_name = 'Harxhim'
         verbose_name_plural = 'Harxhimet'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['blloku', 'nr_fatures'], name='harxhimi_fatura_unike',
+                violation_error_message='Kjo faturë (blloku + numri) është regjistruar tashmë.',
+            ),
+        ]
 
     def get_lloji_display(self):
         return self.lloji
 
     def __str__(self):
-        return f"{self.nr_fatures} — {self.lloji} — {self.shuma_origjinale}"
+        return f"{self.fatura_tekst} — {self.lloji} — {self.shuma_origjinale}"
 
     @property
     def emri_muajit(self):
