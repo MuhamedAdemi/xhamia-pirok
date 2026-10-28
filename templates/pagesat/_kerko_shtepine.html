@@ -3,7 +3,7 @@
 <script>
 (function () {
   const kerko = document.getElementById('kerkoShtepine');
-  const select = document.querySelector('[name="shtepia"]');
+  const select = document.querySelector('[name="{{ emri_fushes|default:"shtepia" }}"]');
   const opsionet = Array.from(select.options);
   const pa_shenja = t => t.toLowerCase().replace(/ë/g, 'e').replace(/ç/g, 'c');
   kerko.addEventListener('input', () => {

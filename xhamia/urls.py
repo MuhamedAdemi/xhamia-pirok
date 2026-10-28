@@ -44,6 +44,8 @@ urlpatterns = [
     path('shtepite/<int:pk>/', views.detaje_shtepia, name='detaje_shtepia'),
     path('shtepite/<int:pk>/edito/', views.edito_shtepi, name='edito_shtepi'),
     path('shtepite/<int:pk>/fshi/', views.fshi_shtepi, name='fshi_shtepi'),
+    path('shtepite/<int:pk>/fshi-perfundimisht/', views.fshi_perfundimisht_shtepi, name='fshi_perfundimisht_shtepi'),
+    path('shtepite/duplikatet/', views.duplikatet_shtepive, name='duplikatet_shtepive'),
     path('shtepite/<int:pk>/permbyll/', views.permbyll_antaresia, name='permbyll_antaresia'),
     path('shtepite/<int:pk>/permbyll-varrezat/', views.permbyll_varrezat, name='permbyll_varrezat'),
 

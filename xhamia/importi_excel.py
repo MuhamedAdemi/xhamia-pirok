@@ -83,7 +83,7 @@ def importo_excel(skedari, perdoruesi, vetem_prove=False):
     for sh in Shtepia.objects.order_by('nr_shtepise', 'pk'):
         ekzistuese[celesi(sh.emri_kryefamiljarit, sh.emri_prindit, sh.mbiemri_kryefamiljarit)].append(sh)
     numrat_zene = set(Shtepia.objects.values_list('nr_shtepise', flat=True))
-    nr_radhes = max([int(n) for n in numrat_zene if n and n.isdigit()], default=0) + 1
+    nr_radhes = 1   # mbush numrat e lirë (p.sh. të shtëpive të fshira) para se të shkojë më tej
 
     with transaction.atomic():
         te_reja = []

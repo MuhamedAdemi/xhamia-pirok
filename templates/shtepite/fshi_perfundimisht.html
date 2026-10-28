@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+{% block titulli %}Fshi shtëpinë #{{ shtepi.nr_shtepise }} — Xhamia Pirok{% endblock %}
+
+{% block kontent %}
+<div style="max-width:600px; margin:30px auto;">
+  <div class="card">
+    <div class="card-body" style="padding:32px;">
+      <div style="text-align:center; font-size:48px;">🗑️</div>
+      <h3 style="text-align:center; color:var(--gabim); margin-bottom:6px;">Fshi përfundimisht shtëpinë</h3>
+      <p style="text-align:center; margin-bottom:18px;">
+        <span class="nr-shtepi">{{ shtepi.nr_shtepise }}</span> <strong>{{ shtepi.emri_i_plote }}</strong>
+      </p>
+
+      <div style="background:var(--krem-errët); border-radius:12px; padding:14px 18px; margin-bottom:18px; font-size:14px;">
+        <strong>Kjo shtëpi ka:</strong>
+        <ul style="margin:6px 0 0 18px;">
+          {% for k, v in ka.items %}<li>{{ k }}: <strong>{{ v }}</strong></li>{% endfor %}
+        </ul>
+      </div>
+
+      <form method="post">
+        {% csrf_token %}
+        <div class="forma-grup">
+          <label>{{ forma.mbetet.label }}{% if ka_pagesa %} <span style="color:var(--gabim);">(e detyrueshme — ka pagesa)</span>{% endif %}</label>
+          {% include 'pagesat/_kerko_shtepine.html' with emri_fushes='mbetet' %}
+          {{ forma.mbetet }}
+          <p class="ndihma">Zgjidhni shtëpinë e saktë (origjinalin). Pagesat, SMS-të dhe kontaktet që i mungojnë
+            kalohen atje. Llogaria e portalit e kësaj shtëpie fshihet.</p>
+        </div>
+        <div class="forma-grup">
+          <label>Për konfirmim shkruani numrin e shtëpisë: <strong>{{ shtepi.nr_shtepise }}</strong></label>
+          <input type="text" name="konfirmo" autocomplete="off" required placeholder="{{ shtepi.nr_shtepise }}">
+        </div>
+        <p class="ndihma" style="color:var(--gabim);">
+          Shtëpia fshihet përgjithmonë (para fshirjes ruhet automatikisht një backup).
+          Numri {{ shtepi.nr_shtepise }} i jepet shtëpisë së re që regjistrohet.
+        </p>
+        <div class="flex gap-3" style="justify-content:center; margin-top:16px;">
+          <a href="{% url 'detaje_shtepia' shtepi.pk %}" class="btn-dytësor">Anulo</a>
+          <button type="submit" class="btn-rrezik">🗑️ Fshi përfundimisht</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

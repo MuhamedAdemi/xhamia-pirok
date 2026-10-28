@@ -10,7 +10,8 @@
   </div>
   {% if request.user.profili.është_admin %}
   <div class="flex gap-3 no-print" style="flex-wrap:wrap;">
-    <a href="{% url 'importo_shtepite' %}" class="btn-dytësor">⬆️ Importo nga PDF</a>
+    <a href="{% url 'duplikatet_shtepive' %}" class="btn-dytësor">👥 Duplikatet</a>
+    <a href="{% url 'importo_shtepite' %}" class="btn-dytësor">⬆️ Importo</a>
     <a href="{% url 'shto_shtepi' %}" class="btn-kryesor">+ Shto Shtëpi</a>
   </div>
   {% endif %}

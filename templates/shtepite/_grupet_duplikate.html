@@ -1,0 +1,24 @@
+<div style="overflow-x:auto;">
+  <table class="tabela-xhami">
+    <thead><tr><th>Nr.</th><th>Kryefamiljari</th><th>Telefoni</th><th>Llogari</th><th></th></tr></thead>
+    <tbody>
+      {% for grupi in grupet %}
+        {% for sh in grupi %}
+        <tr {% if forloop.first %}style="border-top:3px solid var(--kufi);"{% endif %}>
+          <td><span class="nr-shtepi">{{ sh.nr_shtepise }}</span></td>
+          <td><a href="{% url 'detaje_shtepia' sh.pk %}" style="font-weight:600;">{{ sh.emri_i_plote }}</a></td>
+          <td class="tekst-dytësor">{{ sh.nr_telefoni_kryesor|default:"—" }}</td>
+          <td class="tekst-dytësor">{% if sh.llogaria %}{{ sh.llogaria.user.username }}{% else %}—{% endif %}</td>
+          <td>
+            {% if request.user.profili.është_admin and not forloop.first %}
+            <a href="{% url 'fshi_perfundimisht_shtepi' sh.pk %}?mbetet={{ grupi.0.pk }}" class="btn-rrezik btn-sm">🗑️ Fshi → kalo te #{{ grupi.0.nr_shtepise }}</a>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      {% empty %}
+        <tr><td colspan="5" style="text-align:center; padding:30px; color:var(--tekst-dytësor);">Asnjë. ✅</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

@@ -786,3 +786,53 @@ class HarxhimetMonedhaTest(TestCase):
         self.assertEqual(raporti.muajt_e_periudhes('n9'), (1, 9))
         r = self.client.get(reverse('regjistri') + '?lloji=antaresia&viti=2026&periudha=n9')
         self.assertContains(r, '9 muajt e parë')
+
+
+class DuplikatetNumratTest(TestCase):
+    def setUp(self):
+        self.admin = User.objects.create_user('admin', password='x')
+        ProfilStafi.objects.create(user=self.admin, rol='ADMIN')
+        self.client.force_login(self.admin)
+        mk = lambda nr, prindi, tel='': Shtepia.objects.create(
+            nr_shtepise=nr, emri_kryefamiljarit='Gajur', emri_prindit=prindi, mbiemri_kryefamiljarit='Aliu',
+            viti_fillimit_antaresise=2026, nr_telefoni_kryesor=tel)
+        self.origj = mk('0373', 'Shemsedin')
+        self.dup = mk('0377', 'Shemsedin', '070999888')
+        self.pa_prind = mk('0400', '')
+        Shtepia.objects.create(nr_shtepise='0001', emri_kryefamiljarit='A', mbiemri_kryefamiljarit='B',
+                               viti_fillimit_antaresise=2026)
+
+    def test_gjen_duplikatet(self):
+        r = self.client.get(reverse('duplikatet_shtepive'))
+        self.assertEqual([[s.nr_shtepise for s in g] for g in r.context['te_njejta']], [['0373', '0377']])
+        self.assertEqual([[s.nr_shtepise for s in g] for g in r.context['te_ngjashme']], [['0373', '0377', '0400']])
+
+    def test_fshirja_kalon_pagesat_dhe_numri_ripercdoret(self):
+        import tempfile
+        from .models import gjenero_nr_shtepi, ProfilShtepi
+        PagesaAntaresia.objects.create(blloku='1', nr_fatures='1', shtepia=self.dup, shuma_paguar=Decimal('70'),
+                                       viti=2026, data_pageses=date.today(), arktar=self.admin)
+        u = User.objects.create_user('sh0377', password='x')
+        ProfilShtepi.objects.create(user=u, shtepia=self.dup)
+        url = reverse('fshi_perfundimisht_shtepi', args=[self.dup.pk])
+        faqja = self.client.get(url + f'?mbetet={self.origj.pk}')
+        self.assertContains(faqja, 'Pagesa antarësie: <strong>1</strong>')
+        self.assertContains(faqja, f'value="{self.origj.pk}" selected')
+        with tempfile.TemporaryDirectory() as d, override_settings(BACKUP_DIR=d):
+            # pa shtëpi ku të kalohen pagesat → refuzohet
+            self.client.post(url, {'konfirmo': '0377'})
+            self.assertTrue(Shtepia.objects.filter(pk=self.dup.pk).exists())
+            # konfirmim i gabuar → refuzohet
+            self.client.post(url, {'konfirmo': '0373', 'mbetet': self.origj.pk})
+            self.assertTrue(Shtepia.objects.filter(pk=self.dup.pk).exists())
+            r = self.client.post(url, {'konfirmo': '0377', 'mbetet': self.origj.pk})
+            self.assertRedirects(r, reverse('detaje_shtepia', args=[self.origj.pk]))
+        self.assertFalse(Shtepia.objects.filter(pk=self.dup.pk).exists())
+        self.assertFalse(User.objects.filter(username='sh0377').exists())
+        self.assertEqual(PagesaAntaresia.objects.get().shtepia, self.origj)
+        self.origj.refresh_from_db()
+        self.assertEqual(self.origj.nr_telefoni_kryesor, '070999888')
+        # numri i parë i lirë është 0002 (0001 i zënë); pas fshirjes së 0001 do të ishte 0001
+        self.assertEqual(gjenero_nr_shtepi(), '0002')
+        Shtepia.objects.filter(nr_shtepise='0001').delete()
+        self.assertEqual(gjenero_nr_shtepi(), '0001')

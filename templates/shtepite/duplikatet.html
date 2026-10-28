@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+{% block titulli %}Duplikatet — Xhamia Pirok{% endblock %}
+
+{% block kontent %}
+<div class="page-header">
+  <div class="flex items-center gap-3">
+    <a href="{% url 'lista_shtepive' %}" class="btn-dytësor btn-sm">← Kthehu</a>
+    <div>
+      <h2>👥 Shtëpitë e dyfishta të mundshme</h2>
+      <p>Kontrolloni secilin grup: nëse janë i njëjti kryefamiljar, fshini duplikatin dhe pagesat kalojnë te origjinali</p>
+    </div>
+  </div>
+</div>
+
+
+<div class="card" style="margin-bottom:20px;">
+  <div class="card-header"><h5>Emër + prind + mbiemër i njëjtë — {{ te_njejta|length }} grupe</h5></div>
+  {% include 'shtepite/_grupet_duplikate.html' with grupet=te_njejta %}
+</div>
+
+<div class="card">
+  <div class="card-header"><h5>Emër + mbiemër i njëjtë, njërit i mungon prindi — {{ te_ngjashme|length }} grupe</h5></div>
+  {% include 'shtepite/_grupet_duplikate.html' with grupet=te_ngjashme %}
+</div>
+{% endblock %}

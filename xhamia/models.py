@@ -224,13 +224,17 @@ class ProfilShtepi(models.Model):
 
 
 def gjenero_nr_shtepi():
-    numrat = []
+    """Numri më i vogël i lirë — kur fshihet një shtëpi (p.sh. duplikat), numri i saj i jepet shtëpisë së re."""
+    zene = set()
     for nr in Shtepia.objects.values_list('nr_shtepise', flat=True):
         try:
-            numrat.append(int(nr))
+            zene.add(int(nr))
         except (ValueError, TypeError):
             pass
-    return f"{(max(numrat) + 1) if numrat else 1:04d}"
+    nr = 1
+    while nr in zene:
+        nr += 1
+    return f"{nr:04d}"
 
 
 def gjenero_nr_fature_antaresi():

@@ -1,3 +1,4 @@
+from django import forms
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
@@ -29,7 +30,7 @@ from .forms import (
     LoginForm, StafForm, KategoriaForm, ShtepiaForm,
     PagesaAntaresiaForm, PagesaFondiForm, HarxhimiForm,
     PagesaVarrezaveForm, KonfigurimiVarrezaveForm, KonfigurimiSistemitForm,
-    sugjero_faturen,
+    sugjero_faturen, FushaShtepise,
 )
 from .utils import dërgo_email_antaresia, dërgo_email_fondi, dërgo_email_varrezat
 from . import sms
@@ -40,6 +41,7 @@ from django.core.mail import EmailMessage
 from pathlib import Path
 from .gjendja import gjendja_e_shtepive, vitet_tekst
 from . import kerkimi as kerkimi_mod
+from . import duplikatet
 
 
 def _gjenero_kod():
@@ -1682,6 +1684,54 @@ def fshi_staf(request, pk):
         },
         mesazh_sukses=f'{emri} u çaktivizua me sukses.',
     )
+
+
+@login_required
+def duplikatet_shtepive(request):
+    if not mund_shikoje(request.user):
+        messages.error(request, 'Nuk keni leje.')
+        return redirect('lista_shtepive')
+    te_njejta, te_ngjashme = duplikatet.gjej_duplikatet()
+    return render(request, 'shtepite/duplikatet.html', {
+        'te_njejta': te_njejta, 'te_ngjashme': te_ngjashme, 'faqja_aktive': 'shtepite',
+    })
+
+
+@login_required
+def fshi_perfundimisht_shtepi(request, pk):
+    """Fshirje përfundimtare e një shtëpie të dyfishtë; pagesat e saj kalohen te shtëpia që mbetet."""
+    if not është_admin(request.user):
+        messages.error(request, 'Nuk keni leje.')
+        return redirect('lista_shtepive')
+    shtepi = get_object_or_404(Shtepia, pk=pk)
+    ka = duplikatet.cfare_ka(shtepi)
+
+    class FormaMbetet(forms.Form):
+        mbetet = FushaShtepise(required=False, label='Kaloji pagesat dhe kontaktet te shtëpia',
+                               queryset=Shtepia.objects.exclude(pk=pk).order_by('nr_shtepise'),
+                               empty_label='— Asnjë (shtëpia nuk ka pagesa) —')
+
+    mbetet_id = request.POST.get('mbetet') or request.GET.get('mbetet') or ''
+    forma = FormaMbetet(initial={'mbetet': mbetet_id or None})
+    if request.method == 'POST':
+        if request.POST.get('konfirmo', '').strip().lstrip('#') != shtepi.nr_shtepise:
+            messages.error(request, f'Për konfirmim shkruani numrin e shtëpisë: {shtepi.nr_shtepise}')
+        else:
+            mbetet = Shtepia.objects.filter(pk=mbetet_id).exclude(pk=pk).first() if mbetet_id.isdigit() else None
+            try:
+                duplikatet.fshi_duplikatin(shtepi, mbetet)
+            except ValueError as e:
+                messages.error(request, str(e))
+            else:
+                messages.success(request, f'Shtëpia #{shtepi.nr_shtepise} ({shtepi.emri_i_plote}) u fshi përfundimisht'
+                                          + (f'; gjithçka e saj kaloi te #{mbetet.nr_shtepise}.' if mbetet else '.')
+                                          + f' Numri {shtepi.nr_shtepise} do t\'i jepet shtëpisë së re.')
+                return redirect(f"{reverse('detaje_shtepia', args=[mbetet.pk])}" if mbetet else reverse('duplikatet_shtepive'))
+    return render(request, 'shtepite/fshi_perfundimisht.html', {
+        'shtepi': shtepi, 'ka': ka, 'ka_pagesa': any(v for k, v in ka.items() if k.startswith('Pagesa')),
+        'forma': forma,
+        'faqja_aktive': 'shtepite',
+    })
 
 
 @login_required
