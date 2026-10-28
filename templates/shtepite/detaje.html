@@ -20,6 +20,7 @@
     <a href="{% url 'fshi_perfundimisht_shtepi' shtepi.pk %}" class="btn-rrezik">🗑️ Fshi (duplikat)</a>
     {% endif %}
     {% if request.user.profili.mund_regjistroje %}
+    <a href="{% url 'shto_pagese_fondi' %}?shtepi={{ shtepi.pk }}" class="btn-dytësor">🤲 Donacion për Fondin</a>
     <a href="{% url 'shto_pagese_varrezat' %}?shtepi={{ shtepi.pk }}" class="btn-dytësor">+ Pagesë Varrezash</a>
     <a href="{% url 'shto_pagese_antaresia' %}?shtepi={{ shtepi.pk }}" class="btn-kryesor">+ Regjistro Pagesë</a>
     {% endif %}
@@ -362,7 +363,7 @@
 <div class="card" style="margin-top:24px;">
   <div class="card-header">
     <h5>🤲 Pagesat e Fondit — {{ pagesat_fondit|length }} pagesa{% if pagesat_fondit %} · {{ pagesat_fondit_m|monedhat }}{% endif %}</h5>
-    {% if request.user.profili.mund_regjistroje %}<a href="{% url 'shto_pagese_fondi' %}?shtepi={{ shtepi.pk }}" class="btn-kryesor btn-sm">+ Pagesë Fondi</a>{% endif %}
+    {% if request.user.profili.mund_regjistroje %}<a href="{% url 'shto_pagese_fondi' %}?shtepi={{ shtepi.pk }}" class="btn-kryesor btn-sm">🤲 + Donacion</a>{% endif %}
   </div>
   <div style="overflow-x:auto;">
     <table class="tabela-xhami">
