@@ -9,7 +9,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from . import sms
-from .models import Kategoria, KonfigurimiSistemit, MesazhSMS, PagesaAntaresia, ProfilStafi, Shtepia
+from .models import Kategoria, KonfigurimiSistemit, MesazhSMS, PagesaAntaresia, PagesaFondi, PagesaVarrezave, ProfilStafi, Shtepia
 
 
 class NormalizoNumrinTest(TestCase):
@@ -712,6 +712,47 @@ class HyrjaLlogaritePortaliTest(TestCase):
         self.client.post(reverse('shto_llogari_shtepi', args=[self.sh.pk]))
         self.client.logout()
         self.assertTrue(self.client.login(username='sh0254', password='123456'))
+
+    def test_llogaria_e_shtepise_sheh_vetem_portalin_e_vet(self):
+        from .llogarite import siguro_llogarine
+        tjetra = Shtepia.objects.create(nr_shtepise='0300', emri_kryefamiljarit='Afrim', emri_prindit='Hashim',
+                                        mbiemri_kryefamiljarit='Elezi', viti_fillimit_antaresise=2026)
+        ime = PagesaAntaresia.objects.create(blloku='1100', nr_fatures='000001', shtepia=self.sh,
+                                             shuma_paguar=Decimal('70'), viti=2026, data_pageses=date.today(),
+                                             arktar=self.admin)
+        e_huaj = PagesaAntaresia.objects.create(blloku='1100', nr_fatures='000002', shtepia=tjetra,
+                                                shuma_paguar=Decimal('70'), viti=2026, data_pageses=date.today(),
+                                                arktar=self.admin)
+        PagesaVarrezave.objects.create(blloku='2200', nr_fatures='000003', shtepia=self.sh,
+                                       shuma_paguar=Decimal('20'), viti=2026, data_pageses=date.today(),
+                                       arktar=self.admin)
+        fondi = PagesaFondi.objects.create(blloku='3300', nr_fatures='000004', shtepia=self.sh,
+                                           emri_donatorit='Florijan', mbiemri_donatorit='Ademi',
+                                           shuma=Decimal('100'), data_pageses=date.today(),
+                                           arktar=self.admin)
+        siguro_llogarine(self.sh)
+        self.assertRedirects(self.client.post(reverse('login'), {'username': 'sh0254', 'password': '123456'}),
+                             reverse('portali_shtepi'))
+        # sesioni i ruajtur: hyrja e dytë / çdo faqe e stafit → portali
+        for url in [reverse('login'), reverse('dashboard'), reverse('lista_shtepive'),
+                    reverse('detaje_shtepia', args=[tjetra.pk]), reverse('lista_pagesa_antaresia'),
+                    reverse('lista_pagesa_fondi'), reverse('lista_pagesa_varrezave'), reverse('shto_pagese_fondi'),
+                    reverse('detaje_pagesa_antaresia', args=[e_huaj.pk])]:
+            self.assertRedirects(self.client.get(url), reverse('portali_shtepi'), msg_prefix=url,
+                                 fetch_redirect_response=False)
+        # faturat: vetëm të shtëpisë së vet
+        self.assertEqual(self.client.get(reverse('fatura_antaresia_pdf', args=[ime.pk])).status_code, 200)
+        self.assertEqual(self.client.get(reverse('fatura_fondi_pdf', args=[fondi.pk])).status_code, 200)
+        self.assertEqual(self.client.get(reverse('fatura_antaresia_pdf', args=[e_huaj.pk])).status_code, 404)
+        # portali: antarësia, varrezat dhe donacionet e fondit
+        r = self.client.get(reverse('portali_shtepi'))
+        self.assertContains(r, 'Bllok 2200 nr 000003')
+        self.assertContains(r, 'Florijan Ademi')
+        self.assertContains(r, 'Donacionet për Fondin')
+        self.assertNotContains(r, 'Afrim')
+        # stafi vazhdon normalisht
+        self.client.force_login(self.admin)
+        self.assertEqual(self.client.get(reverse('lista_shtepive')).status_code, 200)
 
     @mock.patch('xhamia.sms.requests.post')
     def test_sms_dhe_emaili_kane_te_dhenat_e_portalit(self, post):

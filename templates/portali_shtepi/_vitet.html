@@ -1,0 +1,16 @@
+{% load shumat %}{# Grila vit pas viti; parametër: tabela (dict viti → info nga _tabela_vjetore) #}
+{% if tabela %}
+<div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(120px, 1fr)); gap:10px;">
+  {% for vit, info in tabela.items %}
+  <div style="border:1.5px solid {% if info.ka_paguar %}var(--gjelbër){% else %}rgba(255,59,48,0.35){% endif %}; border-radius:12px; padding:12px; text-align:center; background:{% if info.ka_paguar %}var(--gjelbër-shumë-i-çelur){% else %}rgba(255,59,48,0.04){% endif %};">
+    <div style="font-size:19px; font-weight:800; color:{% if info.ka_paguar %}var(--gjelbër){% else %}var(--gabim){% endif %};">{{ vit }}</div>
+    <div style="font-size:20px; margin:4px 0;">{% if info.ka_paguar %}✅{% else %}❌{% endif %}</div>
+    <div style="font-size:12px; font-weight:600; color:{% if info.ka_paguar %}var(--gjelbër){% else %}var(--gabim){% endif %};">
+      {% if info.historike %}paguar (historik){% elif info.ka_paguar %}{{ info.shuma_paguar|euro }} paguar{% elif info.borxhi %}{{ info.borxhi|euro }} për t'u paguar{% else %}papaguar{% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<p style="text-align:center; color:var(--tekst-dytësor); padding:20px 0;">Nuk ka vite për t'u shfaqur.</p>
+{% endif %}

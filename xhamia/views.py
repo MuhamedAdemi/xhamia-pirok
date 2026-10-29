@@ -4,7 +4,7 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.contrib import messages
-from django.http import HttpResponse
+from django.http import Http404, HttpResponse
 from django.core.mail import send_mail
 from django.conf import settings
 from django.db.models import Sum, Count, Q
@@ -107,6 +107,15 @@ def mund_regjistrojë(user):
         return False
 
 
+def _fatura_e_lejuar(request, model, pk):
+    """Pagesa për faturën PDF; llogaria e një shtëpie merr vetëm pagesat e shtëpisë së vet."""
+    pagese = get_object_or_404(model, pk=pk)
+    profil = getattr(request.user, 'profili_shtepi', None)
+    if profil is not None and pagese.shtepia_id != profil.shtepia_id:
+        raise Http404
+    return pagese
+
+
 def _ids_qe_mbulojne(model, viti):
     """ID-të e shtëpive që kanë një pagesë që e mbulon vitin (një faturë mund të mbulojë shumë vite)."""
     return set(model.objects.filter(viti__lte=viti, viti_deri__gte=viti).values_list('shtepia_id', flat=True))
@@ -180,7 +189,7 @@ def _pergjigje_excel(emri_skedarit, koka, rreshtat):
 
 def login_view(request):
     if request.user.is_authenticated:
-        return redirect('dashboard')
+        return redirect('portali_shtepi' if hasattr(request.user, 'profili_shtepi') else 'dashboard')
     form = LoginForm(request.POST or None)
     if request.method == 'POST' and form.is_valid():
         emri = form.cleaned_data['username'].strip()
@@ -940,7 +949,7 @@ def detaje_pagesa_antaresia(request, pk):
 
 @login_required
 def fatura_antaresia_pdf(request, pk):
-    pagese = get_object_or_404(PagesaAntaresia, pk=pk)
+    pagese = _fatura_e_lejuar(request, PagesaAntaresia, pk)
     html = render_to_string('pagesat/antaresia/fatura_pdf.html', {'pagese': pagese})
     buffer = BytesIO()
     pisa.CreatePDF(html, dest=buffer)
@@ -1014,7 +1023,7 @@ def detaje_pagesa_fondi(request, pk):
 
 @login_required
 def fatura_fondi_pdf(request, pk):
-    pagese = get_object_or_404(PagesaFondi, pk=pk)
+    pagese = _fatura_e_lejuar(request, PagesaFondi, pk)
     html = render_to_string('pagesat/fondi/fatura_pdf.html', {'pagese': pagese})
     buffer = BytesIO()
     pisa.CreatePDF(html, dest=buffer)
@@ -1092,7 +1101,7 @@ def detaje_pagesa_varrezat(request, pk):
 
 @login_required
 def fatura_varrezat_pdf(request, pk):
-    pagese = get_object_or_404(PagesaVarrezave, pk=pk)
+    pagese = _fatura_e_lejuar(request, PagesaVarrezave, pk)
     html = render_to_string('pagesat/varrezat/fatura_pdf.html', {'pagese': pagese})
     buffer = BytesIO()
     pisa.CreatePDF(html, dest=buffer)
@@ -1867,8 +1876,14 @@ def portali_shtepi(request):
         KonfigurimiSistemit.merr().tarifa_antaresise,
     )
 
-    total_gjithsej = pagesat_te_gjitha.aggregate(s=Sum('shuma_paguar'))['s'] or Decimal('0')
     pagesa_e_fundit = pagesat_te_gjitha.first()
+
+    pagesat_varrezave = shtepi.pagesat_varrezave.order_by('-viti', '-data_pageses')
+    pagesat_per_vit_varrezat, borxhi_total_varrezat, papaguara_varrezat = _tabela_vjetore(
+        shtepi.pagesat_varrezave, shtepi.viti_fillimit_varrezave, shtepi.varrezat_paguar_deri_viti,
+        KonfigurimiVarrezave.merr().shuma_vjetore,
+    )
+    pagesat_fondit = shtepi.pagesat_fondit.order_by('-data_pageses')
 
     return render(request, 'portali_shtepi/dashboard.html', {
         'shtepi': shtepi,
@@ -1879,8 +1894,15 @@ def portali_shtepi(request):
         'borxhi_total': borxhi_total,
         'nr_papaguara': len(papaguara),
         'viti_aktual': viti_aktual,
-        'total_gjithsej': total_gjithsej,
+        'total_gjithsej': totalet_sipas_monedhes(pagesat_te_gjitha),
         'pagesa_e_fundit': pagesa_e_fundit,
+        'pagesat_varrezave': pagesat_varrezave,
+        'total_varrezat': totalet_sipas_monedhes(pagesat_varrezave),
+        'pagesat_per_vit_varrezat': pagesat_per_vit_varrezat,
+        'borxhi_total_varrezat': borxhi_total_varrezat,
+        'nr_papaguara_varrezat': len(papaguara_varrezat),
+        'pagesat_fondit': pagesat_fondit,
+        'total_fondi': totalet_sipas_monedhes(pagesat_fondit),
         'portali_shtepi': True,
         'fjalekalimi_fillestar': profili.fjalekalimi_fillestar,
     })
