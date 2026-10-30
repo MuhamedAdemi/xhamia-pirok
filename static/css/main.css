@@ -669,3 +669,69 @@ a:hover { text-decoration: underline; }
   margin-left: 8px; background: none; border: 1px solid var(--kufi); border-radius: 6px;
   padding: 2px 8px; cursor: pointer; font-size: 12px;
 }
+
+/* ─── Puna e përditshme (si Masjid Manager) ───────────────────────────────── */
+.puna-filtrat { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; margin-bottom: 14px; }
+.puna-fusha { display: flex; flex-direction: column; gap: 4px; min-width: 170px; }
+.puna-fusha label { font-size: 12px; color: var(--tekst-dytësor); font-weight: 600; }
+.puna-fusha input, .puna-fusha select {
+  padding: 11px 12px; border: 1.5px solid var(--kufi); border-radius: 10px; font-size: 15px;
+  background: var(--e-bardhë); font-family: inherit;
+}
+.puna-kerko { position: relative; flex: 1 1 260px; max-width: 420px; }
+.puna-kerko input { width: 100%; padding-right: 36px; }
+.puna-kerko .pastro {
+  position: absolute; right: 8px; bottom: 9px; background: none; border: none; cursor: pointer;
+  font-size: 16px; color: var(--tekst-dytësor);
+}
+.puna-segment { display: inline-flex; border: 1.5px solid var(--kufi); border-radius: 999px; overflow: hidden; }
+.puna-segment button {
+  padding: 10px 16px; background: var(--e-bardhë); border: none; border-right: 1px solid var(--kufi);
+  cursor: pointer; font-weight: 600; font-size: 14px; font-family: inherit;
+}
+.puna-segment button:last-child { border-right: none; }
+.puna-segment button.aktiv { background: var(--gjelbër-shumë-i-çelur); color: var(--gjelbër); }
+.puna-segment button.aktiv::before { content: '✓ '; }
+.puna-totali { font-size: 19px; margin: 4px 0 14px; }
+.puna-totali strong { font-size: 21px; }
+.tabela-puna { width: 100%; border-collapse: collapse; background: var(--e-bardhë); font-size: 15px; }
+.tabela-puna th {
+  background: #DCE6FA; text-align: left; padding: 12px; font-weight: 600; position: sticky; top: 0; z-index: 1;
+}
+.tabela-puna td { padding: 10px 12px; border-bottom: 1px solid var(--krem-errët); }
+.tabela-puna tbody tr:hover { background: var(--krem); }
+.tabela-puna .djathtas { text-align: right; white-space: nowrap; }
+.tabela-puna .ikon { width: 46px; text-align: center; padding: 6px; }
+.tabela-puna tr.pa-paguar td { color: #E0201B; }
+.tabela-puna tr.pa-paguar td a { color: #E0201B; }
+.tabela-puna mark { background: #FFE58A; color: inherit; padding: 0 1px; border-radius: 3px; }
+.btn-ikon {
+  display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px;
+  border-radius: 50%; border: none; background: none; cursor: pointer; font-size: 17px; text-decoration: none;
+}
+.btn-ikon:hover { background: var(--krem-errët); }
+.btn-plus { background: #1A56A8; color: #fff; font-size: 20px; font-weight: 700; width: 28px; height: 28px; line-height: 1; }
+.btn-plus:hover { background: #12417f; }
+.puna-tabela-mbajtese { overflow-x: auto; border: 1px solid var(--kufi); border-radius: 10px; }
+.puna-switch { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; text-decoration: none; color: inherit; }
+dialog.puna-dialog {
+  border: none; border-radius: 16px; padding: 0; width: min(560px, calc(100vw - 32px)); box-shadow: var(--hija-e-madhe);
+}
+dialog.puna-dialog::backdrop { background: rgba(0,0,0,0.35); }
+.puna-dialog-koka { padding: 16px 20px; background: #DCE6FA; display: flex; justify-content: space-between; align-items: center; }
+.puna-dialog-koka h3 { margin: 0; font-size: 17px; }
+.puna-dialog-trupi { padding: 18px 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.puna-dialog-trupi .plote { grid-column: 1 / -1; }
+.puna-dialog-trupi label { display: block; font-size: 12px; font-weight: 600; color: var(--tekst-dytësor); margin-bottom: 4px; }
+.puna-dialog-trupi input, .puna-dialog-trupi select, .puna-dialog-trupi textarea {
+  width: 100%; padding: 10px; border: 1.5px solid var(--kufi); border-radius: 10px; font-size: 15px; font-family: inherit;
+}
+.puna-dialog-fundi { padding: 14px 20px; display: flex; gap: 10px; justify-content: flex-end; border-top: 1px solid var(--krem-errët); }
+.puna-info { font-size: 13px; padding: 8px 12px; background: var(--krem); border-radius: 8px; }
+.puna-gabimet { color: #E0201B; font-size: 14px; }
+@media (max-width: 600px) { .puna-dialog-trupi { grid-template-columns: 1fr; } }
+@media print {
+  .puna-filtrat, .tabela-puna .ikon, .page-header .btn-kryesor { display: none !important; }
+  .tabela-puna th { position: static; }
+  .puna-tabela-mbajtese { border: none; overflow: visible; }
+}

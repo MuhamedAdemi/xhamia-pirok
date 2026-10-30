@@ -1,8 +1,16 @@
 from django.urls import path
 from django.contrib.auth import views as auth_views
-from . import views
+from . import views, views_puna
 
 urlpatterns = [
+    # Puna e përditshme (si Masjid Manager)
+    path('puna/antaresia/', views_puna.puna_antaresia, name='puna_antaresia'),
+    path('puna/pagese/', views_puna.pagese_e_shpejte, name='pagese_e_shpejte'),
+    path('puna/hyrese/', views_puna.puna_hyrese, name='puna_hyrese'),
+    path('puna/dalese/', views_puna.puna_dalese, name='puna_dalese'),
+    path('puna/llojet/', views_puna.puna_llojet, name='puna_llojet'),
+    path('puna/llojet/ndrysho/', views_puna.ndrysho_llojin, name='ndrysho_llojin'),
+
     # Auth
     path('login/', views.login_view, name='login'),
     path('logout/', views.logout_view, name='logout'),

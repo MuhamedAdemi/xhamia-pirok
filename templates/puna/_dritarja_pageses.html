@@ -1,0 +1,121 @@
+{# Dritarja ⊕: pagesë e shpejtë për një shtëpi (Antarësi, Varreza ose një lloj i Fondit). #}
+<dialog class="puna-dialog" id="dritarjaPageses">
+  <form id="formaPageses" method="dialog">
+    {% csrf_token %}
+    <input type="hidden" name="shtepia">
+    <div class="puna-dialog-koka">
+      <h3 id="dritarjaTitulli">Regjistro pagesë</h3>
+      <button type="button" class="btn-ikon" data-mbyll title="Mbyll">✕</button>
+    </div>
+    <div class="puna-dialog-trupi" id="dritarjaFushat">
+      <div class="plote">
+        <label>Pagesë për</label>
+        <select name="per">
+          <option value="ANTARESIA">Antarësia</option>
+          <option value="VARREZAT">Varrezat (mirëmbajtja)</option>
+          {% for l in llojet_hyrese %}<option value="{{ l }}">{{ l }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="plote puna-info" id="dritarjaInfo" hidden></div>
+      <div><label>Blloku</label><input name="blloku" inputmode="numeric" autocomplete="off"></div>
+      <div><label>Nr. i faturës</label><input name="nr_fatures" inputmode="numeric" autocomplete="off" required></div>
+      <div data-vitet><label>Nga viti</label><input name="viti" type="number"></div>
+      <div data-vitet><label>Deri viti</label><input name="viti_deri" type="number"></div>
+      <div><label>Shuma</label><input name="shuma_hyrese" type="number" step="0.01" min="0.01" required></div>
+      <div>
+        <label>Paguar në</label>
+        <select name="monedha">
+          <option value="MKD">Denar (den)</option><option value="EUR">Euro (€)</option>
+          <option value="CHF">Franga (CHF)</option><option value="USD">Dollar ($)</option>
+        </select>
+      </div>
+      <div><label>Data</label><input name="data_pageses" type="date" required></div>
+      <div data-vitet><label>Paguar nga (opsionale)</label><input name="paguesi" placeholder="nëse nuk është kryefamiljari"></div>
+      <div data-fondi hidden><label>Paguesi — emri</label><input name="emri_donatorit"></div>
+      <div data-fondi hidden><label>Paguesi — mbiemri</label><input name="mbiemri_donatorit"></div>
+      <div class="plote"><label>Shënim</label><input name="shenime" autocomplete="off"></div>
+      <div class="plote puna-gabimet" id="dritarjaGabimet" hidden></div>
+    </div>
+    <div class="puna-dialog-trupi" id="dritarjaSukses" hidden>
+      <div class="plote" style="font-size:16px;">✅ <strong id="suksesTeksti"></strong></div>
+      <div class="plote ndihma">SMS-in, email-in dhe faturën PDF i dërgoni nga faqja e pagesës.</div>
+    </div>
+    <div class="puna-dialog-fundi">
+      <a href="#" class="btn-dytësor" id="dritarjaHap" hidden>📱 Hap pagesën (SMS · Email · Fatura)</a>
+      <button type="button" class="btn-dytësor" data-mbyll>Mbyll</button>
+      <button type="submit" class="btn-kryesor" id="dritarjaRuaj">Ruaj pagesën</button>
+    </div>
+  </form>
+</dialog>
+<script>
+(function () {
+  var dritarja = document.getElementById('dritarjaPageses');
+  var forma = document.getElementById('formaPageses');
+  var f = function (emri) { return forma.elements[emri]; };
+  var url = '{% url "pagese_e_shpejte" %}';
+  var uRuajt = false;
+
+  function pamja(sukses) {
+    document.getElementById('dritarjaFushat').hidden = sukses;
+    document.getElementById('dritarjaSukses').hidden = !sukses;
+    document.getElementById('dritarjaRuaj').hidden = sukses;
+    document.getElementById('dritarjaHap').hidden = !sukses;
+  }
+
+  function ngarko() {
+    var fondi = ['ANTARESIA', 'VARREZAT'].indexOf(f('per').value) === -1;
+    forma.querySelectorAll('[data-vitet]').forEach(function (e) { e.hidden = fondi; });
+    forma.querySelectorAll('[data-fondi]').forEach(function (e) { e.hidden = !fondi; });
+    document.getElementById('dritarjaGabimet').hidden = true;
+    fetch(url + '?shtepia=' + f('shtepia').value + '&per=' + encodeURIComponent(f('per').value))
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        ['blloku', 'nr_fatures', 'viti', 'viti_deri', 'data_pageses', 'emri_donatorit', 'mbiemri_donatorit'].forEach(function (k) {
+          f(k).value = d[k] == null ? '' : d[k];
+        });
+        var info = document.getElementById('dritarjaInfo');
+        info.textContent = d.info || '';
+        info.hidden = !d.info;
+        if (d.shuma_sugjeruar) { f('shuma_hyrese').value = d.shuma_sugjeruar; f('monedha').value = 'EUR'; }
+        f('shuma_hyrese').focus();
+      });
+  }
+
+  document.querySelectorAll('[data-pagese]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      forma.reset();
+      f('shtepia').value = b.dataset.pagese;
+      f('monedha').value = 'MKD';
+      document.getElementById('dritarjaTitulli').textContent = b.dataset.emri;
+      pamja(false);
+      dritarja.showModal();
+      ngarko();
+    });
+  });
+  f('per').addEventListener('change', ngarko);
+  dritarja.querySelectorAll('[data-mbyll]').forEach(function (b) { b.addEventListener('click', function () { dritarja.close(); }); });
+  dritarja.addEventListener('close', function () { if (uRuajt) location.reload(); });
+
+  forma.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var butoni = document.getElementById('dritarjaRuaj');
+    butoni.disabled = true;
+    fetch(url, { method: 'POST', body: new FormData(forma), headers: { 'X-CSRFToken': f('csrfmiddlewaretoken').value } })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        butoni.disabled = false;
+        if (!d.ok) {
+          var g = document.getElementById('dritarjaGabimet');
+          g.innerHTML = d.gabimet.map(function (x) { return '⚠️ ' + x.replace(/</g, '&lt;'); }).join('<br>');
+          g.hidden = false;
+          return;
+        }
+        uRuajt = true;
+        document.getElementById('suksesTeksti').textContent = 'Pagesa ' + d.fatura + ' (' + d.shuma + ') u regjistrua.';
+        document.getElementById('dritarjaHap').href = d.url;
+        pamja(true);
+      })
+      .catch(function () { butoni.disabled = false; alert('Gabim në lidhje — provoni përsëri.'); });
+  });
+})();
+</script>

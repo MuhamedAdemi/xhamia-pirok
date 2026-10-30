@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block titulli %}Pagesat dalëse — Xhamia Pirok{% endblock %}
+
+{% block kontent %}
+<div class="page-header"><h2>Pagesat dalëse (<span data-numri="tabelaDalese">{{ harxhimet|length }}</span>)</h2></div>
+
+<form method="get" class="puna-filtrat">
+  <div class="puna-fusha"><label>Data prej</label><input type="date" name="prej" value="{{ prej|date:'Y-m-d' }}" onchange="this.form.submit()"></div>
+  <div class="puna-fusha"><label>Data deri</label><input type="date" name="deri" value="{{ deri|date:'Y-m-d' }}" onchange="this.form.submit()"></div>
+  <div class="puna-fusha">
+    <label>Pagesë për</label>
+    <select name="per" onchange="this.form.submit()">
+      <option value="">Gjitha</option>
+      {% for l in llojet %}<option value="{{ l }}" {% if l == per %}selected{% endif %}>{{ l }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="puna-fusha puna-kerko">
+    <label for="kerkoDalese">Kërko</label>
+    <input type="search" id="kerkoDalese" autocomplete="off" placeholder="lloji, shënimi, fatura…" data-kerko-tabela="#tabelaDalese">
+    <button type="button" class="pastro" data-pastro="kerkoDalese" title="Pastro" hidden>✕</button>
+  </div>
+  {% if eshte_admin %}<a href="{% url 'shto_harxhim' %}" class="btn-kryesor">Shto pagesë</a>{% endif %}
+  <button type="button" class="btn-kryesor" onclick="window.print()">Printo</button>
+</form>
+
+<div class="puna-totali">Totali: <strong>{{ totali }}</strong> <span class="tekst-dytësor" style="font-size:14px;">· {{ prej|date:'d.m.Y' }} – {{ deri|date:'d.m.Y' }}</span></div>
+
+<div class="puna-tabela-mbajtese">
+<table class="tabela-puna" id="tabelaDalese">
+  <thead>
+    <tr><th>Pagesë për</th><th>Data</th><th class="djathtas">Shuma</th><th>Buxheti</th><th>Fatura</th><th>Shënim</th>
+        <th class="ikon"></th>{% if eshte_admin %}<th class="ikon"></th>{% endif %}</tr>
+  </thead>
+  <tbody>
+    {% for h in harxhimet %}
+    <tr>
+      <td data-th>{{ h.lloji }}</td>
+      <td>{{ h.data_pageses|date:'d.m.Y' }}</td>
+      <td class="djathtas">{{ h.shuma_origjinale }}</td>
+      <td>{{ h.get_burimi_display }}</td>
+      <td data-th>{{ h.fatura_tekst }}</td>
+      <td data-th>{{ h.pershkrimi }}</td>
+      <td class="ikon"><a class="btn-ikon" href="{% url 'detaje_harxhimi' h.pk %}" title="Hap">✏️</a></td>
+      {% if eshte_admin %}<td class="ikon"><a class="btn-ikon" href="{% url 'fshi_harxhimin' h.pk %}" title="Fshi">🗑️</a></td>{% endif %}
+    </tr>
+    {% endfor %}
+    <tr data-bosh="1" data-asnje hidden><td colspan="8" style="text-align:center; padding:30px; color:var(--tekst-dytësor);">Asnjë harxhim në këtë periudhë.</td></tr>
+  </tbody>
+</table>
+</div>
+{% endblock %}
+
+{% block skripte %}
+<script src="{% static 'js/puna.js' %}"></script>
+{% endblock %}

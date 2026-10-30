@@ -87,6 +87,29 @@ class VitetMixin:
         return str(self.viti)
 
 
+class LlojiPageses(models.Model):
+    """Llojet e pagesave që i menaxhon admini (si te Masjid Manager): hyrëse për Fondin, dalëse për harxhimet.
+    Antarësia dhe Varrezat janë gjithmonë hyrëse fikse dhe nuk ruhen këtu."""
+    DREJTIMI_CHOICES = [('HYRESE', 'Hyrëse'), ('DALESE', 'Dalëse')]
+
+    emri = models.CharField(max_length=100, verbose_name='Lloji i pagesës')
+    drejtimi = models.CharField(max_length=6, choices=DREJTIMI_CHOICES)
+    renditja = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        ordering = ['drejtimi', 'renditja', 'emri']
+        verbose_name = 'Lloj Pagese'
+        verbose_name_plural = 'Llojet e Pagesave'
+        constraints = [models.UniqueConstraint(fields=['drejtimi', 'emri'], name='lloji_pageses_unik')]
+
+    def __str__(self):
+        return self.emri
+
+    @classmethod
+    def emrat(cls, drejtimi):
+        return list(cls.objects.filter(drejtimi=drejtimi).values_list('emri', flat=True))
+
+
 class ProfilStafi(models.Model):
     ROL_CHOICES = [
         ('ADMIN', 'Administrator'),
@@ -321,17 +344,13 @@ class PagesaFondi(MonedhaMixin, models.Model):
     FUSHA_EUR = 'shuma'
     URL_DETAJE = 'detaje_pagesa_fondi'
 
-    LLOJI_CHOICES = [
-        ('DHURATE', 'Dhuratë / Fondi i Përgjithshëm'),
-        ('AKTIVITET', 'Aktivitet'),
-    ]
+    # Lloji është emri i një LlojiPageses hyrëse (p.sh. "Fond Xhamie", "Kurbana", "Zeqati").
+    LLOJI_PARAZGJEDHUR = 'Fond Xhamie'
+    LLOJI_AKTIVITET = 'Aktivitet'
 
     blloku = models.CharField(max_length=10, blank=True, verbose_name='Blloku')
     nr_fatures = models.CharField(max_length=30, verbose_name='Nr. i Faturës')
-    lloji = models.CharField(
-        max_length=15, choices=LLOJI_CHOICES, default='DHURATE',
-        verbose_name='Lloji i Pagesës'
-    )
+    lloji = models.CharField(max_length=100, default=LLOJI_PARAZGJEDHUR, verbose_name='Lloji i Pagesës')
     shtepia = models.ForeignKey(
         'Shtepia', on_delete=models.SET_NULL, null=True, blank=True,
         related_name='pagesat_fondit', verbose_name='Shtëpia',
@@ -366,6 +385,13 @@ class PagesaFondi(MonedhaMixin, models.Model):
         ]
         verbose_name_plural = 'Pagesat Fondit'
         ordering = ['-data_pageses']
+
+    @property
+    def eshte_aktivitet(self):
+        return self.lloji == self.LLOJI_AKTIVITET
+
+    def get_lloji_display(self):
+        return self.lloji
 
     def __str__(self):
         return f"{self.fatura_tekst} — {self.emri_donatorit} {self.mbiemri_donatorit} — {self.shuma_origjinale}"

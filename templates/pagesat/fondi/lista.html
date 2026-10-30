@@ -51,11 +51,7 @@
         <tr>
           <td><a href="{% url 'detaje_pagesa_fondi' p.pk %}" style="font-family:monospace; font-weight:600;">{{ p.fatura_tekst }}</a></td>
           <td>
-            {% if p.lloji == 'AKTIVITET' %}
-            <span class="badge-portokalli">Aktivitet</span>
-            {% else %}
-            <span class="badge-kafe">Dhuratë</span>
-            {% endif %}
+            <span class="{% if p.eshte_aktivitet %}badge-portokalli{% else %}badge-kafe{% endif %}">{{ p.lloji }}</span>
           </td>
           <td class="font-semibold">{{ p.emri_donatorit }} {{ p.mbiemri_donatorit }}
             {% if p.shtepia %}<a href="{% url 'detaje_shtepia' p.shtepia.pk %}" class="tekst-dytësor" style="display:block; font-size:12px; font-weight:400;">🏠 #{{ p.shtepia.nr_shtepise }} {{ p.shtepia.emri_i_plote }}</a>{% endif %}</td>

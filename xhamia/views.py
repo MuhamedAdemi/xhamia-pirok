@@ -24,13 +24,13 @@ from decimal import Decimal
 from .models import (
     ProfilStafi, ProfilShtepi, Kategoria, Shtepia, PagesaAntaresia, PagesaFondi, Harxhimi,
     PagesaVarrezave, KonfigurimiVarrezave, MesazhSMS, KonfigurimiSistemit, gjenero_nr_shtepi,
-    totalet_sipas_monedhes,
+    totalet_sipas_monedhes, LlojiPageses,
 )
 from .forms import (
     LoginForm, StafForm, KategoriaForm, ShtepiaForm,
     PagesaAntaresiaForm, PagesaFondiForm, HarxhimiForm,
     PagesaVarrezaveForm, KonfigurimiVarrezaveForm, KonfigurimiSistemitForm,
-    sugjero_faturen, FushaShtepise,
+    sugjero_faturen, FushaShtepise, llojet_hyrese_te_fondit,
 )
 from .utils import dërgo_email_antaresia, dërgo_email_fondi, dërgo_email_varrezat
 from . import sms
@@ -368,12 +368,11 @@ def dashboard_fondi(request):
         total=Sum('shuma')
     ).order_by('-total')[:5]
 
-    total_dhurata = PagesaFondi.objects.filter(
-        data_pageses__year=viti_zgjedhur, lloji='DHURATE'
-    ).aggregate(s=Sum('shuma'))['s'] or 0
-    total_aktivitete = PagesaFondi.objects.filter(
-        data_pageses__year=viti_zgjedhur, lloji='AKTIVITET'
-    ).aggregate(s=Sum('shuma'))['s'] or 0
+    pagesat_e_vitit = PagesaFondi.objects.filter(data_pageses__year=viti_zgjedhur)
+    dhurata = pagesat_e_vitit.exclude(lloji=PagesaFondi.LLOJI_AKTIVITET)
+    aktivitete = pagesat_e_vitit.filter(lloji=PagesaFondi.LLOJI_AKTIVITET)
+    total_dhurata = dhurata.aggregate(s=Sum('shuma'))['s'] or 0
+    total_aktivitete = aktivitete.aggregate(s=Sum('shuma'))['s'] or 0
 
     konteksti = {
         'viti_zgjedhur': viti_zgjedhur,
@@ -382,9 +381,9 @@ def dashboard_fondi(request):
         'total_fondi_m': totalet_sipas_monedhes(PagesaFondi.objects.filter(data_pageses__year=viti_zgjedhur)),
         'total_donator': total_donator,
         'total_dhurata': total_dhurata,
-        'total_dhurata_m': totalet_sipas_monedhes(PagesaFondi.objects.filter(data_pageses__year=viti_zgjedhur, lloji='DHURATE')),
+        'total_dhurata_m': totalet_sipas_monedhes(dhurata),
         'total_aktivitete': total_aktivitete,
-        'total_aktivitete_m': totalet_sipas_monedhes(PagesaFondi.objects.filter(data_pageses__year=viti_zgjedhur, lloji='AKTIVITET')),
+        'total_aktivitete_m': totalet_sipas_monedhes(aktivitete),
         'pagesat_mujore_json': json.dumps(pagesat_mujore),
         'muajt_etiketat_json': json.dumps(muajt_etiketat),
         'krahasimi_viteve_json': json.dumps(krahasimi_viteve),
@@ -990,7 +989,7 @@ def lista_pagesa_fondi(request):
 
     return render(request, 'pagesat/fondi/lista.html', {
         'pagesat': pagesat, 'viti': viti, 'kerkimi': kerkimi, 'lloji': lloji,
-        'lloji_choices': PagesaFondi.LLOJI_CHOICES,
+        'lloji_choices': [(e, e) for e in llojet_hyrese_te_fondit()],
         'vitit_lista': list(range(2020, timezone.now().year + 2)),
         'faqja_aktive': 'pagesat_fondi',
     })
@@ -1433,8 +1432,10 @@ def konfigurimi_sistemit(request):
 # ─── Harxhimet ───────────────────────────────────────────────────────────────
 
 def _llojet_e_harxhimeve():
+    """Llojet dalëse nga faqja "Llojet e pagesave" (sipas renditjes), pastaj të tjerat e përdorura më parë."""
+    llojet = LlojiPageses.emrat('DALESE')
     ekzistuese = Harxhimi.objects.order_by().values_list('lloji', flat=True).distinct()
-    return sorted(set(Harxhimi.LLOJET_SUGJERIME) | set(ekzistuese), key=str.lower)
+    return llojet + sorted(set(ekzistuese) - set(llojet), key=str.lower)
 
 
 @login_required

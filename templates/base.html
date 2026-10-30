@@ -47,6 +47,22 @@
   </div>
 
   <div class="sidebar-nav">
+    <div class="nav-section-label">Puna e përditshme</div>
+    <a href="{% url 'puna_antaresia' %}" class="{% if faqja_aktive == 'puna_antaresia' %}aktive{% endif %}">
+      <span class="ikona">🏠</span> Antarësia
+    </a>
+    <a href="{% url 'puna_hyrese' %}" class="{% if faqja_aktive == 'puna_hyrese' %}aktive{% endif %}">
+      <span class="ikona">📥</span> Pagesat hyrëse
+    </a>
+    {% if request.user.profili.mund_shikoje %}
+    <a href="{% url 'puna_dalese' %}" class="{% if faqja_aktive == 'puna_dalese' %}aktive{% endif %}">
+      <span class="ikona">📤</span> Pagesat dalëse
+    </a>
+    <a href="{% url 'puna_llojet' %}" class="{% if faqja_aktive == 'puna_llojet' %}aktive{% endif %}">
+      <span class="ikona">🏷️</span> Llojet e pagesave
+    </a>
+    {% endif %}
+
     <div class="nav-section-label">Dashboard</div>
     <a href="{% url 'dashboard' %}" class="{% if faqja_aktive == 'dashboard' %}aktive{% endif %}">
       <span class="ikona">📊</span> Antarësia

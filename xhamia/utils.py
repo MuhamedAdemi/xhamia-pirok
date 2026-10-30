@@ -50,8 +50,8 @@ def dërgo_email_antaresia(pagese, request):
 
 def dërgo_email_fondi(pagese, request):
     emri = pagese.shtepia.emri_i_plote if pagese.shtepia else f'{pagese.emri_donatorit} {pagese.mbiemri_donatorit}'
-    lloji = f'Aktivitet: {pagese.arsyeja}' if pagese.lloji == 'AKTIVITET' and pagese.arsyeja else (
-        'Aktivitet' if pagese.lloji == 'AKTIVITET' else 'Fondi')
+    lloji = f'Aktivitet: {pagese.arsyeja}' if pagese.eshte_aktivitet and pagese.arsyeja else (
+        'Aktivitet' if pagese.eshte_aktivitet else 'Fondi')
     return _dergo(subjekti_fatures(emri, pagese, lloji), 'email/fatura_fondi.html', pagese,
                   pagese.email_donatorit, request, pagese.shtepia)
 

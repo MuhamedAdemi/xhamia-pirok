@@ -1,0 +1,74 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block titulli %}Antarësia — Xhamia Pirok{% endblock %}
+
+{% block kontent %}
+<div class="page-header" style="align-items:center;">
+  <h2>Qytetarët (<span data-numri="tabelaShtepite">{{ shtepite|length }}</span>)</h2>
+  <a href="?viti={{ viti }}&aktive={% if aktive %}0{% else %}1{% endif %}" class="puna-switch no-print">
+    {% if aktive %}✅ Qytetarët aktivë{% else %}⬜ Qytetarët joaktivë (kliko për aktivët){% endif %}
+  </a>
+</div>
+
+<div class="puna-filtrat">
+  <div class="puna-fusha puna-kerko">
+    <label for="kerkoShtepite">Kërko</label>
+    <input type="search" id="kerkoShtepite" value="{{ kerkimi }}" autocomplete="off" autofocus
+           placeholder="emri, prindi, mbiemri, telefoni ose nr." data-kerko-tabela="#tabelaShtepite">
+    <button type="button" class="pastro" data-pastro="kerkoShtepite" title="Pastro" hidden>✕</button>
+  </div>
+  <form method="get" class="puna-fusha">
+    <label>Viti</label>
+    <input type="hidden" name="aktive" value="{% if aktive %}1{% else %}0{% endif %}">
+    <select name="viti" onchange="this.form.submit()">
+      {% for v in vitet %}<option value="{{ v }}" {% if v == viti %}selected{% endif %}>{{ v }}</option>{% endfor %}
+    </select>
+  </form>
+  <div class="puna-segment" data-segment="#tabelaShtepite">
+    <button type="button" data-vlera="" class="aktiv">Gjitha</button>
+    <button type="button" data-vlera="paguar">Të paguar</button>
+    <button type="button" data-vlera="papaguar">Pa paguar</button>
+  </div>
+  {% if eshte_admin %}<a href="{% url 'shto_shtepi' %}" class="btn-kryesor">Shto qytetar</a>{% endif %}
+  <button type="button" class="btn-kryesor" onclick="window.print()">Printo</button>
+</div>
+
+<div class="puna-totali">Totali {{ viti }}: <strong>{{ totali }}</strong></div>
+
+<div class="puna-tabela-mbajtese">
+<table class="tabela-puna" id="tabelaShtepite">
+  <thead>
+    <tr>
+      <th>Nr.</th>
+      {% if mund_regjistroje %}<th class="ikon"></th>{% endif %}
+      <th>Emri</th><th>Prindi</th><th>Mbiemri</th><th>Telefon</th>
+      <th class="ikon"></th>{% if eshte_admin %}<th class="ikon"></th>{% endif %}
+    </tr>
+  </thead>
+  <tbody>
+    {% for sh in shtepite %}
+    <tr data-statusi="{% if sh.ka_paguar %}paguar{% else %}papaguar{% endif %}" {% if not sh.ka_paguar %}class="pa-paguar"{% endif %}>
+      <td data-th>{{ sh.nr_shtepise }}</td>
+      {% if mund_regjistroje %}
+      <td class="ikon"><button type="button" class="btn-ikon btn-plus" title="Regjistro pagesë"
+            data-pagese="{{ sh.pk }}" data-emri="#{{ sh.nr_shtepise }} — {{ sh.emri_i_plote }}">+</button></td>
+      {% endif %}
+      <td><a href="{% url 'detaje_shtepia' sh.pk %}" data-th>{{ sh.emri_kryefamiljarit }}</a></td>
+      <td data-th>{{ sh.emri_prindit }}</td>
+      <td data-th>{{ sh.mbiemri_kryefamiljarit }}</td>
+      <td data-th>{{ sh.nr_telefoni_kryesor }}</td>
+      <td class="ikon"><a class="btn-ikon" href="{% if eshte_admin %}{% url 'edito_shtepi' sh.pk %}{% else %}{% url 'detaje_shtepia' sh.pk %}{% endif %}" title="{% if eshte_admin %}Ndrysho{% else %}Hap{% endif %}">✏️</a></td>
+      {% if eshte_admin %}<td class="ikon"><a class="btn-ikon" href="{% url 'fshi_shtepi' sh.pk %}" title="Çaktivizo">🗑️</a></td>{% endif %}
+    </tr>
+    {% endfor %}
+    <tr data-bosh="1" data-asnje hidden><td colspan="8" style="text-align:center; padding:30px; color:var(--tekst-dytësor);">Asnjë qytetar me këtë kërkim.</td></tr>
+  </tbody>
+</table>
+</div>
+
+{% if mund_regjistroje %}{% include 'puna/_dritarja_pageses.html' %}{% endif %}
+{% endblock %}
+
+{% block skripte %}
+<script src="{% static 'js/puna.js' %}"></script>
+{% endblock %}

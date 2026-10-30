@@ -7,7 +7,7 @@
     <a href="{% url 'lista_pagesa_fondi' %}" class="btn-dytësor btn-sm">← Kthehu</a>
     <div>
       <h2>{{ pagese.fatura_tekst }}</h2>
-      <p>{% if pagese.lloji == 'AKTIVITET' %}Pagesë Aktiviteti{% else %}Donacion — Fondi i Xhamisë{% endif %}</p>
+      <p>{% if pagese.eshte_aktivitet %}Pagesë Aktiviteti{% else %}{{ pagese.lloji }} — Fondi i Xhamisë{% endif %}</p>
     </div>
   </div>
   <div class="flex gap-3" style="flex-wrap:wrap;">
@@ -43,11 +43,7 @@
         <tr>
           <td style="padding:10px 0; color:var(--tekst-dytësor); font-size:13px;">Lloji</td>
           <td style="padding:10px 0;">
-            {% if pagese.lloji == 'AKTIVITET' %}
-            <span class="badge-portokalli">Aktivitet</span>
-            {% else %}
-            <span class="badge-kafe">Dhuratë / Fondi i Përgjithshëm</span>
-            {% endif %}
+            <span class="{% if pagese.eshte_aktivitet %}badge-portokalli{% else %}badge-kafe{% endif %}">{{ pagese.lloji }}</span>
           </td>
         </tr>
         <tr>

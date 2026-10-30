@@ -1,0 +1,53 @@
+{% extends 'base.html' %}
+{% block titulli %}Llojet e pagesave — Xhamia Pirok{% endblock %}
+
+{% block kontent %}
+<div class="page-header"><h2>Llojet e pagesave</h2></div>
+
+{% for titulli, drejtimi, llojet in seksionet %}
+<div style="display:flex; align-items:center; gap:16px; margin:{% if forloop.first %}0{% else %}32px{% endif %} 0 12px; flex-wrap:wrap;">
+  <h3 style="margin:0; font-size:24px; font-weight:500;">{{ titulli }}</h3>
+  {% if eshte_admin %}
+  <form method="post" action="{% url 'ndrysho_llojin' %}" style="display:flex; gap:8px;">
+    {% csrf_token %}
+    <input type="hidden" name="veprimi" value="shto"><input type="hidden" name="drejtimi" value="{{ drejtimi }}">
+    <input name="emri" required maxlength="100" placeholder="Lloji i ri…" style="padding:10px 12px; border:1.5px solid var(--kufi); border-radius:10px;">
+    <button class="btn-kryesor">Shto lloj pagese</button>
+  </form>
+  {% endif %}
+</div>
+<div class="puna-tabela-mbajtese">
+<table class="tabela-puna">
+  <thead><tr><th>Lloj i pagesës</th>{% if eshte_admin %}<th class="ikon"></th><th class="ikon"></th>{% endif %}</tr></thead>
+  <tbody>
+    {% if drejtimi == 'HYRESE' %}
+    <tr><td>Antarësia <span class="tekst-dytësor" style="font-size:13px;">(fikse)</span></td>{% if eshte_admin %}<td></td><td></td>{% endif %}</tr>
+    <tr><td>Varrezat — mirëmbajtja <span class="tekst-dytësor" style="font-size:13px;">(fikse)</span></td>{% if eshte_admin %}<td></td><td></td>{% endif %}</tr>
+    {% endif %}
+    {% for l in llojet %}
+    <tr>
+      <td>{{ l.emri }}</td>
+      {% if eshte_admin %}
+      <td class="ikon">
+        <form method="post" action="{% url 'ndrysho_llojin' %}" onsubmit="var e = prompt('Emri i ri për «{{ l.emri|escapejs }}»:', '{{ l.emri|escapejs }}'); if (!e || e === '{{ l.emri|escapejs }}') return false; this.emri.value = e;">
+          {% csrf_token %}<input type="hidden" name="veprimi" value="riemerto"><input type="hidden" name="pk" value="{{ l.pk }}"><input type="hidden" name="emri">
+          <button class="btn-ikon" title="Ndrysho emrin">✏️</button>
+        </form>
+      </td>
+      <td class="ikon">
+        <form method="post" action="{% url 'ndrysho_llojin' %}" onsubmit="return confirm('Ta heq «{{ l.emri|escapejs }}» nga lista? Pagesat e vjetra me këtë lloj mbeten siç janë.');">
+          {% csrf_token %}<input type="hidden" name="veprimi" value="fshi"><input type="hidden" name="pk" value="{{ l.pk }}">
+          <button class="btn-ikon" title="Fshi">🗑️</button>
+        </form>
+      </td>
+      {% endif %}
+    </tr>
+    {% empty %}
+    <tr><td colspan="3" style="text-align:center; padding:20px; color:var(--tekst-dytësor);">Asnjë lloj.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endfor %}
+<p class="ndihma" style="margin-top:16px;">Llojet hyrëse dalin te pagesat e Fondit, llojet dalëse te harxhimet. Kur ndryshoni emrin, ndryshojnë edhe pagesat e regjistruara me atë lloj.</p>
+{% endblock %}

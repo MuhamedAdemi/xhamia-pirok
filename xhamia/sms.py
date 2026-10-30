@@ -221,7 +221,7 @@ def teksti_varrezat(pagese):
 
 
 def teksti_fondi(pagese):
-    if pagese.lloji == 'AKTIVITET':
+    if pagese.eshte_aktivitet:
         per = f"per aktivitetin {pagese.arsyeja}" if pagese.arsyeja else "per aktivitetin"
         return (
             f"Xhamia Pirok: U pranua pagesa juaj prej {_shuma(pagese)} {per}. "

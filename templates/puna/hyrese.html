@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block titulli %}Pagesat hyrëse — Xhamia Pirok{% endblock %}
+
+{% block kontent %}
+<div class="page-header"><h2>Pagesat hyrëse (<span data-numri="tabelaHyrese">{{ rreshtat|length }}</span>)</h2></div>
+
+<form method="get" class="puna-filtrat">
+  <div class="puna-fusha"><label>Data prej</label><input type="date" name="prej" value="{{ prej|date:'Y-m-d' }}" onchange="this.form.submit()"></div>
+  <div class="puna-fusha"><label>Data deri</label><input type="date" name="deri" value="{{ deri|date:'Y-m-d' }}" onchange="this.form.submit()"></div>
+  <div class="puna-fusha">
+    <label>Pagesë për</label>
+    <select name="per" onchange="this.form.submit()">
+      <option value="">Gjitha</option>
+      {% for v, emri in llojet %}<option value="{{ v }}" {% if v == per %}selected{% endif %}>{{ emri }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="puna-fusha puna-kerko">
+    <label for="kerkoHyrese">Kërko</label>
+    <input type="search" id="kerkoHyrese" autocomplete="off" placeholder="paguesi, fatura, shënimi…" data-kerko-tabela="#tabelaHyrese">
+    <button type="button" class="pastro" data-pastro="kerkoHyrese" title="Pastro" hidden>✕</button>
+  </div>
+  {% if mund_regjistroje %}
+  <select class="btn-kryesor" onchange="if (this.value) location.href = this.value;" style="cursor:pointer;">
+    <option value="">Shto pagesë ▾</option>
+    <option value="{% url 'shto_pagese_antaresia' %}">Antarësia</option>
+    <option value="{% url 'shto_pagese_varrezat' %}">Varrezat</option>
+    <option value="{% url 'shto_pagese_fondi' %}">Fondi (dhurim, kurban, zeqat…)</option>
+  </select>
+  {% endif %}
+  <button type="button" class="btn-kryesor" onclick="window.print()">Printo</button>
+</form>
+
+<div class="puna-totali">Totali: <strong>{{ totali }}</strong> <span class="tekst-dytësor" style="font-size:14px;">· {{ prej|date:'d.m.Y' }} – {{ deri|date:'d.m.Y' }}</span></div>
+
+<div class="puna-tabela-mbajtese">
+<table class="tabela-puna" id="tabelaHyrese">
+  <thead>
+    <tr><th>Paguesi</th><th>Pagesë për</th><th>Data</th><th class="djathtas">Shuma</th><th>Fatura</th><th>Shënim</th>
+        <th class="ikon"></th>{% if eshte_admin %}<th class="ikon"></th>{% endif %}</tr>
+  </thead>
+  <tbody>
+    {% for r in rreshtat %}
+    <tr>
+      <td data-th>{{ r.paguesi }}</td>
+      <td data-th>{{ r.per }}</td>
+      <td>{{ r.p.data_pageses|date:'d.m.Y' }}</td>
+      <td class="djathtas">{{ r.p.shuma_origjinale }}</td>
+      <td data-th>{{ r.p.fatura_tekst }}</td>
+      <td data-th>{{ r.shenim }}</td>
+      <td class="ikon"><a class="btn-ikon" href="{{ r.p.get_absolute_url }}" title="Hap (SMS · Email · Fatura)">✏️</a></td>
+      {% if eshte_admin %}<td class="ikon"><a class="btn-ikon" href="{{ r.url_fshi }}" title="Fshi">🗑️</a></td>{% endif %}
+    </tr>
+    {% endfor %}
+    <tr data-bosh="1" data-asnje hidden><td colspan="8" style="text-align:center; padding:30px; color:var(--tekst-dytësor);">Asnjë pagesë në këtë periudhë.</td></tr>
+  </tbody>
+</table>
+</div>
+{% endblock %}
+
+{% block skripte %}
+<script src="{% static 'js/puna.js' %}"></script>
+{% endblock %}

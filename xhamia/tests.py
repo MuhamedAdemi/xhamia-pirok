@@ -226,7 +226,7 @@ class PagesatShumeViteTest(TestCase):
         })
         self.assertEqual(r.status_code, 302)
         r = self.client.post(reverse('shto_pagese_fondi'), {
-            'nr_fatures': '700001', 'lloji': 'DHURATE', 'emri_donatorit': 'A', 'mbiemri_donatorit': 'B',
+            'nr_fatures': '700001', 'lloji': 'Fond Xhamie', 'emri_donatorit': 'A', 'mbiemri_donatorit': 'B',
             'data_pageses': '2026-10-24', 'shuma_hyrese': '50', 'monedha': 'EUR', 'kursi': '61.5',
         })
         self.assertEqual(r.status_code, 302)
@@ -525,7 +525,7 @@ class FondiShtepiaKerkimiMonedhatTest(TestCase):
         self.assertContains(forma, 'data-sp-emri="Florijan Jashari"')
         self.assertContains(forma, '#0589 — Jusuf Nuri Jashari · Florijan Jashari')
         r = self.client.post(reverse('shto_pagese_fondi'), {
-            'blloku': '1100', 'nr_fatures': '000001', 'shtepia': self.sh.pk, 'lloji': 'DHURATE',
+            'blloku': '1100', 'nr_fatures': '000001', 'shtepia': self.sh.pk, 'lloji': 'Fond Xhamie',
             'emri_donatorit': 'Florijan', 'mbiemri_donatorit': 'Jashari', 'nr_telefoni': '070333444',
             'data_pageses': '2026-10-26', 'arsyeja': 'Rryma', 'shuma_hyrese': '100', 'monedha': 'EUR', 'kursi': '61.5',
         })
@@ -540,7 +540,7 @@ class FondiShtepiaKerkimiMonedhatTest(TestCase):
         from .models import PagesaFondi, formato_shumen, totalet_sipas_monedhes
         for nr, (shuma, monedha) in enumerate([('1380', 'EUR'), ('75000', 'MKD'), ('200', 'CHF')], 1):
             self.client.post(reverse('shto_pagese_fondi'), {
-                'blloku': '1', 'nr_fatures': str(nr), 'lloji': 'DHURATE', 'emri_donatorit': 'A',
+                'blloku': '1', 'nr_fatures': str(nr), 'lloji': 'Fond Xhamie', 'emri_donatorit': 'A',
                 'mbiemri_donatorit': 'B', 'data_pageses': f'{timezone.now().year}-01-0{nr}',
                 'shuma_hyrese': shuma, 'monedha': monedha, 'kursi': '',
             })
@@ -884,3 +884,76 @@ class DuplikatetNumratTest(TestCase):
         self.assertEqual(gjenero_nr_shtepi(), '0002')
         Shtepia.objects.filter(nr_shtepise='0001').delete()
         self.assertEqual(gjenero_nr_shtepi(), '0001')
+
+
+class PunaEPerditshmeTest(TestCase):
+    """Faqet si te Masjid Manager: Antarësia me ⊕, Pagesat hyrëse/dalëse, Llojet e pagesave."""
+
+    def setUp(self):
+        from .models import LlojiPageses
+        self.LlojiPageses = LlojiPageses
+        self.admin = User.objects.create_user('arketari', password='x')
+        ProfilStafi.objects.create(user=self.admin, rol='ADMIN')
+        self.client.force_login(self.admin)
+        self.sh = Shtepia.objects.create(nr_shtepise='0300', emri_kryefamiljarit='Afrim', emri_prindit='Hashim',
+                                         mbiemri_kryefamiljarit='Elezi', viti_fillimit_antaresise=2025)
+
+    def test_faqet_hapen_dhe_shtepia_pa_paguar_eshte_e_kuqe(self):
+        for emri in ('puna_antaresia', 'puna_hyrese', 'puna_dalese', 'puna_llojet'):
+            self.assertEqual(self.client.get(reverse(emri)).status_code, 200, emri)
+        r = self.client.get(reverse('puna_antaresia'))
+        self.assertContains(r, 'data-statusi="papaguar" class="pa-paguar"')
+        self.assertContains(r, 'Afrim')
+        self.assertContains(r, 'Kurbana')   # llojet e Fondit në dritaren ⊕
+
+    def test_pagesa_e_shpejte_antaresi_dhe_fond(self):
+        url = reverse('pagese_e_shpejte')
+        d = self.client.get(url, {'shtepia': self.sh.pk, 'per': 'ANTARESIA'}).json()
+        self.assertEqual((d['viti'], d['viti_deri']), (2025, timezone.now().year))
+        r = self.client.post(url, {'shtepia': self.sh.pk, 'per': 'ANTARESIA', 'blloku': '1100', 'nr_fatures': '000001',
+                                   'viti': d['viti'], 'viti_deri': d['viti_deri'], 'shuma_hyrese': '7300',
+                                   'monedha': 'MKD', 'data_pageses': date.today().isoformat()}).json()
+        self.assertTrue(r['ok'], r)
+        self.assertContains(self.client.get(reverse('puna_antaresia')), 'data-statusi="paguar"')
+        # e njëjta faturë → gabim, jo pagesë e dytë
+        r = self.client.post(url, {'shtepia': self.sh.pk, 'per': 'ANTARESIA', 'blloku': '1100', 'nr_fatures': '000001',
+                                   'viti': 2030, 'viti_deri': 2030, 'shuma_hyrese': '70', 'monedha': 'EUR',
+                                   'data_pageses': date.today().isoformat()}).json()
+        self.assertFalse(r['ok'])
+        self.assertEqual(PagesaAntaresia.objects.count(), 1)
+        # Fondi me lloj nga lista; paguesi merret nga shtëpia
+        d = self.client.get(url, {'shtepia': self.sh.pk, 'per': 'Kurbana'}).json()
+        r = self.client.post(url, {'shtepia': self.sh.pk, 'per': 'Kurbana', 'blloku': '2000', 'nr_fatures': '000010',
+                                   'shuma_hyrese': '100', 'monedha': 'EUR', 'data_pageses': date.today().isoformat(),
+                                   'emri_donatorit': d['emri_donatorit'], 'mbiemri_donatorit': d['mbiemri_donatorit'],
+                                   'shenime': 'kurbani i bajramit'}).json()
+        self.assertTrue(r['ok'], r)
+        fondi = PagesaFondi.objects.get()
+        self.assertEqual((fondi.lloji, fondi.emri_donatorit, fondi.arsyeja, fondi.shtepia), ('Kurbana', 'Afrim', 'kurbani i bajramit', self.sh))
+        # Pagesat hyrëse: të dyja, filtri sipas llojit dhe totali në den (€)
+        r = self.client.get(reverse('puna_hyrese'))
+        self.assertContains(r, 'Antarësia 2025')
+        self.assertContains(r, 'Bllok 2000 nr 000010')
+        self.assertContains(r, '13.450 den')
+        r = self.client.get(reverse('puna_hyrese'), {'per': 'Kurbana'})
+        self.assertNotContains(r, 'Antarësia 2025')
+
+    def test_llojet_shto_riemerto_fshi(self):
+        url = reverse('ndrysho_llojin')
+        self.client.post(url, {'veprimi': 'shto', 'drejtimi': 'HYRESE', 'emri': 'Iftar'})
+        self.assertTrue(self.LlojiPageses.objects.filter(drejtimi='HYRESE', emri='Iftar').exists())
+        PagesaFondi.objects.create(nr_fatures='1', lloji='Iftar', emri_donatorit='A', mbiemri_donatorit='B',
+                                   shuma=Decimal('10'), data_pageses=date.today(), arktar=self.admin)
+        lloji = self.LlojiPageses.objects.get(emri='Iftar')
+        self.client.post(url, {'veprimi': 'riemerto', 'pk': lloji.pk, 'emri': 'Iftari i përbashkët'})
+        self.assertEqual(PagesaFondi.objects.get().lloji, 'Iftari i përbashkët')
+        self.client.post(url, {'veprimi': 'fshi', 'pk': lloji.pk})
+        self.assertFalse(self.LlojiPageses.objects.filter(pk=lloji.pk).exists())
+        self.assertEqual(PagesaFondi.objects.get().lloji, 'Iftari i përbashkët')
+        # monitoruesi nuk mund t'i ndryshojë
+        mon = User.objects.create_user('imami', password='x')
+        ProfilStafi.objects.create(user=mon, rol='MONITORUES')
+        self.client.force_login(mon)
+        self.client.post(url, {'veprimi': 'shto', 'drejtimi': 'HYRESE', 'emri': 'Tjetër X'})
+        self.assertFalse(self.LlojiPageses.objects.filter(emri='Tjetër X').exists())
+        self.assertEqual(self.client.get(reverse('pagese_e_shpejte'), {'shtepia': self.sh.pk}).status_code, 403)

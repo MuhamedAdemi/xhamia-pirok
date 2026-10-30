@@ -5,7 +5,7 @@ from django import forms
 from django.utils import timezone
 from django.contrib.auth.models import User
 from .models import (
-    ProfilStafi, Kategoria, Shtepia, PagesaAntaresia, PagesaFondi, Harxhimi,
+    ProfilStafi, Kategoria, Shtepia, PagesaAntaresia, PagesaFondi, Harxhimi, LlojiPageses,
     PagesaVarrezave, KonfigurimiVarrezave, KonfigurimiSistemit,
     MONEDHA_CHOICES, KURSI_PARACAKTUAR,
 )
@@ -236,9 +236,23 @@ class PagesaAntaresiaForm(ShumaMonedhaMixin, VitetFormMixin, forms.ModelForm):
         }
 
 
+def llojet_hyrese_te_fondit(lloji_aktual=None):
+    """Llojet hyrëse nga faqja "Llojet e pagesave"; lloji i një pagese të vjetër mbetet i zgjedhshëm."""
+    llojet = LlojiPageses.emrat('HYRESE') or [PagesaFondi.LLOJI_PARAZGJEDHUR]
+    if lloji_aktual and lloji_aktual not in llojet:
+        llojet.append(lloji_aktual)
+    return llojet
+
+
 class PagesaFondiForm(ShumaMonedhaMixin, forms.ModelForm):
     FUSHA_EUR = 'shuma'
     shtepia = FushaShtepise(required=False, label='Shtëpia (opsionale)', empty_label='— Pa shtëpi (donator i jashtëm) —')
+    lloji = forms.ChoiceField(label='Lloji i Pagesës')
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        aktual = self.instance.lloji if self.instance.pk else None
+        self.fields['lloji'].choices = [(e, e) for e in llojet_hyrese_te_fondit(aktual)]
 
     class Meta:
         model = PagesaFondi
