@@ -32,7 +32,7 @@ from .forms import (
     PagesaVarrezaveForm, KonfigurimiVarrezaveForm, KonfigurimiSistemitForm,
     sugjero_faturen, FushaShtepise, llojet_hyrese_te_fondit,
 )
-from .utils import dërgo_email_antaresia, dërgo_email_fondi, dërgo_email_varrezat
+from .utils import dërgo_email_antaresia, dërgo_email_fondi, dërgo_email_varrezat, njofto_stafin
 from . import sms
 from .importi_pdf import importo
 from .importi_excel import importo_excel
@@ -898,6 +898,15 @@ VLERAT_SHPEJTA_ANTARESIA = [
 ]
 
 
+def _sukses_pagese(request, pagese):
+    """Mesazhi pas regjistrimit + email-i automatik te stafi."""
+    gabimi = njofto_stafin(pagese, request)
+    messages.success(request, f'Pagesa {pagese.fatura_tekst} u regjistrua me sukses'
+                              + ('.' if gabimi else ' dhe stafi u njoftua me email.'))
+    if gabimi:
+        messages.warning(request, f'Email-i te stafi nuk shkoi: {gabimi}')
+
+
 def _initial_pagese(request, model, te_dhenat_e_shtepise=None):
     """Vlerat fillestare: nr. i radhës nga blloku dhe — kur vjen nga faqja e shtëpisë —
     vitet e papaguara (nga viti i parë i papaguar deri sot)."""
@@ -930,7 +939,7 @@ def shto_pagese_antaresia(request):
         pagese.kategoria_pageses = pagese.shtepia.kategoria
         pagese.arktar = request.user
         pagese.save()
-        messages.success(request, f'Pagesa {pagese.fatura_tekst} u regjistrua me sukses.')
+        _sukses_pagese(request, pagese)
         return redirect('detaje_pagesa_antaresia', pk=pagese.pk)
     return render(request, 'pagesat/antaresia/forma.html', {
         'form': form, 'titulli': 'Regjistro Pagesë Antarësia', 'faqja_aktive': 'pagesat_antaresia',
@@ -1005,7 +1014,7 @@ def shto_pagese_fondi(request):
         pagese = form.apliko_shumen(form.save(commit=False))
         pagese.arktar = request.user
         pagese.save()
-        messages.success(request, f'Pagesa {pagese.fatura_tekst} u regjistrua me sukses.')
+        _sukses_pagese(request, pagese)
         return redirect('detaje_pagesa_fondi', pk=pagese.pk)
     return render(request, 'pagesat/fondi/forma.html', {
         'form': form, 'titulli': 'Regjistro Pagesë Fondi', 'faqja_aktive': 'pagesat_fondi'
@@ -1082,7 +1091,7 @@ def shto_pagese_varrezat(request):
         pagese = form.apliko_shumen(form.save(commit=False))
         pagese.arktar = request.user
         pagese.save()
-        messages.success(request, f'Pagesa {pagese.fatura_tekst} u regjistrua me sukses.')
+        _sukses_pagese(request, pagese)
         return redirect('detaje_pagesa_varrezat', pk=pagese.pk)
     return render(request, 'pagesat/varrezat/forma.html', {
         'form': form, 'titulli': 'Regjistro Pagesë Varrezash',
@@ -1159,8 +1168,10 @@ def dergo_email_antaresia(request, pk):
     if request.method == 'POST':
         try:
             marrësit = dërgo_email_antaresia(pagese, request)
-            messages.success(request, 'Emaili u dërgua te: ' + ', '.join(marrësit)
-                             + ('' if pagese.shtepia.email else ' (paguesi nuk ka email — shkoi vetëm te stafi)'))
+            if marrësit:
+                messages.success(request, 'Emaili u dërgua te paguesi: ' + ', '.join(marrësit))
+            else:
+                messages.error(request, 'Paguesi nuk ka email të regjistruar.')
         except Exception as e:
             messages.error(request, f'Emaili nuk u dërgua: {e}')
     return redirect('detaje_pagesa_antaresia', pk=pk)
@@ -1175,8 +1186,10 @@ def dergo_email_fondi_view(request, pk):
     if request.method == 'POST':
         try:
             marrësit = dërgo_email_fondi(pagese, request)
-            messages.success(request, 'Emaili u dërgua te: ' + ', '.join(marrësit)
-                             + ('' if pagese.email_donatorit else ' (paguesi nuk ka email — shkoi vetëm te stafi)'))
+            if marrësit:
+                messages.success(request, 'Emaili u dërgua te paguesi: ' + ', '.join(marrësit))
+            else:
+                messages.error(request, 'Paguesi nuk ka email të regjistruar.')
         except Exception as e:
             messages.error(request, f'Emaili nuk u dërgua: {e}')
     return redirect('detaje_pagesa_fondi', pk=pk)
@@ -1191,8 +1204,10 @@ def dergo_email_varrezat_view(request, pk):
     if request.method == 'POST':
         try:
             marrësit = dërgo_email_varrezat(pagese, request)
-            messages.success(request, 'Emaili u dërgua te: ' + ', '.join(marrësit)
-                             + ('' if pagese.shtepia.email else ' (paguesi nuk ka email — shkoi vetëm te stafi)'))
+            if marrësit:
+                messages.success(request, 'Emaili u dërgua te paguesi: ' + ', '.join(marrësit))
+            else:
+                messages.error(request, 'Paguesi nuk ka email të regjistruar.')
         except Exception as e:
             messages.error(request, f'Emaili nuk u dërgua: {e}')
     return redirect('detaje_pagesa_varrezat', pk=pk)

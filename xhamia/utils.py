@@ -22,10 +22,20 @@ def _perdoruesi(request):
     return user if user is not None and user.is_authenticated else None
 
 
-def _dergo(subjekti, template, pagese, email_i_paguesit, request, shtepi=None):
-    """Fatura shkon gjithmonë te emailat zyrtarë (arkëtari, këshilli, imami) — si arkiv dhe për monitorim —
-    dhe te paguesi kur ka email. Kthen listën e marrësve."""
-    marrësit = list(dict.fromkeys(filter(None, list(settings.EMAILET_ZYRTARE) + [email_i_paguesit])))
+def emailat_e_stafit():
+    """Kush njoftohet për çdo pagesë: emailat zyrtarë (arkëtari, këshilli, imami) dhe stafi që e ka
+    të aktivizuar "Merr email për çdo pagesë"."""
+    from .models import ProfilStafi
+    stafi = ProfilStafi.objects.filter(
+        merr_email_pagese=True, është_aktiv=True, user__is_active=True,
+    ).exclude(user__email='').values_list('user__email', flat=True)
+    return list(dict.fromkeys(e.strip().lower() for e in list(settings.EMAILET_ZYRTARE) + list(stafi) if e))
+
+
+def _dergo(subjekti, template, pagese, email_i_paguesit, request, shtepi=None, stafit=False):
+    """stafit=True: njoftimi automatik te stafi sapo regjistrohet pagesa (arkiv dhe monitorim i qarkullimit).
+    stafit=False: butoni "Dërgo email" — vetëm te paguesi. Kthen listën e marrësve."""
+    marrësit = emailat_e_stafit() if stafit else [e for e in [email_i_paguesit] if e]
     if not marrësit:
         return []
     msg = EmailMessage(
@@ -42,21 +52,34 @@ def _dergo(subjekti, template, pagese, email_i_paguesit, request, shtepi=None):
     return marrësit
 
 
-def dërgo_email_antaresia(pagese, request):
+def njofto_stafin(pagese, request):
+    """Email-i automatik te stafi për një pagesë të sapo regjistruar. Nuk e ndal kurrë regjistrimin:
+    kthen None kur shkoi, ose tekstin e gabimit."""
+    from .models import PagesaAntaresia, PagesaFondi
+    dergo = (dërgo_email_antaresia if isinstance(pagese, PagesaAntaresia)
+             else dërgo_email_fondi if isinstance(pagese, PagesaFondi) else dërgo_email_varrezat)
+    try:
+        dergo(pagese, request, stafit=True)
+    except Exception as e:   # p.sh. Gmail pa lidhje — pagesa mbetet e regjistruar
+        return str(e)[:200]
+    return None
+
+
+def dërgo_email_antaresia(pagese, request, stafit=False):
     lloji = f'Antarësia {pagese.vitet_tekst}'
     return _dergo(subjekti_fatures(pagese.shtepia.emri_i_plote, pagese, lloji),
-                  'email/fatura_antaresia.html', pagese, pagese.shtepia.email, request, pagese.shtepia)
+                  'email/fatura_antaresia.html', pagese, pagese.shtepia.email, request, pagese.shtepia, stafit)
 
 
-def dërgo_email_fondi(pagese, request):
+def dërgo_email_fondi(pagese, request, stafit=False):
     emri = pagese.shtepia.emri_i_plote if pagese.shtepia else f'{pagese.emri_donatorit} {pagese.mbiemri_donatorit}'
     lloji = f'Aktivitet: {pagese.arsyeja}' if pagese.eshte_aktivitet and pagese.arsyeja else (
         'Aktivitet' if pagese.eshte_aktivitet else 'Fondi')
     return _dergo(subjekti_fatures(emri, pagese, lloji), 'email/fatura_fondi.html', pagese,
-                  pagese.email_donatorit, request, pagese.shtepia)
+                  pagese.email_donatorit, request, pagese.shtepia, stafit)
 
 
-def dërgo_email_varrezat(pagese, request):
+def dërgo_email_varrezat(pagese, request, stafit=False):
     lloji = f'Varrezat {pagese.vitet_tekst}'
     return _dergo(subjekti_fatures(pagese.shtepia.emri_i_plote, pagese, lloji),
-                  'email/fatura_varrezat.html', pagese, pagese.shtepia.email, request, pagese.shtepia)
+                  'email/fatura_varrezat.html', pagese, pagese.shtepia.email, request, pagese.shtepia, stafit)

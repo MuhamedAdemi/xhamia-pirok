@@ -17,6 +17,7 @@ from django.views.decorators.http import require_POST
 from .forms import (
     PagesaAntaresiaForm, PagesaFondiForm, PagesaVarrezaveForm, llojet_hyrese_te_fondit, sugjero_faturen,
 )
+from .utils import njofto_stafin
 from .models import (
     Harxhimi, KonfigurimiSistemit, KonfigurimiVarrezave, LlojiPageses, PagesaAntaresia, PagesaFondi,
     PagesaVarrezave, Shtepia, formato_shumen,
@@ -131,7 +132,7 @@ def pagese_e_shpejte(request):
     pagese.save()
     return JsonResponse({
         'ok': True, 'fatura': pagese.fatura_tekst, 'shuma': pagese.shuma_origjinale,
-        'url': pagese.get_absolute_url(),
+        'url': pagese.get_absolute_url(), 'gabim_emaili': njofto_stafin(pagese, request),
     })
 
 

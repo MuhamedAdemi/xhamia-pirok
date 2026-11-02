@@ -38,7 +38,7 @@
     </div>
     <div class="puna-dialog-trupi" id="dritarjaSukses" hidden>
       <div class="plote" style="font-size:16px;">✅ <strong id="suksesTeksti"></strong></div>
-      <div class="plote ndihma">SMS-in, email-in dhe faturën PDF i dërgoni nga faqja e pagesës.</div>
+      <div class="plote ndihma">SMS-in dhe email-in për familjen, si dhe faturën PDF, i dërgoni nga faqja e pagesës.</div>
     </div>
     <div class="puna-dialog-fundi">
       <a href="#" class="btn-dytësor" id="dritarjaHap" hidden>📱 Hap pagesën (SMS · Email · Fatura)</a>
@@ -111,7 +111,8 @@
           return;
         }
         uRuajt = true;
-        document.getElementById('suksesTeksti').textContent = 'Pagesa ' + d.fatura + ' (' + d.shuma + ') u regjistrua.';
+        document.getElementById('suksesTeksti').textContent = 'Pagesa ' + d.fatura + ' (' + d.shuma + ') u regjistrua'
+          + (d.gabim_emaili ? '. ⚠️ Email-i te stafi nuk shkoi: ' + d.gabim_emaili : ' dhe stafi u njoftua me email.');
         document.getElementById('dritarjaHap').href = d.url;
         pamja(true);
       })

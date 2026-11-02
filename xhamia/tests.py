@@ -648,17 +648,27 @@ class MonitoruesEmailStafiTest(TestCase):
                     reverse('shto_harxhim'), reverse('fillo_nga_zero')]:
             self.assertEqual(self.client.get(url).status_code, 302, url)
 
-    def test_email_shkon_te_stafi_edhe_pa_email_te_paguesit(self):
+    def test_stafi_njoftohet_automatikisht_paguesi_me_buton(self):
         from django.core import mail
+        self.admin.email = 'arketari@example.com'
+        self.admin.save()
         self.client.force_login(self.admin)
-        faqja = self.client.get(reverse('detaje_pagesa_antaresia', args=[self.p.pk]))
-        self.assertContains(faqja, 'Email te stafi')
-        r = self.client.post(reverse('dergo_email_antaresia', args=[self.p.pk]), follow=True)
-        self.assertContains(r, 'shkoi vetëm te stafi')
+        # pa email te paguesi: s'ka buton email
+        self.assertNotContains(self.client.get(reverse('detaje_pagesa_antaresia', args=[self.p.pk])), 'Dërgo Email')
+        # regjistrimi i pagesës → email automatik te stafi (zyrtarët + stafi me "Merr email për çdo pagesë")
+        r = self.client.post(reverse('shto_pagese_antaresia'), {
+            'blloku': '1100', 'nr_fatures': '046387', 'shtepia': self.sh.pk, 'viti': 2027, 'viti_deri': 2027,
+            'data_pageses': date.today().isoformat(), 'shuma_hyrese': '70', 'monedha': 'EUR'}, follow=True)
+        self.assertContains(r, 'stafi u njoftua me email')
         self.assertEqual(len(mail.outbox), 1)
-        self.assertEqual(sorted(mail.outbox[0].to), sorted(settings.EMAILET_ZYRTARE))
-        self.assertEqual(mail.outbox[0].subject,
-                         'Muhamed Mesud Ademi — Bl 1100 Nr 046386 — Antarësia 2024–2026 — Xhamia Pirok')
+        self.assertEqual(sorted(mail.outbox[0].to), sorted(list(settings.EMAILET_ZYRTARE) + ['arketari@example.com']))
+        self.assertEqual(mail.outbox[0].subject, 'Muhamed Mesud Ademi — Bl 1100 Nr 046387 — Antarësia 2027 — Xhamia Pirok')
+        # butoni i dërgon vetëm paguesit
+        self.sh.email = 'familja@example.com'
+        self.sh.save()
+        self.assertContains(self.client.get(reverse('detaje_pagesa_antaresia', args=[self.p.pk])), 'Dërgo Email te paguesi')
+        self.client.post(reverse('dergo_email_antaresia', args=[self.p.pk]))
+        self.assertEqual(mail.outbox[1].to, ['familja@example.com'])
 
 
 @override_settings(SMS_GATEWAY_USER='u', SMS_GATEWAY_PASSWORD='p', SMS_PRIT_SEKONDA=0)
