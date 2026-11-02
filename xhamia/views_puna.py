@@ -86,7 +86,7 @@ def _fillestare(shtepi, per):
         _, borxhi, papaguara = _tabela_vjetore(*te_dhenat, tarifa)
         viti, viti_deri = (papaguara[0], papaguara[-1]) if papaguara else (sot.year + 1, sot.year + 1)
         info = (f"Pa paguar: {', '.join(map(str, papaguara))} — {formato_shumen(borxhi, 'EUR')}"
-                if papaguara else f'Çdo vit deri në {sot.year} është i paguar.')
+                if papaguara else 'Asnjë vit pa paguar.')
     else:
         model, viti, viti_deri, borxhi, info = PagesaFondi, None, None, None, ''
     blloku, nr = sugjero_faturen(model)

@@ -192,8 +192,9 @@ class Shtepia(models.Model):
     paguar_deri_viti = models.PositiveSmallIntegerField(
         null=True, blank=True, verbose_name='Paguar Deri Viti (Historik)'
     )
+    # Pagesa e varrezave është e detyrueshme nga viti 2027 (vendim i xhamisë).
     viti_fillimit_varrezave = models.PositiveSmallIntegerField(
-        default=2026, verbose_name='Varrezat Aktive nga Viti'
+        default=2027, verbose_name='Varrezat Aktive nga Viti'
     )
     varrezat_paguar_deri_viti = models.PositiveSmallIntegerField(
         null=True, blank=True, verbose_name='Varrezat — Paguar Deri Viti (Historik)'

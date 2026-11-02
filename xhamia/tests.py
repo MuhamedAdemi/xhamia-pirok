@@ -31,8 +31,9 @@ class NormalizoNumrinTest(TestCase):
         self.assertEqual(sms.pastro_tekstin('Shpërbleftë — çdo'), 'Shperblefte - cdo')
 
 
-def _pergjigje(json_data):
+def _pergjigje(json_data, status_code=200):
     r = mock.Mock()
+    r.status_code = status_code
     r.json.return_value = json_data
     r.raise_for_status.return_value = None
     return r
@@ -957,3 +958,24 @@ class PunaEPerditshmeTest(TestCase):
         self.client.post(url, {'veprimi': 'shto', 'drejtimi': 'HYRESE', 'emri': 'Tjetër X'})
         self.assertFalse(self.LlojiPageses.objects.filter(emri='Tjetër X').exists())
         self.assertEqual(self.client.get(reverse('pagese_e_shpejte'), {'shtepia': self.sh.pk}).status_code, 403)
+
+
+@override_settings(SMS_GATEWAY_USER='u', SMS_GATEWAY_PASSWORD='p', SMS_PRIT_SEKONDA=0)
+class VarrezatNga2027DheGabimetSmsTest(TestCase):
+    def test_varrezat_pa_borxh_para_2027(self):
+        from .views import _tabela_vjetore
+        sh = Shtepia.objects.create(nr_shtepise='0001', emri_kryefamiljarit='A', mbiemri_kryefamiljarit='B',
+                                    viti_fillimit_antaresise=2024)
+        self.assertEqual(sh.viti_fillimit_varrezave, 2027)
+        _, borxhi, papaguara = _tabela_vjetore(sh.pagesat_varrezave, sh.viti_fillimit_varrezave,
+                                               sh.varrezat_paguar_deri_viti, Decimal('20'))
+        if timezone.now().year < 2027:
+            self.assertEqual((borxhi, papaguara), (0, []))
+
+    @mock.patch('xhamia.sms.requests.post')
+    def test_refuzimi_tregon_arsyen(self, post):
+        post.return_value = _pergjigje({'message': 'invalid phone number'}, status_code=400)
+        m = sms.dergo_sms('070123456', 'Test', 'KONFIRMIM', None)
+        self.assertEqual(m.statusi, 'DESHTOI')
+        self.assertIn('+38970123456', m.gabimi)
+        self.assertIn('invalid phone number', m.gabimi)

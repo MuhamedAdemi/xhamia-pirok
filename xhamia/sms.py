@@ -104,7 +104,8 @@ def dergo_sms(nr_telefoni, teksti, lloji, dërguar_nga, shtepia=None, ttl=None, 
                 raise requests.RequestException(
                     'Username ose Password i gabuar — kontrolloni faqen "SMS & Email".'
                 )
-            r.raise_for_status()
+            if r.status_code >= 400:
+                raise requests.RequestException(_arsyeja_e_refuzimit(r, numri))
             të_dhënat = r.json()
             mesazh.id_gateway = të_dhënat.get('id', '')
             mesazh.statusi = _statusi_nga_gateway(të_dhënat.get('state'))
@@ -116,6 +117,16 @@ def dergo_sms(nr_telefoni, teksti, lloji, dërguar_nga, shtepia=None, ttl=None, 
 
     mesazh.save()
     return mesazh
+
+
+def _arsyeja_e_refuzimit(r, numri):
+    """Arsyeja që e kthen SMSGate kur e refuzon kërkesën (p.sh. numër i pavlefshëm) — jo vetëm "400"."""
+    try:
+        arsyeja = r.json().get('message') or r.text
+    except ValueError:
+        arsyeja = r.text
+    arsyeja = ' '.join(str(arsyeja or '').split())[:300] or 'pa shpjegim'
+    return f'SMSGate e refuzoi ({r.status_code}) për numrin {numri}: {arsyeja}'
 
 
 def perditeso_statusin(mesazh):

@@ -399,10 +399,12 @@ def dashboard_varrezat(request):
     viti_zgjedhur = int(request.GET.get('viti', timezone.now().year))
     vitit_lista = list(range(2020, timezone.now().year + 2))
 
-    total_shtepite = Shtepia.objects.filter(është_aktiv=True).count()
+    # Vetëm shtëpitë që e kanë detyrim varrezat këtë vit (nga viti_fillimit_varrezave)
+    me_detyrim = Shtepia.objects.filter(është_aktiv=True, viti_fillimit_varrezave__lte=viti_zgjedhur)
+    total_shtepite = me_detyrim.count()
 
     paguar_ids = _shtepite_paguara_varrezat_ids(viti_zgjedhur)
-    kane_paguar = len(paguar_ids)
+    kane_paguar = me_detyrim.filter(id__in=paguar_ids).count()
     nuk_kane_paguar = total_shtepite - kane_paguar
 
     total_mbledhur = PagesaVarrezave.objects.filter(data_pageses__year=viti_zgjedhur).aggregate(
@@ -419,9 +421,7 @@ def dashboard_varrezat(request):
 
     pagesat_e_fundit = PagesaVarrezave.objects.select_related('shtepia', 'arktar').order_by('-data_regjistrimit')[:10]
 
-    shtepite_pa_pagese = Shtepia.objects.filter(
-        është_aktiv=True
-    ).exclude(
+    shtepite_pa_pagese = me_detyrim.exclude(
         id__in=paguar_ids
     ).select_related('kategoria')[:20]
 
