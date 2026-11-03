@@ -735,3 +735,7 @@ dialog.puna-dialog::backdrop { background: rgba(0,0,0,0.35); }
   .tabela-puna th { position: static; }
   .puna-tabela-mbajtese { border: none; overflow: visible; }
 }
+
+/* Fletorja e antarësisë */
+.fl-paguar { color: #38761D; font-weight: 600; }
+.fl-borxh { color: #CC5500; font-weight: 600; }

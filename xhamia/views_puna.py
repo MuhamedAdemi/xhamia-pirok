@@ -4,15 +4,18 @@ Antarësia (lista e shtëpive me ⊕ për pagesë të shpejtë), Pagesat hyrëse
 """
 from datetime import date
 from decimal import Decimal
+from io import BytesIO
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import IntegrityError, transaction
-from django.http import JsonResponse
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
+
+from . import fletorja
 
 from .forms import (
     PagesaAntaresiaForm, PagesaFondiForm, PagesaVarrezaveForm, llojet_hyrese_te_fondit, sugjero_faturen,
@@ -249,3 +252,92 @@ def ndrysho_llojin(request):
     except IntegrityError:
         messages.error(request, f'Lloji «{emri}» ekziston tashmë.')
     return redirect('puna_llojet')
+
+
+# ─── Fletorja e antarësisë ───────────────────────────────────────────────────
+
+@login_required
+def puna_fletorja(request):
+    """Shkarkimi i fletores (PDF/Excel) dhe krahasimi i një fletoreje PDF me aplikacionin."""
+    raporti = None
+    if request.method == 'POST':
+        if not është_admin(request.user):
+            messages.error(request, 'Vetëm administratori mund ta korrigjojë gjendjen.')
+            return redirect('puna_fletorja')
+        if request.POST.get('veprimi') == 'apliko':
+            n = fletorja.apliko(request.POST.getlist('ndrysho'), request.user)
+            messages.success(request, f'U korrigjua gjendja e {n} shtëpive sipas fletores.')
+            return redirect('puna_fletorja')
+        skedari = request.FILES.get('pdf_fletorja')
+        if not skedari:
+            messages.error(request, 'Zgjidhni fletoren PDF.')
+        else:
+            try:
+                viti_i_pare, rreshtat = fletorja.lexo_fletoren(skedari)
+            except Exception as e:
+                messages.error(request, f'PDF-ja nuk u lexua: {e}')
+            else:
+                if not rreshtat:
+                    messages.error(request, 'Në PDF nuk u gjet asnjë rresht me Paguar/Borxh.')
+                else:
+                    raporti = fletorja.krahaso(rreshtat, viti_i_pare)
+    return render(request, 'puna/fletorja.html', {
+        'raporti': raporti, 'eshte_admin': është_admin(request.user),
+        'vitet': fletorja.vitet_e_fletores(), 'faqja_aktive': 'puna_fletorja',
+    })
+
+
+@login_required
+def fletorja_shkarko(request, formati):
+    filtri = request.GET.get('filtri', '')
+    vitet, rreshtat = fletorja.rreshtat_e_fletores(filtri=filtri)
+    data = timezone.localdate()
+    emri = f'fletorja_antaresise_{data.isoformat()}'
+    if formati == 'excel':
+        return _fletorja_excel(emri, vitet, rreshtat, data)
+    resp = HttpResponse(fletorja.fletorja_pdf(vitet, rreshtat, data, filtri), content_type='application/pdf')
+    resp['Content-Disposition'] = f'attachment; filename="{emri}.pdf"'
+    return resp
+
+
+def _fletorja_excel(emri, vitet, rreshtat, data):
+    from openpyxl import Workbook
+    from openpyxl.styles import Alignment, Font, PatternFill
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = 'Fletorja'
+    ws.append([f'LISTA E ANËTARËVE DHE EVIDENCA E PAGESAVE — {data.strftime("%d.%m.%Y")}'])
+    ws['A1'].font = Font(bold=True, size=14, color='1F4E79')
+    koka = ['Nr.', 'Nr. Sh.', 'Kryefamiljari', 'Kategoria', f'Borxh të vjetra ({vitet[0] - 1}, {vitet[0] - 2}...)'] \
+        + [str(v) for v in vitet] + ['Shënime']
+    ws.append(koka)
+    for c in ws[2]:
+        c.font = Font(bold=True, color='FFFFFF')
+        c.fill = PatternFill('solid', fgColor='1F4E79')
+        c.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+    ngjyrat = {fletorja.PAGUAR: Font(bold=True, color='38761D'), fletorja.BORXH: Font(color='CC5500')}
+    for r in rreshtat:
+        sh = r['shtepia']
+        ws.append([r['nr'], sh.nr_shtepise, sh.emri_i_plote, r['kategoria'], r['borxh_te_vjetra']]
+                  + r['statuset'] + [r['shenime']])
+        for j, s in enumerate(r['statuset']):
+            if s in ngjyrat:
+                c = ws.cell(row=ws.max_row, column=6 + j)
+                c.font = ngjyrat[s]
+                c.alignment = Alignment(horizontal='center')
+    for kol, gjeresia in zip('ABCDE', (6, 8, 34, 12, 16)):
+        ws.column_dimensions[kol].width = gjeresia
+    ws.column_dimensions[ws.cell(row=2, column=len(koka)).column_letter].width = 26
+    ws.freeze_panes = 'C3'
+    ws.print_title_rows = '2:2'
+    ws.page_setup.orientation = 'landscape'
+    ws.page_setup.fitToWidth = 1
+    ws.page_setup.fitToHeight = 0
+    ws.sheet_properties.pageSetUpPr.fitToPage = True
+    buffer = BytesIO()
+    wb.save(buffer)
+    resp = HttpResponse(buffer.getvalue(),
+                        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    resp['Content-Disposition'] = f'attachment; filename="{emri}.xlsx"'
+    return resp

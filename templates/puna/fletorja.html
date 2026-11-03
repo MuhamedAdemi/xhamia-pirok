@@ -1,0 +1,97 @@
+{% extends 'base.html' %}
+{% block titulli %}Fletorja e antarësisë — Xhamia Pirok{% endblock %}
+
+{% block kontent %}
+<div class="page-header">
+  <div>
+    <h2>📗 Fletorja e antarësisë</h2>
+    <p>Lista e të gjithë kryefamiljarëve me Paguar / Borxh për {{ vitet.0 }}–{{ vitet|last }}, sipas gjendjes së sotme në aplikacion</p>
+  </div>
+</div>
+
+<div class="card" style="margin-bottom:20px;">
+  <div class="card-header"><h5>⬇️ Shkarko fletoren</h5></div>
+  <div class="card-body">
+    <form method="get" class="puna-filtrat" style="margin:0;" id="formaShkarko">
+      <div class="puna-fusha">
+        <label>Kush të përfshihet</label>
+        <select name="filtri">
+          <option value="">Të gjithë</option>
+          <option value="borxh">Vetëm me borxh</option>
+          <option value="paguar">Vetëm pa borxh</option>
+        </select>
+      </div>
+      <button type="submit" class="btn-kryesor" formaction="{% url 'fletorja_shkarko' 'pdf' %}">📄 Shkarko PDF</button>
+      <button type="submit" class="btn-dytësor" formaction="{% url 'fletorja_shkarko' 'excel' %}">📊 Shkarko Excel</button>
+    </form>
+    <p class="ndihma" style="margin-top:10px;">Fletorja ndërtohet çdo herë nga e para, prandaj përfshin çdo pagesë dhe korrigjim të bërë deri në këtë moment. PDF-ja për ~1150 shtëpi mund të zgjasë disa sekonda.</p>
+  </div>
+</div>
+
+{% if eshte_admin %}
+<div class="card" style="margin-bottom:20px;">
+  <div class="card-header"><h5>🔍 Krahaso një fletore me aplikacionin</h5></div>
+  <div class="card-body">
+    <form method="post" enctype="multipart/form-data" class="puna-filtrat" style="margin:0;">
+      {% csrf_token %}
+      <div class="puna-fusha"><label>Fletorja (PDF)</label><input type="file" name="pdf_fletorja" accept=".pdf" required></div>
+      <button type="submit" class="btn-kryesor">Krahaso</button>
+    </form>
+    <p class="ndihma" style="margin-top:10px;">Asgjë nuk ndryshon pa e konfirmuar ju. Pagesat e regjistruara në aplikacion kanë gjithmonë përparësi ndaj fletores.</p>
+  </div>
+</div>
+{% endif %}
+
+{% if raporti %}
+<div class="card" style="margin-bottom:20px; border-left:4px solid var(--paralajmërim);">
+  <div class="card-header"><h5>Rezultati i krahasimit — {{ raporti.gjithsej }} rreshta në fletore</h5></div>
+  <div class="card-body">
+    <div class="grid-4" style="margin-bottom:16px;">
+      <div class="stat-card gjelbër"><div class="stat-label">Njëlloj si fletorja</div><div class="stat-vlera gjelbër">{{ raporti.njejte }}</div></div>
+      <div class="stat-card portokalli"><div class="stat-label">Për t'u korrigjuar</div><div class="stat-vlera" style="color:var(--gabim);">{{ raporti.korrigjime|length }}</div></div>
+      <div class="stat-card kafe"><div class="stat-label">Vendosni ju (borxh i vjetër)</div><div class="stat-vlera">{{ raporti.konflikte|length }}</div></div>
+      <div class="stat-card blu"><div class="stat-label">Pa u gjetur / me pagesë</div><div class="stat-vlera" style="color:#007AFF;">{{ raporti.pa_gjetur|length }} / {{ raporti.me_pagese|length }}</div></div>
+    </div>
+
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="veprimi" value="apliko">
+
+      {% if raporti.korrigjime %}
+      <h4 style="margin:14px 0 6px;">✏️ Për t'u korrigjuar ({{ raporti.korrigjime|length }}) — të zgjedhura</h4>
+      {% include 'puna/_fletorja_tabela.html' with lista=raporti.korrigjime zgjedhur=True %}
+      {% endif %}
+
+      {% if raporti.konflikte %}
+      <h4 style="margin:18px 0 6px;">⚖️ Vendosni ju ({{ raporti.konflikte|length }}) — aplikacioni ka borxh të vjetër, fletorja thotë i paguar</h4>
+      <p class="ndihma">Nuk janë të zgjedhura. Zgjidhini vetëm nëse jeni të sigurt që borxhi i vjetër duhet fshirë (p.sh. lehtësim).</p>
+      {% include 'puna/_fletorja_tabela.html' with lista=raporti.konflikte zgjedhur=False %}
+      {% endif %}
+
+      {% if raporti.korrigjime or raporti.konflikte %}
+      <div style="margin-top:14px; display:flex; gap:10px; align-items:center;">
+        <button type="submit" class="btn-kryesor" onclick="return confirm('Të ruhen korrigjimet e zgjedhura?');">💾 Ruaj korrigjimet e zgjedhura</button>
+        <span class="ndihma">Te çdo shtëpi shënohet në "Shënime" çfarë ishte para ndryshimit.</span>
+      </div>
+      {% endif %}
+    </form>
+
+    {% if raporti.me_pagese %}
+    <h4 style="margin:18px 0 6px;">💳 Me pagesë në aplikacion ({{ raporti.me_pagese|length }}) — nuk preken</h4>
+    {% include 'puna/_fletorja_tabela.html' with lista=raporti.me_pagese pa_zgjedhje=True %}
+    {% endif %}
+
+    {% if raporti.pa_gjetur %}
+    <h4 style="margin:18px 0 6px;">❓ Emra nga fletorja që nuk u gjetën në aplikacion ({{ raporti.pa_gjetur|length }})</h4>
+    <p class="ndihma">Kontrollojini me dorë (mund të jenë shkruar ndryshe ose të mos jenë regjistruar).</p>
+    <p>{{ raporti.pa_gjetur|join:", " }}</p>
+    {% endif %}
+
+    {% if raporti.te_dyfishta %}
+    <h4 style="margin:18px 0 6px;">⚠️ Emra që dalin dy herë në fletore me gjendje të ndryshme</h4>
+    <p>{{ raporti.te_dyfishta|join:", " }}</p>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+{% endblock %}

@@ -10,6 +10,8 @@ urlpatterns = [
     path('puna/dalese/', views_puna.puna_dalese, name='puna_dalese'),
     path('puna/llojet/', views_puna.puna_llojet, name='puna_llojet'),
     path('puna/llojet/ndrysho/', views_puna.ndrysho_llojin, name='ndrysho_llojin'),
+    path('puna/fletorja/', views_puna.puna_fletorja, name='puna_fletorja'),
+    path('puna/fletorja/<str:formati>/', views_puna.fletorja_shkarko, name='fletorja_shkarko'),
 
     # Auth
     path('login/', views.login_view, name='login'),

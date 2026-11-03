@@ -989,3 +989,85 @@ class VarrezatNga2027DheGabimetSmsTest(TestCase):
         self.assertEqual(m.statusi, 'DESHTOI')
         self.assertIn('+38970123456', m.gabimi)
         self.assertIn('invalid phone number', m.gabimi)
+
+
+class FletorjaEAntaresiseTest(TestCase):
+    """Fletorja: shkarkimi PDF/Excel dhe krahasimi i një fletoreje PDF me aplikacionin."""
+
+    def setUp(self):
+        self.V = timezone.now().year
+        self.admin = User.objects.create_user('arketari', password='x')
+        ProfilStafi.objects.create(user=self.admin, rol='ADMIN')
+        self.client.force_login(self.admin)
+        V = self.V
+
+        def sh(nr, emri, fillimi, paguar):
+            return Shtepia.objects.create(nr_shtepise=nr, emri_kryefamiljarit=emri, emri_prindit='Baba',
+                                          mbiemri_kryefamiljarit='Gashi', viti_fillimit_antaresise=fillimi,
+                                          paguar_deri_viti=paguar)
+        self.vetem_viti = sh('0001', 'Agim', V, V - 1)        # app: borxh vetëm viti aktual
+        self.paguar = sh('0002', 'Besim', V + 1, V)           # app: e paguar
+        self.e_vjeter = sh('0003', 'Driton', V - 4, None)     # app: borxh i vjetër
+        self.me_pagese = sh('0004', 'Ermal', V - 1, None)     # app: pagesë e regjistruar për V-1
+        self.i_ri = sh('0005', 'Fatos', V, None)              # antar i ri — viti i kaluar "-"
+        PagesaAntaresia.objects.create(shtepia=self.me_pagese, nr_fatures='1', shuma_paguar=50, viti=V - 1,
+                                       data_pageses=date.today(), arktar=self.admin)
+
+    def _rreshti(self, emri, *statuset):
+        return {'nr': 1, 'emri': emri, 'statuset': {self.V - 1 + j: s for j, s in enumerate(statuset)}}
+
+    def test_krahasimi_gjen_borxhin_e_vitit_te_kaluar(self):
+        from . import fletorja
+        V = self.V
+        r = fletorja.krahaso([
+            self._rreshti('Agim Baba Gashi', 'Borxh', 'Borxh'),       # app thotë V-1 i paguar → korrigjim
+            self._rreshti('Besim Baba Gashi', 'Paguar', 'Paguar'),    # njëlloj
+            self._rreshti('Driton Baba Gashi', 'Paguar', 'Borxh'),    # do fshinte borxhin e vjetër → konflikt
+            self._rreshti('Ermal Baba Gashi', 'Borxh', 'Borxh'),      # ka pagesë në app → nuk preket
+            self._rreshti('Askush Nuk Ekziston', 'Borxh', 'Borxh'),
+        ], V - 1)
+        self.assertEqual([x['shtepia'] for x in r['korrigjime']], [self.vetem_viti])
+        self.assertEqual(r['korrigjime'][0]['propozimi'], (V - 1, V - 2))
+        self.assertEqual([x['shtepia'] for x in r['konflikte']], [self.e_vjeter])
+        self.assertEqual([x['shtepia'] for x in r['me_pagese']], [self.me_pagese])
+        self.assertEqual((r['njejte'], r['pa_gjetur']), (1, ['Askush Nuk Ekziston']))
+
+        # ruajtja vetëm nga admini dhe vetëm e të zgjedhurave
+        self.client.post(reverse('puna_fletorja'), {'veprimi': 'apliko', 'ndrysho': [f'{self.vetem_viti.pk}:{V - 1}:{V - 2}']})
+        self.vetem_viti.refresh_from_db()
+        self.assertEqual((self.vetem_viti.viti_fillimit_antaresise, self.vetem_viti.paguar_deri_viti), (V - 1, V - 2))
+        self.assertIn('korrigjuar sipas fletores', self.vetem_viti.shenime)
+        self.e_vjeter.refresh_from_db()
+        self.assertEqual(self.e_vjeter.viti_fillimit_antaresise, V - 4)
+
+    def test_fletorja_shkarkohet_dhe_lexohet_perseri_pa_ndryshime(self):
+        from io import BytesIO
+        from . import fletorja
+        self.assertContains(self.client.get(reverse('puna_fletorja')), 'Shkarko PDF')
+        r = self.client.get(reverse('fletorja_shkarko', args=['pdf']))
+        self.assertEqual(r['Content-Type'], 'application/pdf')
+        viti_i_pare, rreshtat = fletorja.lexo_fletoren(BytesIO(r.content))
+        self.assertEqual((viti_i_pare, len(rreshtat)), (self.V - 1, 5))
+        raporti = fletorja.krahaso(rreshtat, viti_i_pare)
+        self.assertEqual((raporti['njejte'], raporti['korrigjime'], raporti['konflikte']), (5, [], []))
+        # krahasimi përmes faqes, me PDF-në e ngarkuar
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        faqja = self.client.post(reverse('puna_fletorja'),
+                                 {'pdf_fletorja': SimpleUploadedFile('f.pdf', r.content, 'application/pdf')})
+        self.assertContains(faqja, 'Rezultati i krahasimit')
+
+        r = self.client.get(reverse('fletorja_shkarko', args=['excel']), {'filtri': 'borxh'})
+        from openpyxl import load_workbook
+        ws = load_workbook(BytesIO(r.content)).active
+        emrat = [ws.cell(row=i, column=3).value for i in range(3, ws.max_row + 1)]
+        self.assertEqual(emrat, ['Agim Baba Gashi', 'Driton Baba Gashi', 'Ermal Baba Gashi', 'Fatos Baba Gashi'])
+        self.assertEqual(ws.cell(row=6, column=6).value, '-')    # Fatos s'ishte antar vitin e kaluar
+
+    def test_stafi_jo_admin_shkarkon_por_nuk_korrigjon(self):
+        staf = User.objects.create_user('staf', password='x')
+        ProfilStafi.objects.create(user=staf, rol='STAF')
+        self.client.force_login(staf)
+        self.assertEqual(self.client.get(reverse('fletorja_shkarko', args=['excel'])).status_code, 200)
+        self.client.post(reverse('puna_fletorja'), {'veprimi': 'apliko', 'ndrysho': [f'{self.vetem_viti.pk}:2000:2000']})
+        self.vetem_viti.refresh_from_db()
+        self.assertEqual(self.vetem_viti.paguar_deri_viti, self.V - 1)

@@ -1,0 +1,25 @@
+<div class="puna-tabela-mbajtese">
+<table class="tabela-puna">
+  <thead>
+    <tr>
+      {% if not pa_zgjedhje %}<th class="ikon"><input type="checkbox" {% if zgjedhur %}checked{% endif %} onclick="this.closest('table').querySelectorAll('tbody input').forEach(c => c.checked = this.checked)"></th>{% endif %}
+      <th>Nr.</th><th>Kryefamiljari</th><th>Vitet</th><th>Fletorja</th><th>Aplikacioni</th>
+      {% if not pa_zgjedhje %}<th>Pas ndryshimit</th>{% endif %}<th>Shënim</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for r in lista %}
+    <tr>
+      {% if not pa_zgjedhje %}<td class="ikon"><input type="checkbox" name="ndrysho" value="{{ r.shtepia.pk }}:{{ r.propozimi.0 }}:{{ r.propozimi.1 }}" {% if zgjedhur %}checked{% endif %}></td>{% endif %}
+      <td>{{ r.shtepia.nr_shtepise }}</td>
+      <td><a href="{% url 'detaje_shtepia' r.shtepia.pk %}" target="_blank">{{ r.shtepia.emri_i_plote }}</a></td>
+      <td>{{ r.vitet|join:" · " }}</td>
+      <td>{% for s in r.fletorja %}<span class="{% if s == 'Borxh' %}fl-borxh{% else %}fl-paguar{% endif %}">{{ s|default:"—" }}</span>{% if not forloop.last %} · {% endif %}{% endfor %}</td>
+      <td>{% for s in r.aplikacioni %}<span class="{% if s == 'Borxh' %}fl-borxh{% elif s %}fl-paguar{% endif %}">{{ s|default:"—" }}</span>{% if not forloop.last %} · {% endif %}{% endfor %}</td>
+      {% if not pa_zgjedhje %}<td><strong>{{ r.pas }}</strong></td>{% endif %}
+      <td class="ndihma">{{ r.arsyeja|default:"" }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
