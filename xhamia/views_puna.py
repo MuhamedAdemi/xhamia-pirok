@@ -15,7 +15,9 @@ from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
-from . import fletorja
+from . import evidenca, fletorja, word
+
+WORD = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
 
 from .forms import (
     PagesaAntaresiaForm, PagesaFondiForm, PagesaVarrezaveForm, llojet_hyrese_te_fondit, sugjero_faturen,
@@ -281,20 +283,46 @@ def puna_fletorja(request):
                     messages.error(request, 'Në PDF nuk u gjet asnjë rresht me Paguar/Borxh.')
                 else:
                     raporti = fletorja.krahaso(rreshtat, viti_i_pare)
+    viti = timezone.localdate().year
     return render(request, 'puna/fletorja.html', {
         'raporti': raporti, 'eshte_admin': është_admin(request.user),
-        'vitet': fletorja.vitet_e_fletores(), 'faqja_aktive': 'puna_fletorja',
+        'vitet': fletorja.vitet_e_fletores(), 'te_gjitha_vitet': list(range(2015, viti + 6)),
+        'nga': viti - 1, 'deri': viti, 'faqja_aktive': 'puna_fletorja',
+    })
+
+
+@login_required
+def evidenca_antaresise(request):
+    """Evidenca sipas shkronjave: anëtarë / kanë paguar / s'kanë paguar / gratis për vitet e zgjedhura."""
+    vitet = evidenca.vitet_nga(request.GET)
+    grupet, totali = evidenca.evidenca(vitet)
+    if request.GET.get('shkarko') == 'pdf':
+        data = timezone.localdate()
+        resp = HttpResponse(evidenca.pdf(vitet, grupet, totali, data), content_type='application/pdf')
+        resp['Content-Disposition'] = f'attachment; filename="evidenca_antaresise_{data.isoformat()}.pdf"'
+        return resp
+    viti = timezone.localdate().year
+    return render(request, 'puna/evidenca.html', {
+        'vitet': vitet, 'grupet': grupet, 'totali': totali,
+        'te_gjitha_vitet': list(range(2015, viti + 2)), 'faqja_aktive': 'evidenca',
     })
 
 
 @login_required
 def fletorja_shkarko(request, formati):
     filtri = request.GET.get('filtri', '')
-    vitet, rreshtat = fletorja.rreshtat_e_fletores(filtri=filtri)
+    parazgjedhur = fletorja.vitet_e_fletores()
+    nga = _viti(request.GET.get('nga'), parazgjedhur[0])
+    deri = max(nga, min(_viti(request.GET.get('deri'), parazgjedhur[-1]), nga + 9))
+    vitet, rreshtat = fletorja.rreshtat_e_fletores(filtri=filtri, vitet=list(range(nga, deri + 1)))
     data = timezone.localdate()
     emri = f'fletorja_antaresise_{data.isoformat()}'
     if formati == 'excel':
         return _fletorja_excel(emri, vitet, rreshtat, data)
+    if formati == 'word':
+        resp = HttpResponse(word.fletorja_word(vitet, rreshtat, data, filtri), content_type=WORD)
+        resp['Content-Disposition'] = f'attachment; filename="{emri}.docx"'
+        return resp
     resp = HttpResponse(fletorja.fletorja_pdf(vitet, rreshtat, data, filtri), content_type='application/pdf')
     resp['Content-Disposition'] = f'attachment; filename="{emri}.pdf"'
     return resp

@@ -54,6 +54,7 @@ def letrat_per(shtepite, viti_deri, min_vite=1):
         letrat.append({
             'shtepi': sh,
             'emri': f'{sh.emri_kryefamiljarit} {sh.mbiemri_kryefamiljarit}'.strip(),
+            'emri_plote': sh.emri_i_plote,
             'vitet': vitet,
             'periudha': periudha_tekst(vitet),
             'borxhi': sum(tarifa(v) for v in vitet),

@@ -59,6 +59,7 @@
       <div class="flex gap-3" style="flex-wrap:wrap;">
         <button type="submit" name="veprimi" value="shfaq" class="btn-dytësor">🔄 Përditëso listën</button>
         <button type="submit" name="veprimi" value="pdf" formtarget="_blank" class="btn-kryesor">📄 PDF për printim ({{ letrat|length }} letra)</button>
+        <button type="submit" name="veprimi" value="word" class="btn-kryesor">📝 Word — 2 letra në faqe A4 ({{ letrat|length }} letra)</button>
         {% if request.user.profili.është_admin %}<button type="submit" name="veprimi" value="email" class="btn-dytësor"
                 onclick="return confirm('Të dërgohet letra me email te {{ me_email }} shtëpi që kanë email?');"
                 {% if not me_email %}disabled{% endif %}>📧 Dërgo me email ({{ me_email }})</button>{% endif %}

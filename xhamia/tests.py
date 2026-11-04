@@ -1030,7 +1030,10 @@ class FletorjaEAntaresiseTest(TestCase):
         self.assertEqual(r['korrigjime'][0]['propozimi'], (V - 1, V - 2))
         self.assertEqual([x['shtepia'] for x in r['konflikte']], [self.e_vjeter])
         self.assertEqual([x['shtepia'] for x in r['me_pagese']], [self.me_pagese])
-        self.assertEqual((r['njejte'], r['pa_gjetur']), (1, ['Askush Nuk Ekziston']))
+        self.assertEqual((r['njejte'], [x['emri'] for x in r['pa_gjetur']]), (1, ['Askush Nuk Ekziston']))
+        # emri i prindit i ndryshuar/shkurtuar → sugjerohet shtëpia e duhur
+        r2 = fletorja.krahaso([self._rreshti('Agim Bajram Gashi', 'Borxh', 'Borxh')], V - 1)
+        self.assertEqual(r2['pa_gjetur'][0]['kandidatet'][0]['shtepia'], self.vetem_viti)
 
         # ruajtja vetëm nga admini dhe vetëm e të zgjedhurave
         self.client.post(reverse('puna_fletorja'), {'veprimi': 'apliko', 'ndrysho': [f'{self.vetem_viti.pk}:{V - 1}:{V - 2}']})
@@ -1043,7 +1046,7 @@ class FletorjaEAntaresiseTest(TestCase):
     def test_fletorja_shkarkohet_dhe_lexohet_perseri_pa_ndryshime(self):
         from io import BytesIO
         from . import fletorja
-        self.assertContains(self.client.get(reverse('puna_fletorja')), 'Shkarko PDF')
+        self.assertContains(self.client.get(reverse('puna_fletorja')), 'Word për printim')
         r = self.client.get(reverse('fletorja_shkarko', args=['pdf']))
         self.assertEqual(r['Content-Type'], 'application/pdf')
         viti_i_pare, rreshtat = fletorja.lexo_fletoren(BytesIO(r.content))
@@ -1071,3 +1074,43 @@ class FletorjaEAntaresiseTest(TestCase):
         self.client.post(reverse('puna_fletorja'), {'veprimi': 'apliko', 'ndrysho': [f'{self.vetem_viti.pk}:2000:2000']})
         self.vetem_viti.refresh_from_db()
         self.assertEqual(self.vetem_viti.paguar_deri_viti, self.V - 1)
+
+    def test_word_kategorite_evidenca_dhe_letrat(self):
+        from io import BytesIO
+        from docx import Document
+        from . import evidenca
+        V = self.V
+        # pagesë 4300 den për V → kategoria 4; 240 € për 2 vite → 120 €/vit → kategoria 1
+        PagesaAntaresia.objects.create(shtepia=self.vetem_viti, nr_fatures='2', shuma_paguar=70, viti=V,
+                                       monedha='MKD', shuma_monedhe=4300, data_pageses=date.today(), arktar=self.admin)
+        PagesaAntaresia.objects.create(shtepia=self.paguar, nr_fatures='3', shuma_paguar=240, viti=V + 1, viti_deri=V + 2,
+                                       data_pageses=date.today(), arktar=self.admin)
+        gratis = Kategoria.objects.create(emri='E Liruar', shuma_vjetore=0)
+        self.e_vjeter.kategoria = gratis
+        self.e_vjeter.save()
+
+        r = self.client.get(reverse('fletorja_shkarko', args=['word']), {'nga': V - 1, 'deri': V + 1})
+        tabela = Document(BytesIO(r.content)).tables[0]
+        rreshtat = {row.cells[1].text: [c.text for c in row.cells] for row in tabela.rows[1:]}
+        self.assertEqual(rreshtat['Agim'][4:], ['', '', '✓', '4', ''])      # V-1 historik ✓, V me 4300 den
+        self.assertEqual(rreshtat['Besim'][6:], ['✓', '✓', '1'])
+        self.assertEqual(rreshtat['Driton'][4:], ['G', '', 'G', 'G', 'G'])  # i liruar: pa borxh
+        self.assertEqual(rreshtat['Fatos'][6:], ['–', '', ''])
+
+        grupet, totali = evidenca.evidenca([V])
+        self.assertEqual([g['grupi'] for g in grupet], ['A', 'B', 'D', 'E', 'F'])
+        self.assertEqual(totali[0], {'antar': 5, 'paguar': 2, 'papaguar': 2, 'gratis': 1})
+        self.assertEqual(evidenca.grupi('Shpend'), 'SH')
+        self.assertEqual(evidenca.grupi('Llokman'), 'L-LL')
+        self.assertEqual(evidenca.grupi('Ylber'), 'I-Y')
+        r = self.client.get(reverse('evidenca_antaresise'), {'vitet': [V - 1, V], 'shkarko': 'pdf'})
+        self.assertEqual(r['Content-Type'], 'application/pdf')
+        self.assertContains(self.client.get(reverse('evidenca_antaresise')), 'Kanë paguar')
+
+        # letrat Word: 2 në faqe; Driton (i liruar) nuk merr letër
+        r = self.client.post(reverse('letrat_borxh'), {'veprimi': 'word', 'viti_deri': V, 'min_vite': 1})
+        doc = Document(BytesIO(r.content))
+        teksti = '\n'.join(c.text for t in doc.tables for row in t.rows for c in row.cells)
+        self.assertIn('Ermal Baba Gashi', teksti)
+        self.assertNotIn('Driton', teksti)
+        self.assertTrue(all(len(t.rows) <= 2 for t in doc.tables))

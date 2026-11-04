@@ -5,7 +5,7 @@
 <div class="page-header">
   <div>
     <h2>📗 Fletorja e antarësisë</h2>
-    <p>Lista e të gjithë kryefamiljarëve me Paguar / Borxh për {{ vitet.0 }}–{{ vitet|last }}, sipas gjendjes së sotme në aplikacion</p>
+    <p>Lista e kryefamiljarëve me gjendjen e pagesave për çdo vit, sipas gjendjes së sotme në aplikacion</p>
   </div>
 </div>
 
@@ -21,10 +21,26 @@
           <option value="paguar">Vetëm pa borxh</option>
         </select>
       </div>
-      <button type="submit" class="btn-kryesor" formaction="{% url 'fletorja_shkarko' 'pdf' %}">📄 Shkarko PDF</button>
-      <button type="submit" class="btn-dytësor" formaction="{% url 'fletorja_shkarko' 'excel' %}">📊 Shkarko Excel</button>
+      <div class="puna-fusha">
+        <label>Vitet nga</label>
+        <select name="nga">{% for v in te_gjitha_vitet %}<option value="{{ v }}" {% if v == nga %}selected{% endif %}>{{ v }}</option>{% endfor %}</select>
+      </div>
+      <div class="puna-fusha">
+        <label>deri</label>
+        <select name="deri">{% for v in te_gjitha_vitet %}<option value="{{ v }}" {% if v == deri %}selected{% endif %}>{{ v }}</option>{% endfor %}</select>
+      </div>
+      <button type="submit" class="btn-kryesor" formaction="{% url 'fletorja_shkarko' 'word' %}">📝 Word për printim (A4)</button>
+      <button type="submit" class="btn-dytësor" formaction="{% url 'fletorja_shkarko' 'pdf' %}">📄 PDF</button>
+      <button type="submit" class="btn-dytësor" formaction="{% url 'fletorja_shkarko' 'excel' %}">📊 Excel</button>
     </form>
-    <p class="ndihma" style="margin-top:10px;">Fletorja ndërtohet çdo herë nga e para, prandaj përfshin çdo pagesë dhe korrigjim të bërë deri në këtë moment. PDF-ja për ~1150 shtëpi mund të zgjasë disa sekonda.</p>
+    <div class="ndihma" style="margin-top:10px; line-height:1.7;">
+      Fletorja ndërtohet çdo herë nga e para, prandaj përfshin çdo pagesë dhe korrigjim deri në këtë moment.<br>
+      <strong>Në Word:</strong> kolonat Nr. · Emri · Emri i prindit · Mbiemri · Kat. · Borxh (sa vite borxh para vitit të parë) · vitet.
+      Në qelizën e vitit: <strong>1–4</strong> = kategoria sipas shumës së regjistruar (1 = 120 € / 7000 den e më shumë, 2 = 100 € / 6000 den,
+      3 = 80 € / 5000 den, 4 = 70 € / 4000–4300 den) · <strong>✓</strong> = ka paguar, por shuma nuk është regjistruar
+      (kategorinë e shënoni ju me dorë) · <strong>bosh</strong> = pa paguar · <strong>–</strong> = s'ishte ende anëtar · <strong>G</strong> = i liruar (gratis).
+      Deri në 4 vite del A4 vertikale, me më shumë vite A4 horizontale.
+    </div>
   </div>
 </div>
 
@@ -68,7 +84,34 @@
       {% include 'puna/_fletorja_tabela.html' with lista=raporti.konflikte zgjedhur=False %}
       {% endif %}
 
-      {% if raporti.korrigjime or raporti.konflikte %}
+      {% if raporti.pa_gjetur %}
+      <h4 style="margin:18px 0 6px;">❓ Emra nga fletorja që nuk gjenden njëlloj në aplikacion ({{ raporti.pa_gjetur|length }})</h4>
+      <p class="ndihma">Për secilin janë sugjeruar shtëpitë me emër të ngjashëm (p.sh. emri i prindit i shtuar ose i shkurtuar).
+        Nëse njëra është i njëjti person, zgjidheni dhe gjendja e fletores do t'i vendoset asaj; përndryshe lëreni "— mos ndrysho —".</p>
+      <div class="puna-tabela-mbajtese">
+      <table class="tabela-puna">
+        <thead><tr><th>Në fletore</th><th>Fletorja</th><th>Është i njëjti person me…</th></tr></thead>
+        <tbody>
+        {% for x in raporti.pa_gjetur %}
+          <tr>
+            <td><strong>{{ x.emri }}</strong></td>
+            <td>{% for s in x.fletorja %}<span class="{% if s == 'Borxh' %}fl-borxh{% else %}fl-paguar{% endif %}">{{ s }}</span>{% if not forloop.last %} · {% endif %}{% endfor %}</td>
+            <td>
+              {% if x.kandidatet %}
+              <select name="ndrysho">
+                <option value="">— mos ndrysho —</option>
+                {% for k in x.kandidatet %}<option value="{{ k.shtepia.pk }}:{{ k.propozimi.0 }}:{{ k.propozimi.1 }}">#{{ k.shtepia.nr_shtepise }} {{ k.shtepia.emri_i_plote }}</option>{% endfor %}
+              </select>
+              {% else %}<span class="ndihma">Asnjë emër i ngjashëm — ndoshta nuk është regjistruar.</span>{% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      </div>
+      {% endif %}
+
+      {% if raporti.korrigjime or raporti.konflikte or raporti.pa_gjetur %}
       <div style="margin-top:14px; display:flex; gap:10px; align-items:center;">
         <button type="submit" class="btn-kryesor" onclick="return confirm('Të ruhen korrigjimet e zgjedhura?');">💾 Ruaj korrigjimet e zgjedhura</button>
         <span class="ndihma">Te çdo shtëpi shënohet në "Shënime" çfarë ishte para ndryshimit.</span>
@@ -81,11 +124,7 @@
     {% include 'puna/_fletorja_tabela.html' with lista=raporti.me_pagese pa_zgjedhje=True %}
     {% endif %}
 
-    {% if raporti.pa_gjetur %}
-    <h4 style="margin:18px 0 6px;">❓ Emra nga fletorja që nuk u gjetën në aplikacion ({{ raporti.pa_gjetur|length }})</h4>
-    <p class="ndihma">Kontrollojini me dorë (mund të jenë shkruar ndryshe ose të mos jenë regjistruar).</p>
-    <p>{{ raporti.pa_gjetur|join:", " }}</p>
-    {% endif %}
+
 
     {% if raporti.te_dyfishta %}
     <h4 style="margin:18px 0 6px;">⚠️ Emra që dalin dy herë në fletore me gjendje të ndryshme</h4>

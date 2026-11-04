@@ -12,6 +12,7 @@ urlpatterns = [
     path('puna/llojet/ndrysho/', views_puna.ndrysho_llojin, name='ndrysho_llojin'),
     path('puna/fletorja/', views_puna.puna_fletorja, name='puna_fletorja'),
     path('puna/fletorja/<str:formati>/', views_puna.fletorja_shkarko, name='fletorja_shkarko'),
+    path('puna/evidenca/', views_puna.evidenca_antaresise, name='evidenca_antaresise'),
 
     # Auth
     path('login/', views.login_view, name='login'),

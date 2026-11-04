@@ -6,7 +6,12 @@ from decimal import Decimal
 
 from django.utils import timezone
 
-from .models import KonfigurimiSistemit, PagesaAntaresia
+from .models import Kategoria, KonfigurimiSistemit, PagesaAntaresia
+
+
+def kategorite_gratis():
+    """ID-të e kategorive me shumë vjetore 0 (p.sh. "E Liruar") — këto shtëpi nuk kanë borxh antarësie."""
+    return set(Kategoria.objects.filter(shuma_vjetore=0).values_list('id', flat=True))
 
 
 def gjendja_e_shtepive(shtepite):
@@ -17,12 +22,15 @@ def gjendja_e_shtepive(shtepite):
     for sh_id, nga, deri in PagesaAntaresia.objects.values_list('shtepia_id', 'viti', 'viti_deri'):
         mbuluara.setdefault(sh_id, set()).update(range(nga, (deri or nga) + 1))
 
+    gratis = kategorite_gratis()
     rezultati = {}
     for sh in shtepite:
         paguara = set(mbuluara.get(sh.id, set()))
         if sh.paguar_deri_viti:
             paguara.update(range(min(sh.viti_fillimit_antaresise, sh.paguar_deri_viti), sh.paguar_deri_viti + 1))
-        papaguara = [v for v in range(sh.viti_fillimit_antaresise, viti_aktual + 1) if v not in paguara]
+        papaguara = [] if sh.kategoria_id in gratis else [
+            v for v in range(sh.viti_fillimit_antaresise, viti_aktual + 1) if v not in paguara
+        ]
         borxh_nga = papaguara[0] if papaguara else None
         if borxh_nga:
             paguar_deri = borxh_nga - 1 if (borxh_nga - 1) in paguara else None

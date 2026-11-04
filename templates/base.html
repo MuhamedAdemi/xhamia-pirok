@@ -82,6 +82,9 @@
     </a>
     {% endif %}
 
+    <a href="{% url 'evidenca_antaresise' %}" class="{% if faqja_aktive == 'evidenca' %}aktive{% endif %}">
+      <span class="ikona">📈</span> Evidenca e antarësisë
+    </a>
     <a href="{% url 'regjistri' %}" class="{% if faqja_aktive == 'regjistri' %}aktive{% endif %}">
       <span class="ikona">📒</span> Regjistri (si fletorja)
     </a>

@@ -562,6 +562,16 @@ def letrat_borxh(request):
         resp['Content-Disposition'] = f'inline; filename="{emri}"'
         return resp
 
+    if veprimi == 'word':
+        if not lista:
+            messages.warning(request, 'Nuk ka asnjë shtëpi me borxh sipas këtyre kritereve.')
+            return redirect('letrat_borxh')
+        from .word import letrat_word
+        resp = HttpResponse(letrat_word(lista, o),
+                            content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+        resp['Content-Disposition'] = f'attachment; filename="letrat_informim_{o["viti_deri"]}_{o["min_vite"]}vite.docx"'
+        return resp
+
     if veprimi == 'email' and request.method == 'POST' and not është_admin(request.user):
         messages.error(request, 'Vetëm administratori mund të dërgojë letra.')
     elif veprimi == 'email' and request.method == 'POST':

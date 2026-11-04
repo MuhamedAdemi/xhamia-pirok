@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+{% block titulli %}Evidenca e antarësisë — Xhamia Pirok{% endblock %}
+
+{% block kontent %}
+<div class="page-header">
+  <div>
+    <h2>📈 Evidenca e antarësisë</h2>
+    <p>Sipas shkronjës së parë të emrit: sa anëtarë, sa kanë paguar, sa s'kanë paguar dhe sa janë të liruar (gratis)</p>
+  </div>
+</div>
+
+<form method="get" class="puna-filtrat">
+  <div class="puna-fusha">
+    <label>Vitet</label>
+    <div style="display:flex; flex-wrap:wrap; gap:4px 12px;">
+      {% for v in te_gjitha_vitet %}
+      <label style="font-weight:normal;"><input type="checkbox" name="vitet" value="{{ v }}" {% if v in vitet %}checked{% endif %}> {{ v }}</label>
+      {% endfor %}
+    </div>
+  </div>
+  <button type="submit" class="btn-dytësor">🔄 Shfaq</button>
+  <button type="submit" name="shkarko" value="pdf" class="btn-kryesor">📄 Shkarko PDF</button>
+</form>
+
+<div class="puna-tabela-mbajtese">
+<table class="tabela-puna tabela-evidenca">
+  <thead>
+    <tr><th rowspan="2">Nr.</th><th rowspan="2"></th>{% for v in vitet %}<th colspan="4">{{ v }}</th>{% endfor %}</tr>
+    <tr>{% for v in vitet %}<th>Nr. Antar</th><th>Kanë paguar</th><th>S'kanë paguar</th><th>Gratis</th>{% endfor %}</tr>
+  </thead>
+  <tbody>
+    {% for g in grupet %}
+    <tr>
+      <td>{{ forloop.counter }}</td><td><strong>{{ g.grupi }}</strong></td>
+      {% for v in g.vitet %}<td><strong>{{ v.antar }}</strong></td><td class="fl-paguar">{{ v.paguar|default:"-" }}</td><td class="fl-borxh">{{ v.papaguar|default:"-" }}</td><td>{{ v.gratis|default:"-" }}</td>{% endfor %}
+    </tr>
+    {% endfor %}
+  </tbody>
+  <tfoot>
+    <tr>
+      <td></td><td><strong>Totali</strong></td>
+      {% for v in totali %}<td><strong>{{ v.antar }}</strong></td><td class="fl-paguar">{{ v.paguar }}</td><td class="fl-borxh">{{ v.papaguar }}</td><td><strong>{{ v.gratis }}</strong></td>{% endfor %}
+    </tr>
+  </tfoot>
+</table>
+</div>
+<p class="ndihma" style="margin-top:10px;">"Gratis" janë shtëpitë me kategori me shumë vjetore 0 € (p.sh. "E Liruar") — ato nuk kanë borxh dhe nuk marrin letra.
+  Si anëtar i vitit numërohet kushdo që e ka filluar antarësinë deri atë vit.</p>
+{% endblock %}

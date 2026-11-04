@@ -12,7 +12,7 @@ from collections import defaultdict
 from django.db import transaction
 from django.utils import timezone
 
-from .gjendja import gjendja_e_shtepive, vitet_tekst
+from .gjendja import gjendja_e_shtepive, kategorite_gratis, vitet_tekst
 from .models import PagesaAntaresia, Shtepia
 
 PAGUAR, BORXH = 'Paguar', 'Borxh'
@@ -32,20 +32,45 @@ def _vitet_e_mbuluara():
     return mbuluara
 
 
+def _kategoria_e_shumes(shuma, monedha):
+    """Kategoria sipas shumës vjetore: 1 = 120 € / 7000–7300 den e më shumë, 2 = 100 € / 6000 den,
+    3 = 80 € / 5000 den, 4 = 70 € / 4000–4300 den (e më pak)."""
+    kufijte = (6500, 5500, 4650) if monedha == 'MKD' else (110, 90, 75)
+    for nr, kufiri in enumerate(kufijte, 1):
+        if shuma >= kufiri:
+            return nr
+    return 4
+
+
+def kategorite_e_pagesave():
+    """{shtepia_id: {viti: 1..4}} — kategoria e pagesës së regjistruar për çdo vit (shuma ndahet në vitet që mbulon)."""
+    rezultati = defaultdict(dict)
+    for p in PagesaAntaresia.objects.only('shtepia_id', 'viti', 'viti_deri', 'monedha', 'shuma_monedhe', 'shuma_paguar'):
+        vitet = range(p.viti, (p.viti_deri or p.viti) + 1)
+        if p.monedha == 'MKD' and p.shuma_monedhe:
+            kat = _kategoria_e_shumes(p.shuma_monedhe / len(vitet), 'MKD')
+        else:
+            kat = _kategoria_e_shumes((p.shuma_paguar or 0) / len(vitet), 'EUR')
+        for v in vitet:
+            rezultati[p.shtepia_id][v] = min(kat, rezultati[p.shtepia_id].get(v, 4))
+    return rezultati
+
+
 def _eshte_paguar(sh, viti, mbuluara):
     return viti in mbuluara.get(sh.id, ()) or bool(sh.paguar_deri_viti and viti <= sh.paguar_deri_viti)
 
 
-def rreshtat_e_fletores(shtepite=None, filtri=''):
+def rreshtat_e_fletores(shtepite=None, filtri='', vitet=None):
     """Rreshtat e fletores, me radhë alfabetike si fletorja në letër.
     filtri: '' (të gjitha), 'borxh' (kanë borxh), 'paguar' (pa borxh)."""
     viti_aktual = timezone.now().year
-    vitet = vitet_e_fletores(viti_aktual)
+    vitet = vitet or vitet_e_fletores(viti_aktual)
     if shtepite is None:
         shtepite = Shtepia.objects.filter(është_aktiv=True).select_related('kategoria')
     shtepite = sorted(shtepite, key=lambda s: (s.emri_i_plote.lower(), s.nr_shtepise))
     gjendja = gjendja_e_shtepive(shtepite)
     mbuluara = _vitet_e_mbuluara()
+    gratis = kategorite_gratis()
 
     rreshtat = []
     for sh in shtepite:
@@ -65,10 +90,13 @@ def rreshtat_e_fletores(shtepite=None, filtri=''):
         parapaguar = viti_aktual
         while _eshte_paguar(sh, parapaguar + 1, mbuluara):
             parapaguar += 1
+        te_vjetra = [v for v in g['papaguara'] if v < vitet[0]]
         rreshtat.append({
             'shtepia': sh,
+            'gratis': sh.kategoria_id in gratis,
+            'nr_viteve_te_vjetra': len(te_vjetra),
             'kategoria': sh.kategoria.emri if sh.kategoria else '',
-            'borxh_te_vjetra': vitet_tekst([v for v in g['papaguara'] if v < vitet[0]]),
+            'borxh_te_vjetra': vitet_tekst(te_vjetra),
             'statuset': statuset,
             'shenime': f'Parapaguar deri më {parapaguar}' if parapaguar > viti_aktual and not g['papaguara'] else '',
             'borxhi': g['borxhi'],
@@ -132,6 +160,29 @@ def _synimi(statuset):
     return None, vitet[-1]
 
 
+def _emra_te_ngjashem(emri, shtepite, sa=4):
+    """Shtëpitë me emër të ngjashëm: i njëjti emër dhe mbiemër i ngjashëm (prindi mund të mungojë,
+    të jetë i shkurtuar si "Xh" ose i ndryshuar), ose emri i plotë shumë i ngjashëm."""
+    from difflib import SequenceMatcher
+
+    fjalet = normalizo_emrin(emri).split()
+    if not fjalet:
+        return []
+    pikët = []
+    for sh in shtepite:
+        e, pr, mb = (normalizo_emrin(x) for x in (sh.emri_kryefamiljarit, sh.emri_prindit, sh.mbiemri_kryefamiljarit))
+        i_plote = SequenceMatcher(None, ' '.join(fjalet), normalizo_emrin(sh.emri_i_plote)).ratio()
+        mbiemri = SequenceMatcher(None, fjalet[-1], mb).ratio() if mb else 0
+        if e == fjalet[0] and mbiemri >= 0.8:
+            prindi = fjalet[1] if len(fjalet) > 2 else ''
+            perputhet_prindi = not prindi or not pr or pr.startswith(prindi) or prindi.startswith(pr)
+            pikët.append((2 + mbiemri + (1 if perputhet_prindi else 0), sh))
+        elif i_plote >= 0.85:
+            pikët.append((i_plote, sh))
+    pikët.sort(key=lambda x: -x[0])
+    return [sh for _, sh in pikët[:sa]]
+
+
 def krahaso(rreshtat_fletores, viti_i_pare):
     """Krahason fletoren me aplikacionin. Kthen raportin me listat:
     'korrigjime' (aplikacioni gabon — rekomandohet ndryshimi), 'konflikte' (ndryshimi do të fshinte
@@ -157,7 +208,13 @@ def krahaso(rreshtat_fletores, viti_i_pare):
             continue
         lista = sipas_emrit.get(celesi)
         if not lista:
-            raporti['pa_gjetur'].extend(x['emri'] for x in rr)
+            for x in rr:
+                kandidatet = []
+                for sh in _emra_te_ngjashem(x['emri'], shtepite):
+                    borxh_nga, paguar_deri = _synimi(x['statuset'])
+                    kandidatet.append({'shtepia': sh, 'propozimi': (borxh_nga or sh.viti_fillimit_antaresise, paguar_deri)})
+                raporti['pa_gjetur'].append({'emri': x['emri'], 'kandidatet': kandidatet,
+                                             'fletorja': [x['statuset'][v] for v in sorted(x['statuset'])]})
             continue
         for sh in lista:
             g = gjendja[sh.id]
