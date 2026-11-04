@@ -916,7 +916,7 @@ class PunaEPerditshmeTest(TestCase):
         self.assertContains(r, 'data-statusi="papaguar" class="pa-paguar"')
         self.assertContains(r, 'Afrim')
         self.assertContains(r, 'Kurbana')   # llojet e Fondit në dritaren ⊕
-        self.assertContains(r, f'Borxh 2025–{timezone.now().year} ')   # deri kur ka paguar, pa hapur detajet
+        self.assertContains(r, '<td class="puna-gjendja me-borxh">2024</td>')   # viti i fundit i paguar, me të kuqe
 
     def test_pagesa_e_shpejte_antaresi_dhe_fond(self):
         url = reverse('pagese_e_shpejte')
@@ -927,7 +927,7 @@ class PunaEPerditshmeTest(TestCase):
                                    'monedha': 'MKD', 'data_pageses': date.today().isoformat()}).json()
         self.assertTrue(r['ok'], r)
         self.assertContains(self.client.get(reverse('puna_antaresia')), 'data-statusi="paguar"')
-        self.assertContains(self.client.get(reverse('puna_antaresia')), f'✓ Paguar deri {timezone.now().year}')
+        self.assertContains(self.client.get(reverse('puna_antaresia')), f'<td class="puna-gjendja">{timezone.now().year}</td>')
         # e njëjta faturë → gabim, jo pagesë e dytë
         r = self.client.post(url, {'shtepia': self.sh.pk, 'per': 'ANTARESIA', 'blloku': '1100', 'nr_fatures': '000001',
                                    'viti': 2030, 'viti_deri': 2030, 'shuma_hyrese': '70', 'monedha': 'EUR',

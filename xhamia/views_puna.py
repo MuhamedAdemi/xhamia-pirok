@@ -22,7 +22,7 @@ WORD = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
 from .forms import (
     PagesaAntaresiaForm, PagesaFondiForm, PagesaVarrezaveForm, llojet_hyrese_te_fondit, sugjero_faturen,
 )
-from .gjendja import gjendja_e_shtepive, kategorite_gratis, vitet_tekst
+from .gjendja import gjendja_e_shtepive, kategorite_gratis
 from .utils import njofto_stafin
 from .models import (
     Harxhimi, KonfigurimiSistemit, KonfigurimiVarrezave, LlojiPageses, PagesaAntaresia, PagesaFondi,
@@ -72,7 +72,7 @@ def puna_antaresia(request):
     gratis = kategorite_gratis()
     for sh in shtepite:
         sh.ka_paguar = sh.id in paguar
-        sh.gjendja = _gjendja_tekst(gjendja[sh.id], sh.kategoria_id in gratis)
+        sh.gjendja = _gjendja_tekst(gjendja[sh.id], sh.kategoria_id in gratis, sot.year)
     return render(request, 'puna/antaresia.html', {
         'shtepite': shtepite, 'viti': viti, 'aktive': aktive, 'kerkimi': request.GET.get('q', ''),
         'vitet': list(range(sot.year + 1, 2009, -1)),
@@ -83,17 +83,16 @@ def puna_antaresia(request):
     })
 
 
-def _gjendja_tekst(g, gratis):
-    """Teksti i shkurtër "deri kur ka paguar" për listën: (teksti, ka_borxh)."""
+def _gjendja_tekst(g, gratis, viti_aktual):
+    """Viti i fundit i paguar për listën: (teksti, ka_borxh). Kur s'dihet asnjë pagesë, viti para borxhit
+    (p.sh. borxh nga 2018 → 2017); antar i ri që s'ka paguar ende → "—"."""
     if gratis:
-        return 'I liruar (gratis)', False
-    if not g['papaguara']:
-        return (f"✓ Paguar deri {g['paguar_deri']}" if g['paguar_deri'] else '✓ Pa borxh'), False
-    n = len(g['papaguara'])
-    borxhi = f"borxh {vitet_tekst(g['papaguara'])} ({n} {'vit' if n == 1 else 'vite'})"
-    if g['paguar_deri']:
-        return f"Paguar deri {g['paguar_deri']} · {borxhi}", True
-    return borxhi[0].upper() + borxhi[1:], True
+        return 'Gratis', False
+    ka_borxh = bool(g['papaguara'])
+    viti = g['paguar_deri']
+    if not viti and ka_borxh and g['borxh_nga'] < viti_aktual:
+        viti = g['borxh_nga'] - 1
+    return (str(viti) if viti else '—'), ka_borxh
 
 
 def _fillestare(shtepi, per):
