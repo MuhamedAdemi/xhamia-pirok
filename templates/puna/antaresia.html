@@ -41,7 +41,7 @@
     <tr>
       <th>Nr.</th>
       {% if mund_regjistroje %}<th class="ikon"></th>{% endif %}
-      <th>Emri</th><th>Prindi</th><th>Mbiemri</th><th>Telefon</th>
+      <th>Emri</th><th>Prindi</th><th>Mbiemri</th><th>Telefon</th><th>Deri kur ka paguar</th>
       <th class="ikon"></th>{% if eshte_admin %}<th class="ikon"></th>{% endif %}
     </tr>
   </thead>
@@ -57,11 +57,12 @@
       <td data-th>{{ sh.emri_prindit }}</td>
       <td data-th>{{ sh.mbiemri_kryefamiljarit }}</td>
       <td data-th>{{ sh.nr_telefoni_kryesor }}</td>
+      <td class="puna-gjendja{% if sh.gjendja.1 %} me-borxh{% endif %}">{{ sh.gjendja.0 }}</td>
       <td class="ikon"><a class="btn-ikon" href="{% if eshte_admin %}{% url 'edito_shtepi' sh.pk %}{% else %}{% url 'detaje_shtepia' sh.pk %}{% endif %}" title="{% if eshte_admin %}Ndrysho{% else %}Hap{% endif %}">✏️</a></td>
       {% if eshte_admin %}<td class="ikon"><a class="btn-ikon" href="{% url 'fshi_shtepi' sh.pk %}" title="Çaktivizo">🗑️</a></td>{% endif %}
     </tr>
     {% endfor %}
-    <tr data-bosh="1" data-asnje hidden><td colspan="8" style="text-align:center; padding:30px; color:var(--tekst-dytësor);">Asnjë qytetar me këtë kërkim.</td></tr>
+    <tr data-bosh="1" data-asnje hidden><td colspan="9" style="text-align:center; padding:30px; color:var(--tekst-dytësor);">Asnjë qytetar me këtë kërkim.</td></tr>
   </tbody>
 </table>
 </div>

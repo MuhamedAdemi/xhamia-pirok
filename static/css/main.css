@@ -741,3 +741,5 @@ dialog.puna-dialog::backdrop { background: rgba(0,0,0,0.35); }
 .fl-borxh { color: #CC5500; font-weight: 600; }
 .tabela-evidenca td, .tabela-evidenca th { text-align: center; }
 .tabela-evidenca tfoot td { border-top: 2px solid #1C1C1E; font-size: 15px; }
+.tabela-puna tr td.puna-gjendja { font-size: 13px; white-space: nowrap; color: #38761D; font-weight: 600; }
+.tabela-puna tr td.puna-gjendja.me-borxh { color: #CC2200; }

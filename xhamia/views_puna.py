@@ -22,6 +22,7 @@ WORD = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
 from .forms import (
     PagesaAntaresiaForm, PagesaFondiForm, PagesaVarrezaveForm, llojet_hyrese_te_fondit, sugjero_faturen,
 )
+from .gjendja import gjendja_e_shtepive, kategorite_gratis, vitet_tekst
 from .utils import njofto_stafin
 from .models import (
     Harxhimi, KonfigurimiSistemit, KonfigurimiVarrezave, LlojiPageses, PagesaAntaresia, PagesaFondi,
@@ -67,8 +68,11 @@ def puna_antaresia(request):
     aktive = request.GET.get('aktive', '1') != '0'
     shtepite = list(Shtepia.objects.filter(është_aktiv=aktive).order_by('nr_shtepise'))
     paguar = _shtepite_paguara_ids(viti)
+    gjendja = gjendja_e_shtepive(shtepite)
+    gratis = kategorite_gratis()
     for sh in shtepite:
         sh.ka_paguar = sh.id in paguar
+        sh.gjendja = _gjendja_tekst(gjendja[sh.id], sh.kategoria_id in gratis)
     return render(request, 'puna/antaresia.html', {
         'shtepite': shtepite, 'viti': viti, 'aktive': aktive, 'kerkimi': request.GET.get('q', ''),
         'vitet': list(range(sot.year + 1, 2009, -1)),
@@ -77,6 +81,19 @@ def puna_antaresia(request):
         'mund_regjistroje': mund_regjistrojë(request.user), 'eshte_admin': është_admin(request.user),
         'faqja_aktive': 'puna_antaresia',
     })
+
+
+def _gjendja_tekst(g, gratis):
+    """Teksti i shkurtër "deri kur ka paguar" për listën: (teksti, ka_borxh)."""
+    if gratis:
+        return 'I liruar (gratis)', False
+    if not g['papaguara']:
+        return (f"✓ Paguar deri {g['paguar_deri']}" if g['paguar_deri'] else '✓ Pa borxh'), False
+    n = len(g['papaguara'])
+    borxhi = f"borxh {vitet_tekst(g['papaguara'])} ({n} {'vit' if n == 1 else 'vite'})"
+    if g['paguar_deri']:
+        return f"Paguar deri {g['paguar_deri']} · {borxhi}", True
+    return borxhi[0].upper() + borxhi[1:], True
 
 
 def _fillestare(shtepi, per):
