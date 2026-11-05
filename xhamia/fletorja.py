@@ -13,6 +13,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from .gjendja import gjendja_e_shtepive, kategorite_gratis, vitet_tekst
+from .kategorite import kategorite_e_pagesave  # noqa: F401 (përdoret te word.py)
 from .models import PagesaAntaresia, Shtepia
 
 PAGUAR, BORXH = 'Paguar', 'Borxh'
@@ -30,30 +31,6 @@ def _vitet_e_mbuluara():
     for sh_id, nga, deri in PagesaAntaresia.objects.values_list('shtepia_id', 'viti', 'viti_deri'):
         mbuluara[sh_id].update(range(nga, (deri or nga) + 1))
     return mbuluara
-
-
-def _kategoria_e_shumes(shuma, monedha):
-    """Kategoria sipas shumës vjetore: 1 = 120 € / 7000–7300 den e më shumë, 2 = 100 € / 6000 den,
-    3 = 80 € / 5000 den, 4 = 70 € / 4000–4300 den (e më pak)."""
-    kufijte = (6500, 5500, 4650) if monedha == 'MKD' else (110, 90, 75)
-    for nr, kufiri in enumerate(kufijte, 1):
-        if shuma >= kufiri:
-            return nr
-    return 4
-
-
-def kategorite_e_pagesave():
-    """{shtepia_id: {viti: 1..4}} — kategoria e pagesës së regjistruar për çdo vit (shuma ndahet në vitet që mbulon)."""
-    rezultati = defaultdict(dict)
-    for p in PagesaAntaresia.objects.only('shtepia_id', 'viti', 'viti_deri', 'monedha', 'shuma_monedhe', 'shuma_paguar'):
-        vitet = range(p.viti, (p.viti_deri or p.viti) + 1)
-        if p.monedha == 'MKD' and p.shuma_monedhe:
-            kat = _kategoria_e_shumes(p.shuma_monedhe / len(vitet), 'MKD')
-        else:
-            kat = _kategoria_e_shumes((p.shuma_paguar or 0) / len(vitet), 'EUR')
-        for v in vitet:
-            rezultati[p.shtepia_id][v] = min(kat, rezultati[p.shtepia_id].get(v, 4))
-    return rezultati
 
 
 def _eshte_paguar(sh, viti, mbuluara):

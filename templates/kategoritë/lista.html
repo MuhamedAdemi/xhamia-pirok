@@ -6,7 +6,8 @@
 <div class="page-header">
   <div>
     <h2>🏷️ Kategoritë e Pagesave</h2>
-    <p>Menaxho kategoritë dhe çmimet</p>
+    <p>Kategoria e shtëpisë: 1 = më e larta … 4 = më e ulëta, sipas shumës që paguan për një vit.
+      Ndryshon vetvetiu me çdo pagesë të re; mund ta ndryshoni edhe me dorë te Antarësia (kolona Kategoria).</p>
   </div>
   <a href="{% url 'shto_kategori' %}" class="btn-kryesor">+ Shto Kategori</a>
 </div>
@@ -16,8 +17,11 @@
     <table class="tabela-xhami">
       <thead>
         <tr>
+          <th>Nr.</th>
           <th>Emri</th>
-          <th>Vjetore</th>
+          <th>Vjetore (€)</th>
+          <th>Vjetore (den)</th>
+          <th>Shtëpi</th>
           <th>6-Mujore</th>
           <th>3-Mujore</th>
           <th>Mujore</th>
@@ -28,8 +32,11 @@
       <tbody>
         {% for k in kategoritë %}
         <tr>
+          <td class="font-semibold">{{ k.nr|default:"—" }}</td>
           <td class="font-semibold">{{ k.emri }}</td>
           <td class="tekst-gjelbër font-semibold">{{ k.shuma_vjetore|euro }}</td>
+          <td class="tekst-gjelbër font-semibold">{% if k.shuma_vjetore_mkd %}{{ k.shuma_vjetore_mkd|shuma:"MKD" }}{% else %}—{% endif %}</td>
+          <td>{{ k.nr_shtepive }}</td>
           <td class="tekst-dytësor">{% if k.shuma_6mujore %}{{ k.shuma_6mujore|euro }}{% else %}—{% endif %}</td>
           <td class="tekst-dytësor">{% if k.shuma_3mujore %}{{ k.shuma_3mujore|euro }}{% else %}—{% endif %}</td>
           <td class="tekst-dytësor">{% if k.shuma_mujore %}{{ k.shuma_mujore|euro }}{% else %}—{% endif %}</td>
@@ -37,7 +44,7 @@
           <td><a href="{% url 'edito_kategori' k.pk %}" class="btn-dytësor btn-sm">Edito</a></td>
         </tr>
         {% empty %}
-        <tr><td colspan="7" style="text-align:center; padding:30px; color:var(--tekst-dytësor);">Asnjë kategori.</td></tr>
+        <tr><td colspan="10" style="text-align:center; padding:30px; color:var(--tekst-dytësor);">Asnjë kategori.</td></tr>
         {% endfor %}
       </tbody>
     </table>

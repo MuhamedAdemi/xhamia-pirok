@@ -46,11 +46,13 @@ class StafForm(forms.ModelForm):
 class KategoriaForm(forms.ModelForm):
     class Meta:
         model = Kategoria
-        fields = ['emri', 'pershkrimi', 'shuma_vjetore', 'shuma_6mujore', 'shuma_3mujore', 'shuma_mujore', 'renditja', 'është_aktiv']
+        fields = ['emri', 'pershkrimi', 'shuma_vjetore', 'shuma_vjetore_mkd', 'shuma_6mujore', 'shuma_3mujore',
+                  'shuma_mujore', 'renditja', 'është_aktiv']
         labels = {
             'emri': 'Emri i Kategorisë',
             'pershkrimi': 'Përshkrimi',
             'shuma_vjetore': 'Shuma Vjetore (€)',
+            'shuma_vjetore_mkd': 'Shuma Vjetore (den)',
             'shuma_6mujore': 'Shuma 6-Mujore (€)',
             'shuma_3mujore': 'Shuma 3-Mujore (€)',
             'shuma_mujore': 'Shuma Mujore (€)',
@@ -202,9 +204,33 @@ def _vitet_e_mbuluara(pagesat, viti, viti_deri, paguar_deri):
     return te_paguara
 
 
+def _decimal(vlera):
+    try:
+        return Decimal(str(vlera).replace(',', '.')) if str(vlera).strip() else None
+    except Exception:
+        return 'gabim'
+
+
+def kufijte_json():
+    """Kufijtë e kategorive dhe kurset për JavaScript-in e formës (që ta tregojë kategorinë e çdo viti)."""
+    from .kategorite import kufijte
+    k = KonfigurimiSistemit.merr()
+    return json.dumps({
+        'kufijte': [{'nr': x.nr, 'emri': x.kategoria.emri if x.kategoria else '', 'eur': str(x.eur), 'mkd': str(x.mkd)}
+                    for x in kufijte(k.kursi_eur)],
+        'kurset': {m: str(k.kursi(m)) for m, _ in MONEDHA_CHOICES},
+    })
+
+
 class PagesaAntaresiaForm(ShumaMonedhaMixin, VitetFormMixin, forms.ModelForm):
     FUSHA_EUR = 'shuma_paguar'
     shtepia = FushaShtepise(label='Shtëpia')
+    shuma_2 = forms.DecimalField(
+        label='Shuma e dytë', max_digits=12, decimal_places=2, min_value=Decimal('0.01'), required=False,
+        help_text='Kur paguhet me dy monedha, p.sh. 150 € + 3.700 den.',
+    )
+    monedha_2 = forms.ChoiceField(label='Monedha e dytë', choices=MONEDHA_CHOICES, initial='MKD', required=False)
+    vitet_shumat = forms.CharField(required=False, widget=forms.HiddenInput)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -213,9 +239,80 @@ class PagesaAntaresiaForm(ShumaMonedhaMixin, VitetFormMixin, forms.ModelForm):
             'kaluara': str(k.tarifa_vitet_kaluara), 'aktual': str(k.tarifa_viti_aktual),
             'viti': timezone.now().year, 'kursi_eur': str(k.kursi_eur),
         })
+        self.kufijte_json = kufijte_json()
 
     def _vitet_e_paguara(self, shtepia, viti, viti_deri):
         return _vitet_e_mbuluara(shtepia.pagesat, viti, viti_deri, shtepia.paguar_deri_viti)
+
+    def clean(self):
+        cd = super().clean()
+        monedha, shuma_2 = cd.get('monedha'), cd.get('shuma_2')
+        if shuma_2:
+            cd['monedha_2'] = cd.get('monedha_2') or 'MKD'
+            if cd['monedha_2'] == monedha:
+                self.add_error('monedha_2', 'Monedha e dytë duhet të jetë tjetër nga e para (ose shkruajeni totalin te shuma e parë).')
+        else:
+            cd['monedha_2'] = ''
+        cd['vitet_shumat'] = self._ndarja(cd)
+        return cd
+
+    def _ndarja(self, cd):
+        """Ndarja sipas viteve nga JSON-i i formës: {"2024": {"EUR": "50"}, ...}. Totali i çdo monedhe
+        duhet të jetë sa shuma e pagesës në atë monedhë."""
+        teksti = (cd.get('vitet_shumat') or '').strip()
+        viti, shuma = cd.get('viti'), cd.get('shuma_hyrese')
+        if not teksti or not viti or not shuma or self.errors:
+            return {}
+        viti_deri = cd.get('viti_deri') or viti
+        try:
+            ndarja = json.loads(teksti)
+            assert isinstance(ndarja, dict)
+        except (ValueError, AssertionError):
+            self.add_error(None, 'Shumat për çdo vit nuk u lexuan — provoni përsëri.')
+            return {}
+        pritet = {cd['monedha']: shuma}
+        if cd.get('shuma_2'):
+            pritet[cd['monedha_2']] = cd['shuma_2']
+        rezultati, totalet = {}, {m: Decimal('0') for m in pritet}
+        for v in range(viti, viti_deri + 1):
+            vlerat = ndarja.get(str(v)) or {}
+            rreshti = {}
+            for m in pritet:
+                s = _decimal(vlerat.get(m, ''))
+                if s == 'gabim' or (s is not None and s < 0):
+                    self.add_error(None, f'Shuma e vitit {v} nuk është numër i rregullt.')
+                    return {}
+                if s:
+                    rreshti[m] = str(int(s)) if s == s.to_integral() else str(s)
+                    totalet[m] += s
+            if not rreshti:
+                self.add_error(None, f'Shkruani shumën e vitit {v} (ose hiqni shenjën "Shuma ndryshon sipas viteve").')
+                return {}
+            rezultati[str(v)] = rreshti
+        for m, total in totalet.items():
+            if total != pritet[m]:
+                from .models import formato_shumen
+                self.add_error(None, f'Shumat e viteve japin {formato_shumen(total, m)}, por pagesa është '
+                                     f'{formato_shumen(pritet[m], m)}. Ndreqni shumat që totali të përputhet.')
+                return {}
+        return rezultati
+
+    def apliko_shumen(self, pagese):
+        pagese = super().apliko_shumen(pagese)
+        cd = self.cleaned_data
+        pagese.vitet_shumat = cd.get('vitet_shumat') or {}
+        shuma_2, monedha_2 = cd.get('shuma_2'), cd.get('monedha_2')
+        if not shuma_2:
+            pagese.monedha_2, pagese.shuma_monedhe_2 = '', None
+            return pagese
+        # kursi i euros: ai i shkruar te forma (kur pagesa e parë është në € ose den), ndryshe nga konfigurimi
+        kursi_eur = pagese.kursi_denar if pagese.monedha in ('EUR', 'MKD') else self.konfigurimi.kursi_eur
+        kursi_2 = kursi_eur if monedha_2 == 'EUR' else self.konfigurimi.kursi(monedha_2)
+        mkd_2 = shuma_2 * kursi_2
+        pagese.monedha_2, pagese.shuma_monedhe_2 = monedha_2, shuma_2
+        pagese.shuma_mkd = (pagese.shuma_mkd + mkd_2).quantize(Decimal('1'), rounding=ROUND_HALF_UP)
+        pagese.shuma_paguar = (pagese.shuma_paguar + mkd_2 / kursi_eur).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        return pagese
 
     class Meta:
         model = PagesaAntaresia

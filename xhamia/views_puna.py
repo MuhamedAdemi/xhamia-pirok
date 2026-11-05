@@ -16,11 +16,13 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from . import evidenca, fletorja, word
+from .kategorite import caktoje_nga_pagesa, kufijte, numrat_e_kategorive
 
 WORD = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
 
 from .forms import (
-    PagesaAntaresiaForm, PagesaFondiForm, PagesaVarrezaveForm, llojet_hyrese_te_fondit, sugjero_faturen,
+    PagesaAntaresiaForm, PagesaFondiForm, PagesaVarrezaveForm, kufijte_json, llojet_hyrese_te_fondit,
+    sugjero_faturen,
 )
 from .gjendja import gjendja_e_shtepive, kategorite_gratis
 from .utils import njofto_stafin
@@ -70,17 +72,51 @@ def puna_antaresia(request):
     paguar = _shtepite_paguara_ids(viti)
     gjendja = gjendja_e_shtepive(shtepite)
     gratis = kategorite_gratis()
+    kategorite = _kategorite_per_zgjedhje()
+    emrat = {k['id']: k for k in kategorite}
     for sh in shtepite:
         sh.ka_paguar = sh.id in paguar
         sh.gjendja = _gjendja_tekst(gjendja[sh.id], sh.kategoria_id in gratis, sot.year)
+        sh.kat = emrat.get(sh.kategoria_id)
     return render(request, 'puna/antaresia.html', {
         'shtepite': shtepite, 'viti': viti, 'aktive': aktive, 'kerkimi': request.GET.get('q', ''),
+        'kategorite': kategorite, 'pa_kategori': sum(1 for sh in shtepite if not sh.kat),
+        'kategorite_json': kufijte_json(),
         'vitet': list(range(sot.year + 1, 2009, -1)),
         'totali': _totali(PagesaAntaresia.objects.filter(data_pageses__year=viti)),
         'llojet_hyrese': llojet_hyrese_te_fondit(),
         'mund_regjistroje': mund_regjistrojë(request.user), 'eshte_admin': është_admin(request.user),
         'faqja_aktive': 'puna_antaresia',
     })
+
+
+def _kategorite_per_zgjedhje():
+    """[{'id', 'nr', 'emri', 'pershkrimi'}] — 1–4 sipas shumës (nga më e larta), pastaj G (gratis) dhe të tjerat."""
+    from .models import Kategoria
+    numrat = numrat_e_kategorive()
+    pershkrimet = {k.kategoria.id: f"{formato_shumen(k.eur, 'EUR')} / {formato_shumen(k.mkd, 'MKD')} e më shumë"
+                   for k in kufijte() if k.kategoria}
+    lista = [{'id': k.pk, 'nr': numrat.get(k.pk, ''), 'emri': k.emri, 'pershkrimi': pershkrimet.get(k.pk, '')}
+             for k in Kategoria.objects.filter(është_aktiv=True)]
+    lista.sort(key=lambda k: (k['nr'] == '', k['nr'] == 'G', k['nr'], k['emri']))
+    for k in lista:
+        if k['nr'] == 'G':
+            k['pershkrimi'] = 'gratis — pa borxh antarësie'
+    return lista
+
+
+@login_required
+@require_POST
+def ndrysho_kategorine(request):
+    """Kolona "Kategoria" te Antarësia: admini e zgjedh kategorinë e një shtëpie pa hapur formën."""
+    from .models import Kategoria
+    if not është_admin(request.user):
+        return JsonResponse({'ok': False, 'gabim': 'Vetëm admini mund ta ndryshojë kategorinë.'}, status=403)
+    shtepia = get_object_or_404(Shtepia, pk=_viti(request.POST.get('shtepia'), 0))
+    kategoria_id = _viti(request.POST.get('kategoria'), None)
+    shtepia.kategoria = get_object_or_404(Kategoria, pk=kategoria_id) if kategoria_id else None
+    shtepia.save(update_fields=['kategoria'])
+    return JsonResponse({'ok': True, 'kategoria': shtepia.kategoria_id or ''})
 
 
 def _gjendja_tekst(g, gratis, viti_aktual):
@@ -147,10 +183,10 @@ def pagese_e_shpejte(request):
                    for f, lista in form.errors.items() for g in lista]
         return JsonResponse({'ok': False, 'gabimet': gabimet})
     pagese = form.apliko_shumen(form.save(commit=False))
-    if per == ANTARESIA:
-        pagese.kategoria_pageses = pagese.shtepia.kategoria
     pagese.arktar = request.user
     pagese.save()
+    if per == ANTARESIA:
+        caktoje_nga_pagesa(pagese)
     return JsonResponse({
         'ok': True, 'fatura': pagese.fatura_tekst, 'shuma': pagese.shuma_origjinale,
         'url': pagese.get_absolute_url(), 'gabim_emaili': njofto_stafin(pagese, request),

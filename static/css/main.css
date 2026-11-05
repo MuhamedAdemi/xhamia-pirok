@@ -743,3 +743,22 @@ dialog.puna-dialog::backdrop { background: rgba(0,0,0,0.35); }
 .tabela-evidenca tfoot td { border-top: 2px solid #1C1C1E; font-size: 15px; }
 .tabela-puna tr td.puna-gjendja { font-size: 14px; text-align: center; white-space: nowrap; color: #38761D; font-weight: 600; }
 .tabela-puna tr td.puna-gjendja.me-borxh { color: #CC2200; }
+
+/* Kolona "Kategoria" te Antarësia */
+.puna-kategoria { white-space: nowrap; }
+.puna-kategoria b { display: inline-block; min-width: 20px; text-align: center; border-radius: 6px; background: #DCE6FA; color: #1A3E7A; padding: 0 5px; margin-right: 2px; }
+.kat-zgjidh { border: 1px dashed transparent; background: none; padding: 3px 6px; border-radius: 8px; cursor: pointer; font: inherit; color: inherit; }
+.kat-zgjidh:hover { border-color: var(--kufi); background: var(--e-bardhë); }
+.kat-zgjidh.bosh { color: var(--tekst-dytësor); font-size: 13px; border-color: var(--kufi); }
+.kat-select { padding: 6px 8px; border: 1.5px solid #1A56A8; border-radius: 8px; font: inherit; font-size: 14px; max-width: 260px; }
+
+/* Shumat sipas viteve (pagesa e antarësisë) */
+.vs-ndarje { display: flex; align-items: center; gap: 8px; font-weight: 600; margin: 6px 0 2px; cursor: pointer; }
+.vs-ndarje input { width: 18px; height: 18px; }
+.vs-tabela { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 14px; }
+.vs-tabela th, .vs-tabela td { padding: 6px 8px; border-bottom: 1px solid var(--krem-errët); text-align: left; vertical-align: top; }
+.vs-tabela th { background: var(--krem); font-weight: 600; }
+.vs-tabela input { width: 100%; max-width: 120px; padding: 6px 8px; border: 1.5px solid var(--kufi); border-radius: 8px; font: inherit; }
+.vs-tabela tfoot td { font-weight: 600; }
+.vs-kat { color: #1A3E7A; white-space: nowrap; }
+.vs-gabim { color: var(--gabim, #C0392B); font-weight: 600; }

@@ -1116,3 +1116,153 @@ class FletorjaEAntaresiseTest(TestCase):
         self.assertIn('Ermal Baba Gashi', teksti)
         self.assertNotIn('Driton', teksti)
         self.assertTrue(all(len(t.rows) <= 2 for t in doc.tables))
+
+
+class KategoriteDheShumatSipasViteveTest(TestCase):
+    """Kategoria 1–4 sipas shumës së vitit, pagesa me dy monedha dhe shumat e ndryshme për çdo vit."""
+
+    def setUp(self):
+        self.admin = User.objects.create_user('admin', password='x', first_name='A', last_name='B')
+        ProfilStafi.objects.create(user=self.admin, rol='ADMIN')
+        self.client.force_login(self.admin)
+        KonfigurimiSistemit.objects.create(pk=1, kursi_eur=Decimal('61.5'))
+        self.gratis = Kategoria.objects.create(emri='E Liruar', shuma_vjetore=0)
+        self.k4 = Kategoria.objects.create(emri='E Ulet', shuma_vjetore=70, shuma_vjetore_mkd=4000)
+        self.k3 = Kategoria.objects.create(emri='Mesatare e ulet', shuma_vjetore=80, shuma_vjetore_mkd=5000)
+        self.k2 = Kategoria.objects.create(emri='Mesatare e Lart', shuma_vjetore=100, shuma_vjetore_mkd=6000)
+        self.k1 = Kategoria.objects.create(emri='E Larta', shuma_vjetore=120, shuma_vjetore_mkd=7000)
+        self.V = timezone.now().year
+        self.sh = Shtepia.objects.create(nr_shtepise='0001', emri_kryefamiljarit='Agim', emri_prindit='Besim',
+                                         mbiemri_kryefamiljarit='Gashi', viti_fillimit_antaresise=self.V - 5)
+
+    def _paguaj(self, url='shto_pagese_antaresia', **te_dhenat):
+        data = {'blloku': '1100', 'nr_fatures': '000100', 'shtepia': self.sh.pk, 'viti': self.V, 'viti_deri': '',
+                'data_pageses': date.today().isoformat(), 'shuma_hyrese': '70', 'monedha': 'EUR', 'kursi': '61.5'}
+        data.update(te_dhenat)
+        return self.client.post(reverse(url), data)
+
+    def test_kufijte_e_kategorive(self):
+        from .kategorite import kufiri_i_shumes
+
+        def nr(**shumat):
+            return kufiri_i_shumes({m: Decimal(str(v)) for m, v in shumat.items()}).nr
+        self.assertEqual(nr(EUR=120), 1)
+        self.assertEqual(nr(MKD=7000), 1)
+        self.assertEqual(nr(MKD=6999), 2)
+        self.assertEqual(nr(EUR=100), 2)
+        self.assertEqual(nr(MKD=4999), 4)   # nuk e arrin 5000 den → kategoria 4
+        self.assertEqual(nr(EUR=79), 4)
+        self.assertEqual(nr(EUR=80), 3)
+        self.assertEqual(nr(MKD=4300), 4)
+        self.assertEqual(nr(EUR=50), 4)
+        self.assertEqual(nr(EUR=50, MKD=2500), 3)   # 50/80 + 2500/5000 ≥ 1
+        self.assertIsNone(kufiri_i_shumes({}))
+
+    def test_dy_monedha_dhe_ndarja_sipas_viteve(self):
+        import json
+        V = self.V
+        ndarja = {str(V - 2): {'EUR': '50', 'MKD': '1233'}, str(V - 1): {'EUR': '50', 'MKD': '1233'},
+                  str(V): {'EUR': '50', 'MKD': '1234'}}
+        r = self._paguaj(viti=V - 2, viti_deri=V, shuma_hyrese='150', shuma_2='3700', monedha_2='MKD',
+                         vitet_shumat=json.dumps(ndarja))
+        p = PagesaAntaresia.objects.get()
+        self.assertRedirects(r, reverse('detaje_pagesa_antaresia', args=[p.pk]))
+        self.assertEqual(p.shuma_origjinale, '150 € + 3.700 den')
+        self.assertEqual((p.shuma_mkd, p.shuma_paguar), (Decimal('12925'), Decimal('210.16')))
+        self.assertEqual(p.shumat_e_viteve()[V], {'EUR': Decimal('50'), 'MKD': Decimal('1234')})
+        self.sh.refresh_from_db()
+        self.assertEqual((self.sh.kategoria, p.kategoria_pageses), (self.k4, self.k4))
+        self.assertContains(self.client.get(reverse('detaje_pagesa_antaresia', args=[p.pk])), '50 € + 1.234 den')
+
+        from .models import totalet_sipas_monedhes
+        tot = totalet_sipas_monedhes(PagesaAntaresia.objects.all())
+        self.assertEqual((tot['EUR'], tot['MKD']), (Decimal('150'), Decimal('3700')))
+
+    def test_ndarja_me_shuma_te_ndryshme(self):
+        import json
+        V = self.V
+        # 200 € për 3 vite: 50 + 50 + 100 → viti i fundit me 100 € = kategoria 2
+        ndarja = {str(V - 2): {'EUR': '50'}, str(V - 1): {'EUR': '50'}, str(V): {'EUR': '100'}}
+        self._paguaj(viti=V - 2, viti_deri=V, shuma_hyrese='200', vitet_shumat=json.dumps(ndarja))
+        self.sh.refresh_from_db()
+        self.assertEqual(self.sh.kategoria, self.k2)
+        from .kategorite import kategorite_e_pagesave
+        self.assertEqual(kategorite_e_pagesave()[self.sh.id], {V - 2: 4, V - 1: 4, V: 2})
+
+    def test_totali_i_ndarjes_duhet_te_perputhet(self):
+        import json
+        V = self.V
+        ndarja = {str(V - 1): {'EUR': '50'}, str(V): {'EUR': '70'}}
+        r = self._paguaj(viti=V - 1, viti_deri=V, shuma_hyrese='200', vitet_shumat=json.dumps(ndarja))
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'Shumat e viteve japin 120 €')
+        self.assertFalse(PagesaAntaresia.objects.exists())
+
+    def test_monedha_e_dyte_jo_e_njejte(self):
+        r = self._paguaj(shuma_hyrese='70', shuma_2='10', monedha_2='EUR')
+        self.assertContains(r, 'Monedha e dytë duhet të jetë tjetër')
+        self.assertFalse(PagesaAntaresia.objects.exists())
+
+    def test_borxhi_i_vjeter_nuk_e_ul_kategorine(self):
+        self._paguaj(viti=self.V, shuma_hyrese='120')
+        self.sh.refresh_from_db()
+        self.assertEqual(self.sh.kategoria, self.k1)
+        # më vonë paguan borxhin e vjetër me 50 € — kategoria mbetet 1 (viti i fundit i paguar është V)
+        self._paguaj(viti=self.V - 3, shuma_hyrese='50', nr_fatures='000101')
+        self.assertEqual(PagesaAntaresia.objects.count(), 2)
+        self.sh.refresh_from_db()
+        self.assertEqual(self.sh.kategoria, self.k1)
+        self.assertEqual(PagesaAntaresia.objects.get(viti=self.V - 3).kategoria_pageses, self.k4)
+
+    def test_pagesa_e_re_e_ndryshon_kategorine_edhe_te_e_liruar(self):
+        self.sh.kategoria = self.gratis
+        self.sh.save()
+        self._paguaj(shuma_hyrese='7000', monedha='MKD')
+        self.sh.refresh_from_db()
+        self.assertEqual(self.sh.kategoria, self.k1)
+
+    def test_dritarja_e_shpejte_me_dy_monedha(self):
+        import json
+        V = self.V
+        r = self.client.post(reverse('pagese_e_shpejte'), {
+            'shtepia': self.sh.pk, 'per': 'ANTARESIA', 'blloku': '1100', 'nr_fatures': '000200',
+            'viti': V - 1, 'viti_deri': V, 'shuma_hyrese': '100', 'monedha': 'EUR', 'shuma_2': '4000',
+            'monedha_2': 'MKD', 'data_pageses': date.today().isoformat(),
+            'vitet_shumat': json.dumps({str(V - 1): {'EUR': '100'}, str(V): {'MKD': '4000'}}),
+        })
+        self.assertTrue(r.json()['ok'], r.json())
+        self.assertEqual(r.json()['shuma'], '100 € + 4.000 den')
+        self.sh.refresh_from_db()
+        self.assertEqual(self.sh.kategoria, self.k4)
+
+    def test_kolona_dhe_ndryshimi_i_kategorise(self):
+        r = self.client.get(reverse('puna_antaresia'))
+        self.assertContains(r, 'data-kat-shtepia')
+        self.assertContains(r, 'Pa kategori (1)')
+        r = self.client.post(reverse('ndrysho_kategorine'), {'shtepia': self.sh.pk, 'kategoria': self.k3.pk})
+        self.assertTrue(r.json()['ok'])
+        self.sh.refresh_from_db()
+        self.assertEqual(self.sh.kategoria, self.k3)
+        self.client.post(reverse('ndrysho_kategorine'), {'shtepia': self.sh.pk, 'kategoria': ''})
+        self.sh.refresh_from_db()
+        self.assertIsNone(self.sh.kategoria)
+
+        staf = User.objects.create_user('staf', password='x')
+        ProfilStafi.objects.create(user=staf, rol='STAF', mund_regjistrojë_pagesa=True)
+        self.client.force_login(staf)
+        r = self.client.post(reverse('ndrysho_kategorine'), {'shtepia': self.sh.pk, 'kategoria': self.k1.pk})
+        self.assertEqual(r.status_code, 403)
+
+    def test_vendos_per_te_gjitha(self):
+        from .kategorite import vendos_per_te_gjitha
+        PagesaAntaresia.objects.create(shtepia=self.sh, nr_fatures='1', viti=self.V, monedha='MKD', shuma_monedhe=6000,
+                                       shuma_paguar=Decimal('97.56'), data_pageses=date.today(), arktar=self.admin)
+        vetem_historik = Shtepia.objects.create(nr_shtepise='0002', emri_kryefamiljarit='X', mbiemri_kryefamiljarit='Y',
+                                                paguar_deri_viti=self.V)
+        PagesaAntaresia.objects.create(shtepia=vetem_historik, nr_fatures='2', viti=self.V - 6, shuma_paguar=50,
+                                       data_pageses=date.today(), arktar=self.admin)
+        ndryshimet = vendos_per_te_gjitha()
+        self.assertEqual([(sh.pk, k.nr) for sh, _, k in ndryshimet], [(self.sh.pk, 2)])
+        vetem_historik.refresh_from_db()
+        self.assertIsNone(vetem_historik.kategoria)
+        self.assertContains(self.client.get(reverse('lista_kategorive')), '6.000 den')

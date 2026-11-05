@@ -47,7 +47,7 @@ and open a new Bash console). Free tier: requests must be fast — avoid heavy w
   `PYTHONIOENCODING=utf-8` when printing Albanian text. PDF font warnings in tests on Windows are harmless.
 - Tests: `venv/Scripts/python.exe manage.py test xhamia` (all must pass before commit; ~2–3 min).
 - Management commands: `backup_automatik [--email]`, `rikthe_backup <zip> --po`, `fillo_nga_zero --po`,
-  `llogarite_stafit`.
+  `llogarite_stafit`, `vendos_kategorite [--provo]`.
 
 ## Domain rules (important)
 - **Roles** (`ProfilStafi.rol`): ADMIN, STAF (may register payments if allowed), MONITORUES (view only).
@@ -60,8 +60,18 @@ and open a new Bash console). Free tier: requests must be fast — avoid heavy w
   (`gjendja_e_shtepive`) and `_tabela_vjetore` in `views.py`.
 - Minimum tariff: 50 € for past years, 70 € for the current year (`KonfigurimiSistemit`).
 - Category with yearly amount 0 € (e.g. "E Liruar") = **gratis**: no membership debt, no letters.
-- Payment categories printed in the paper ledger (by amount per year): 1 = 120 € / 7000–7300 den or more,
-  2 = 100 € / 6000 den, 3 = 80 € / 5000 den, 4 = 70 € / 4000–4300 den.
+- **House categories 1–4** (`xhamia/kategorite.py`): `Kategoria.shuma_vjetore` (€) + `shuma_vjetore_mkd` (den)
+  are thresholds; categories with amount > 0 are numbered 1.. from the highest. A year's payment gets the
+  highest category whose threshold it reaches (7000 den → 1, 4999 den / 79 € → 4); mixed €+den counts
+  `eur/kufiri_eur + den/kufiri_den ≥ 1`. Defaults: 120/7000, 100/6000, 80/5000, 70/4000.
+  `caktoje_nga_pagesa` runs after every new membership payment: sets `kategoria_pageses` and changes the
+  house's category (also from "E Liruar") only if the payment covers its latest paid year (old-debt payments
+  don't lower it). Houses known only from history (`paguar_deri_viti`, no amount) are set by hand in the
+  Antarësia list (Kategoria column, admin only). One-off fill: `python manage.py vendos_kategorite [--provo]`.
+- **Membership payments** can be in two currencies (`monedha_2`/`shuma_monedhe_2`, e.g. 150 € + 3.700 den;
+  `shuma_mkd`/`shuma_paguar` hold the total) and can store an amount per year in `vitet_shumat`
+  (`{"2024": {"EUR": "50", "MKD": "1233"}}`, totals must match; empty = equal split) — see
+  `PagesaAntaresia.shumat_e_viteve()`, UI in `static/js/vitet_shumat.js` (full form + ⊕ dialog).
 - Cemetery fee is obligatory only from **2027** (`viti_fillimit_varrezave` default 2027).
 - **Invoices**: paper receipt books from the Muftiate — `blloku` (4 digits) + `nr_fatures` (6 digits),
   shown as "Bllok 1100 nr 046386"; unique together; `sugjero_faturen` suggests the next one.

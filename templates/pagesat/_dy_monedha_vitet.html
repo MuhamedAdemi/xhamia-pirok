@@ -1,0 +1,27 @@
+{% load static widget_tweaks %}
+{# Antarësia: shuma në monedhë të dytë dhe shumat sipas viteve. Konteksti: form (PagesaAntaresiaForm) #}
+<div class="card" style="margin-bottom:20px;" data-vs data-kategorite='{{ form.kufijte_json }}'>
+  <div class="card-header"><h5>🧮 Dy monedha · Shuma për çdo vit</h5></div>
+  <div class="card-body">
+    <div class="grid-2">
+      <div class="forma-grup">
+        <label>+ Shuma në monedhë tjetër (opsionale)</label>
+        {% render_field form.shuma_2 placeholder="p.sh. 3700" inputmode="decimal" %}
+        {% if form.shuma_2.errors %}<p class="gabim-fusha">{{ form.shuma_2.errors.0 }}</p>{% endif %}
+      </div>
+      <div class="forma-grup">
+        <label>{{ form.monedha_2.label }}</label>
+        {% render_field form.monedha_2 %}
+        {% if form.monedha_2.errors %}<p class="gabim-fusha">{{ form.monedha_2.errors.0 }}</p>{% endif %}
+      </div>
+    </div>
+    <p class="ndihma" style="margin-top:-6px;">P.sh. pagoi <strong>150 € + 3.700 den</strong>: shkruani 150 te shuma (në €) dhe 3700 këtu (në den).</p>
+    <label class="vs-ndarje"><input type="checkbox" data-vs-ndarje> Shuma ndryshon sipas viteve</label>
+    <p class="ndihma">P.sh. 200 € për 4 vite: shkruani sa u pagua për secilin vit. Totali duhet të jetë sa shuma e pagesës.</p>
+    <div data-vs-tabela hidden></div>
+    <p class="konvertimi" data-vs-kategoria></p>
+    {{ form.vitet_shumat }}
+  </div>
+</div>
+<script src="{% static 'js/vitet_shumat.js' %}"></script>
+<script>VitetShumat(document.querySelector('[data-vs]').closest('form'));</script>

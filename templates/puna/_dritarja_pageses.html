@@ -1,4 +1,4 @@
-{# Dritarja ⊕: pagesë e shpejtë për një shtëpi (Antarësi, Varreza ose një lloj i Fondit). #}
+{% load static %}{# Dritarja ⊕: pagesë e shpejtë për një shtëpi (Antarësi, Varreza ose një lloj i Fondit). #}
 <dialog class="puna-dialog" id="dritarjaPageses">
   <form id="formaPageses" method="dialog">
     {% csrf_token %}
@@ -29,6 +29,20 @@
           <option value="CHF">Franga (CHF)</option><option value="USD">Dollar ($)</option>
         </select>
       </div>
+      <div data-antaresia><label>+ Shuma në monedhë tjetër</label><input name="shuma_2" type="number" step="0.01" min="0.01" placeholder="opsionale, p.sh. 3700"></div>
+      <div data-antaresia>
+        <label>Monedha e dytë</label>
+        <select name="monedha_2">
+          <option value="MKD">Denar (den)</option><option value="EUR">Euro (€)</option>
+          <option value="CHF">Franga (CHF)</option><option value="USD">Dollar ($)</option>
+        </select>
+      </div>
+      <div class="plote" data-antaresia data-vs data-kategorite='{{ kategorite_json }}'>
+        <label class="vs-ndarje"><input type="checkbox" data-vs-ndarje> Shuma ndryshon sipas viteve</label>
+        <div data-vs-tabela hidden></div>
+        <div class="konvertimi" data-vs-kategoria></div>
+        <input type="hidden" name="vitet_shumat">
+      </div>
       <div><label>Data</label><input name="data_pageses" type="date" required></div>
       <div data-vitet><label>Paguar nga (opsionale)</label><input name="paguesi" placeholder="nëse nuk është kryefamiljari"></div>
       <div data-fondi hidden><label>Paguesi — emri</label><input name="emri_donatorit"></div>
@@ -47,6 +61,7 @@
     </div>
   </form>
 </dialog>
+<script src="{% static 'js/vitet_shumat.js' %}"></script>
 <script>
 (function () {
   var dritarja = document.getElementById('dritarjaPageses');
@@ -54,6 +69,7 @@
   var f = function (emri) { return forma.elements[emri]; };
   var url = '{% url "pagese_e_shpejte" %}';
   var uRuajt = false;
+  var vs = window.VitetShumat ? VitetShumat(forma) : null;
 
   function pamja(sukses) {
     document.getElementById('dritarjaFushat').hidden = sukses;
@@ -66,6 +82,8 @@
     var fondi = ['ANTARESIA', 'VARREZAT'].indexOf(f('per').value) === -1;
     forma.querySelectorAll('[data-vitet]').forEach(function (e) { e.hidden = fondi; });
     forma.querySelectorAll('[data-fondi]').forEach(function (e) { e.hidden = !fondi; });
+    forma.querySelectorAll('[data-antaresia]').forEach(function (e) { e.hidden = f('per').value !== 'ANTARESIA'; });
+    if (f('per').value !== 'ANTARESIA') { f('shuma_2').value = ''; if (vs) vs.pastro(); }
     document.getElementById('dritarjaGabimet').hidden = true;
     fetch(url + '?shtepia=' + f('shtepia').value + '&per=' + encodeURIComponent(f('per').value))
       .then(function (r) { return r.json(); })
@@ -77,6 +95,7 @@
         info.textContent = d.info || '';
         info.hidden = !d.info;
         if (d.shuma_sugjeruar) { f('shuma_hyrese').value = d.shuma_sugjeruar; f('monedha').value = 'EUR'; }
+        if (vs) vs.rifresko();
         f('shuma_hyrese').focus();
       });
   }
@@ -86,6 +105,8 @@
       forma.reset();
       f('shtepia').value = b.dataset.pagese;
       f('monedha').value = 'MKD';
+      f('monedha_2').value = 'MKD';
+      if (vs) vs.pastro();
       document.getElementById('dritarjaTitulli').textContent = b.dataset.emri;
       pamja(false);
       dritarja.showModal();

@@ -26,16 +26,22 @@
     var tabela = document.querySelector(input.dataset.kerkoTabela);
     if (!tabela) return;
     var rreshtat = Array.prototype.slice.call(tabela.tBodies[0].rows).filter(function (r) { return !r.dataset.bosh; });
-    rreshtat.forEach(function (r) { r.dataset.t = normalizo(r.textContent); });
+    // kolona me shenjën data-pa-kerkim (p.sh. Kategoria) nuk hyn në kërkim
+    rreshtat.forEach(function (r) {
+      r.dataset.t = normalizo(Array.prototype.filter.call(r.cells, function (c) { return !c.hasAttribute('data-pa-kerkim'); })
+        .map(function (c) { return c.textContent; }).join(' '));
+    });
     var pastro = document.querySelector('[data-pastro="' + input.id + '"]');
 
     function filtro() {
       var fjalet = normalizo(input.value).split(/\s+/).filter(Boolean);
       var statusi = tabela.dataset.statusi || '';
+      var kategoria = tabela.dataset.kategoria || '';
       var n = 0;
       rreshtat.forEach(function (r) {
         var ok = fjalet.every(function (f) { return r.dataset.t.indexOf(f) !== -1; })
-          && (!statusi || r.dataset.statusi === statusi);
+          && (!statusi || r.dataset.statusi === statusi)
+          && (!kategoria || r.dataset.kategoria === kategoria);
         r.hidden = !ok;
         if (ok) n++;
         r.querySelectorAll('[data-th]').forEach(function (td) { thekso(td, ok ? fjalet : []); });
@@ -49,6 +55,15 @@
     tabela.addEventListener('filtro', filtro);
     if (pastro) pastro.addEventListener('click', function () { input.value = ''; filtro(); input.focus(); });
     filtro();
+  });
+
+  // Filtri i kategorisë (Antarësia)
+  document.querySelectorAll('[data-filtro-kategorine]').forEach(function (zgjedhja) {
+    var tabela = document.querySelector(zgjedhja.dataset.filtroKategorine);
+    zgjedhja.addEventListener('change', function () {
+      tabela.dataset.kategoria = zgjedhja.value;
+      tabela.dispatchEvent(new Event('filtro'));
+    });
   });
 
   // Butonat Gjitha / Të paguar / Pa paguar

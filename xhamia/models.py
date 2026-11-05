@@ -33,6 +33,10 @@ def totalet_sipas_monedhes(pagesat):
         if shuma is None:
             shuma = mkd if monedha == 'MKD' else eur
         totali[monedha] = totali.get(monedha, Decimal('0')) + (shuma or 0)
+    if hasattr(pagesat.model, 'shuma_monedhe_2'):
+        # pjesa e dytë e pagesave me dy monedha (p.sh. 150 € + 3.700 den)
+        for monedha, shuma in pagesat.exclude(shuma_monedhe_2=None).values_list('monedha_2', 'shuma_monedhe_2'):
+            totali[monedha] = totali.get(monedha, Decimal('0')) + shuma
     return totali
 
 
@@ -52,9 +56,13 @@ class MonedhaMixin:
             return self.shuma_monedhe
         return self.shuma_mkd if self.monedha == 'MKD' else self.shuma_eur
 
+    def shumat_sipas_monedhes(self):
+        """{monedha: shuma} ashtu siç u pagua (te antarësia mund të jenë dy monedha, p.sh. 150 € + 3.700 den)."""
+        return {self.monedha: self.shuma_ne_monedhe or Decimal('0')}
+
     @property
     def shuma_origjinale(self):
-        return formato_shumen(self.shuma_ne_monedhe, self.monedha)
+        return ' + '.join(formato_shumen(v, m) for m, v in self.shumat_sipas_monedhes().items())
 
     def get_absolute_url(self):
         from django.urls import reverse
@@ -158,7 +166,11 @@ class ProfilStafi(models.Model):
 class Kategoria(models.Model):
     emri = models.CharField(max_length=100, verbose_name='Emri i Kategorisë')
     pershkrimi = models.TextField(blank=True, verbose_name='Përshkrimi')
+    # Kufijtë e kategorisë: kush paguan për një vit të paktën kaq € (ose kaq den) hyn në këtë kategori.
     shuma_vjetore = models.DecimalField(max_digits=8, decimal_places=2, default=0)
+    shuma_vjetore_mkd = models.DecimalField(
+        max_digits=10, decimal_places=2, null=True, blank=True, verbose_name='Shuma vjetore (den)',
+    )
     shuma_6mujore = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)
     shuma_3mujore = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)
     shuma_mujore = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)
@@ -324,6 +336,14 @@ class PagesaAntaresia(VitetMixin, MonedhaMixin, models.Model):
     shuma_monedhe = models.DecimalField(
         max_digits=12, decimal_places=2, null=True, blank=True, verbose_name='Shuma në monedhën e pagesës'
     )
+    # Pagesë me dy monedha, p.sh. 150 € + 3.700 den: pjesa e dytë (shuma_mkd dhe shuma_paguar janë totali i të dyjave).
+    monedha_2 = models.CharField(max_length=3, choices=MONEDHA_CHOICES, blank=True, verbose_name='Monedha e dytë')
+    shuma_monedhe_2 = models.DecimalField(
+        max_digits=12, decimal_places=2, null=True, blank=True, verbose_name='Shuma në monedhën e dytë'
+    )
+    # Sa u pagua për çdo vit, kur shumat ndryshojnë: {"2024": {"EUR": "50", "MKD": "1233"}, ...}.
+    # Bosh = shuma ndahet njëlloj në të gjitha vitet.
+    vitet_shumat = models.JSONField(default=dict, blank=True, verbose_name='Shuma për çdo vit')
     data_regjistrimit = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -339,6 +359,29 @@ class PagesaAntaresia(VitetMixin, MonedhaMixin, models.Model):
 
     def __str__(self):
         return f"{self.fatura_tekst} — {self.shtepia} — {self.shuma_origjinale}"
+
+    def shumat_sipas_monedhes(self):
+        shumat = super().shumat_sipas_monedhes()
+        if self.monedha_2 and self.shuma_monedhe_2:
+            shumat[self.monedha_2] = shumat.get(self.monedha_2, Decimal('0')) + self.shuma_monedhe_2
+        return shumat
+
+    def shumat_e_viteve(self):
+        """{viti: {monedha: shuma}} — sa u pagua për çdo vit. Pa ndarje të shkruar, shuma ndahet njëlloj."""
+        vitet = list(range(self.viti, (self.viti_deri or self.viti) + 1))
+        if self.vitet_shumat:
+            return {v: {m: Decimal(str(s)) for m, s in self.vitet_shumat.get(str(v), {}).items() if s not in ('', None)}
+                    for v in vitet}
+        return {v: {m: s / len(vitet) for m, s in self.shumat_sipas_monedhes().items()} for v in vitet}
+
+    @property
+    def ka_ndarje_vitesh(self):
+        return bool(self.vitet_shumat)
+
+    def ndarja_e_viteve(self):
+        """Për faqen e pagesës: [(viti, '50 € + 1.233 den'), ...]."""
+        return [(v, ' + '.join(formato_shumen(s, m) for m, s in shumat.items() if s) or '—')
+                for v, shumat in self.shumat_e_viteve().items()]
 
 
 class PagesaFondi(MonedhaMixin, models.Model):

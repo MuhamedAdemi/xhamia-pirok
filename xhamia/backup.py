@@ -84,11 +84,15 @@ def excel_i_plote():
 
     ws = _fleta(wb, 'Pagesat Antarësia', ['Blloku', 'Nr. Faturës', 'Data', 'Nr. Shtëpisë', 'Kryefamiljari',
                                            'Nga Viti', 'Deri Viti', 'Paguar në', 'Shuma', 'Shuma (den)',
-                                           'Shuma (€)', 'Arkëtari', 'Shënime'])
-    for p in PagesaAntaresia.objects.select_related('shtepia', 'arktar').order_by('data_pageses', 'pk'):
+                                           'Shuma (€)', 'Arkëtari', 'Shënime', 'Monedha e dytë', 'Shuma e dytë',
+                                           'Kategoria', 'Shuma për çdo vit'])
+    for p in PagesaAntaresia.objects.select_related('shtepia', 'arktar', 'kategoria_pageses').order_by('data_pageses', 'pk'):
         ws.append([p.blloku, p.nr_fatures, p.data_pageses, p.shtepia.nr_shtepise, p.shtepia.emri_i_plote,
                    p.viti, p.viti_deri, p.monedha, float(p.shuma_ne_monedhe or 0), float(p.shuma_mkd or 0),
-                   float(p.shuma_paguar), p.arktar.get_full_name(), p.shenime])
+                   float(p.shuma_paguar), p.arktar.get_full_name(), p.shenime, p.monedha_2,
+                   float(p.shuma_monedhe_2) if p.shuma_monedhe_2 else None,
+                   p.kategoria_pageses.emri if p.kategoria_pageses else '',
+                   '; '.join(f'{v}: {s}' for v, s in p.ndarja_e_viteve()) if p.ka_ndarje_vitesh else ''])
 
     ws = _fleta(wb, 'Pagesat Varrezave', ['Blloku', 'Nr. Faturës', 'Data', 'Nr. Shtëpisë', 'Kryefamiljari',
                                            'Nga Viti', 'Deri Viti', 'Paguar në', 'Shuma', 'Shuma (den)',

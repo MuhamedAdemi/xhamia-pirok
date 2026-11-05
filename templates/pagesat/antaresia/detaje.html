@@ -65,6 +65,18 @@
           <td style="padding:10px 0; color:var(--tekst-dytësor); font-size:13px;">{% if pagese.nr_viteve > 1 %}Vitet{% else %}Viti{% endif %}</td>
           <td style="padding:10px 0; font-weight:600;">{{ pagese.vitet_tekst }}{% if pagese.nr_viteve > 1 %} <span class="badge-gjelbër">{{ pagese.nr_viteve }} vite</span>{% endif %}</td>
         </tr>
+        {% if pagese.ka_ndarje_vitesh %}
+        <tr>
+          <td style="padding:10px 0; color:var(--tekst-dytësor); font-size:13px;">Shuma për çdo vit</td>
+          <td style="padding:10px 0;">{% for viti, shuma in pagese.ndarja_e_viteve %}<div><strong>{{ viti }}:</strong> {{ shuma }}</div>{% endfor %}</td>
+        </tr>
+        {% endif %}
+        {% if pagese.kategoria_pageses %}
+        <tr>
+          <td style="padding:10px 0; color:var(--tekst-dytësor); font-size:13px;">Kategoria</td>
+          <td style="padding:10px 0; font-weight:600;">{{ pagese.kategoria_pageses.emri }}</td>
+        </tr>
+        {% endif %}
         <tr>
           <td style="padding:10px 0; color:var(--tekst-dytësor); font-size:13px;">Data e pagesës</td>
           <td style="padding:10px 0; font-weight:600;">{{ pagese.data_pageses|date:"d F Y" }}</td>

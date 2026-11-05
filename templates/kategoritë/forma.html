@@ -32,6 +32,15 @@
           {% if form.shuma_vjetore.errors %}<p class="gabim-fusha">{{ form.shuma_vjetore.errors.0 }}</p>{% endif %}
         </div>
         <div class="forma-grup">
+          <label>{{ form.shuma_vjetore_mkd.label }}</label>
+          {% render_field form.shuma_vjetore_mkd placeholder="p.sh. 6000" %}
+          {% if form.shuma_vjetore_mkd.errors %}<p class="gabim-fusha">{{ form.shuma_vjetore_mkd.errors.0 }}</p>{% endif %}
+        </div>
+      </div>
+      <p class="ndihma" style="margin-top:-6px;">Kufiri i kategorisë: kush paguan për një vit të paktën kaq € <strong>ose</strong> kaq den hyn në këtë kategori
+        (p.sh. 100 € / 6000 den). Kategoritë numërohen 1, 2, 3, 4 nga shuma më e lartë. Me 0 € = gratis (e liruar).</p>
+      <div class="grid-2">
+        <div class="forma-grup">
           <label>{{ form.shuma_6mujore.label }}</label>
           {% render_field form.shuma_6mujore placeholder="Opsionale..." %}
         </div>

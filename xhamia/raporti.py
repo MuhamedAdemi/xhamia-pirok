@@ -55,7 +55,8 @@ class Totali:
         self.vite = 0
 
     def shto(self, p):
-        self.shumat[p.monedha] += p.shuma_ne_monedhe or 0
+        for monedha, shuma in p.shumat_sipas_monedhes().items():
+            self.shumat[monedha] += shuma
         self.eur += p.shuma_eur or 0
         self.nr += 1
         self.vite += getattr(p, 'nr_viteve', 1)
@@ -112,7 +113,7 @@ def ndertoj_regjistrin(lloji, viti, periudha='vit'):
         rreshtat.append({
             'tip': 'pagese', 'nr': i, 'pagese': p, 'emri': emri, 'prindi': prindi, 'mbiemri': mbiemri,
             'blloku': p.blloku, 'nr_fatures': p.nr_fatures, 'data': p.data_pageses,
-            'shumat': {m: (p.shuma_ne_monedhe if p.monedha == m else None) for m in MONEDHAT},
+            'shumat': {m: p.shumat_sipas_monedhes().get(m) for m in MONEDHAT},
             'eur': p.shuma_eur,
             'vitet': getattr(p, 'vitet_tekst', ''), 'nr_viteve': getattr(p, 'nr_viteve', ''),
             'pershkrimi': (p.arsyeja or p.get_lloji_display()) if lloji == 'fondi' else '',

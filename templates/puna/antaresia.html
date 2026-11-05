@@ -29,6 +29,14 @@
     <button type="button" data-vlera="paguar">Të paguar</button>
     <button type="button" data-vlera="papaguar">Pa paguar</button>
   </div>
+  <div class="puna-fusha">
+    <label for="filtriKategorise">Kategoria</label>
+    <select id="filtriKategorise" data-filtro-kategorine="#tabelaShtepite">
+      <option value="">Të gjitha</option>
+      {% for k in kategorite %}<option value="{{ k.id }}">{% if k.nr %}{{ k.nr }} · {% endif %}{{ k.emri }}</option>{% endfor %}
+      <option value="asnje">Pa kategori ({{ pa_kategori }})</option>
+    </select>
+  </div>
   {% if eshte_admin %}<a href="{% url 'shto_shtepi' %}" class="btn-kryesor">Shto qytetar</a>{% endif %}
   <button type="button" class="btn-kryesor" onclick="window.print()">Printo</button>
 </div>
@@ -41,13 +49,13 @@
     <tr>
       <th>Nr.</th>
       {% if mund_regjistroje %}<th class="ikon"></th>{% endif %}
-      <th>Emri</th><th>Prindi</th><th>Mbiemri</th><th>Telefon</th><th>Paguar deri</th>
+      <th>Emri</th><th>Prindi</th><th>Mbiemri</th><th>Telefon</th><th>Kategoria</th><th>Paguar deri</th>
       <th class="ikon"></th>{% if eshte_admin %}<th class="ikon"></th>{% endif %}
     </tr>
   </thead>
   <tbody>
     {% for sh in shtepite %}
-    <tr data-statusi="{% if sh.ka_paguar %}paguar{% else %}papaguar{% endif %}" {% if not sh.ka_paguar %}class="pa-paguar"{% endif %}>
+    <tr data-statusi="{% if sh.ka_paguar %}paguar{% else %}papaguar{% endif %}" {% if not sh.ka_paguar %}class="pa-paguar"{% endif %} data-kategoria="{{ sh.kategoria_id|default:'asnje' }}">
       <td data-th>{{ sh.nr_shtepise }}</td>
       {% if mund_regjistroje %}
       <td class="ikon"><button type="button" class="btn-ikon btn-plus" title="Regjistro pagesë"
@@ -57,17 +65,70 @@
       <td data-th>{{ sh.emri_prindit }}</td>
       <td data-th>{{ sh.mbiemri_kryefamiljarit }}</td>
       <td data-th>{{ sh.nr_telefoni_kryesor }}</td>
+      <td class="puna-kategoria" data-pa-kerkim>
+        {% if eshte_admin %}<button type="button" class="kat-zgjidh{% if not sh.kat %} bosh{% endif %}" data-kat-shtepia="{{ sh.pk }}" data-kat="{{ sh.kategoria_id|default:'' }}" title="Ndrysho kategorinë">{% if sh.kat %}{% if sh.kat.nr %}<b>{{ sh.kat.nr }}</b> {% endif %}{{ sh.kat.emri }}{% else %}+ zgjidh{% endif %}</button>
+        {% elif sh.kat %}{% if sh.kat.nr %}<b>{{ sh.kat.nr }}</b> {% endif %}{{ sh.kat.emri }}{% endif %}
+      </td>
       <td class="puna-gjendja{% if sh.gjendja.1 %} me-borxh{% endif %}">{{ sh.gjendja.0 }}</td>
       <td class="ikon"><a class="btn-ikon" href="{% if eshte_admin %}{% url 'edito_shtepi' sh.pk %}{% else %}{% url 'detaje_shtepia' sh.pk %}{% endif %}" title="{% if eshte_admin %}Ndrysho{% else %}Hap{% endif %}">✏️</a></td>
       {% if eshte_admin %}<td class="ikon"><a class="btn-ikon" href="{% url 'fshi_shtepi' sh.pk %}" title="Çaktivizo">🗑️</a></td>{% endif %}
     </tr>
     {% endfor %}
-    <tr data-bosh="1" data-asnje hidden><td colspan="9" style="text-align:center; padding:30px; color:var(--tekst-dytësor);">Asnjë qytetar me këtë kërkim.</td></tr>
+    <tr data-bosh="1" data-asnje hidden><td colspan="10" style="text-align:center; padding:30px; color:var(--tekst-dytësor);">Asnjë qytetar me këtë kërkim.</td></tr>
   </tbody>
 </table>
 </div>
 
 {% if mund_regjistroje %}{% include 'puna/_dritarja_pageses.html' %}{% endif %}
+{% if eshte_admin %}
+<template id="zgjedhjaKategorise">
+  <select class="kat-select">
+    <option value="">— pa kategori —</option>
+    {% for k in kategorite %}<option value="{{ k.id }}" data-nr="{{ k.nr }}" data-emri="{{ k.emri }}">{% if k.nr %}{{ k.nr }} · {% endif %}{{ k.emri }}{% if k.pershkrimi %} ({{ k.pershkrimi }}){% endif %}</option>{% endfor %}
+  </select>
+</template>
+<script>
+(function () {
+  var url = '{% url "ndrysho_kategorine" %}';
+  var csrf = '{{ csrf_token }}';
+  var shabllon = document.getElementById('zgjedhjaKategorise');
+  function etiketa(b, opsioni) {
+    b.classList.toggle('bosh', !opsioni.value);
+    b.innerHTML = '';
+    if (!opsioni.value) { b.textContent = '+ zgjidh'; return; }
+    if (opsioni.dataset.nr) { var n = document.createElement('b'); n.textContent = opsioni.dataset.nr; b.appendChild(n); b.append(' '); }
+    b.append(opsioni.dataset.emri);
+  }
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-kat-shtepia]');
+    if (!b) return;
+    var s = shabllon.content.firstElementChild.cloneNode(true);
+    s.value = b.dataset.kat;
+    b.hidden = true;
+    b.after(s);
+    s.focus();
+    var mbyll = function () { s.remove(); b.hidden = false; };
+    s.addEventListener('blur', mbyll);
+    s.addEventListener('change', function () {
+      var te_dhenat = new FormData();
+      te_dhenat.append('shtepia', b.dataset.katShtepia);
+      te_dhenat.append('kategoria', s.value);
+      var opsioni = s.options[s.selectedIndex];
+      fetch(url, { method: 'POST', body: te_dhenat, headers: { 'X-CSRFToken': csrf } })
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+          if (!d.ok) { alert(d.gabim || 'Kategoria nuk u ruajt.'); return; }
+          b.dataset.kat = s.value;
+          b.closest('tr').dataset.kategoria = s.value || 'asnje';
+          etiketa(b, opsioni);
+          mbyll();
+        })
+        .catch(function () { alert('Gabim në lidhje — kategoria nuk u ruajt.'); });
+    });
+  });
+})();
+</script>
+{% endif %}
 {% endblock %}
 
 {% block skripte %}

@@ -33,6 +33,7 @@ from .forms import (
     sugjero_faturen, FushaShtepise, llojet_hyrese_te_fondit,
 )
 from .utils import dërgo_email_antaresia, dërgo_email_fondi, dërgo_email_varrezat, njofto_stafin
+from .kategorite import caktoje_nga_pagesa
 from . import sms
 from .importi_pdf import importo
 from .importi_excel import importo_excel
@@ -946,9 +947,9 @@ def shto_pagese_antaresia(request):
     ))
     if request.method == 'POST' and form.is_valid():
         pagese = form.apliko_shumen(form.save(commit=False))
-        pagese.kategoria_pageses = pagese.shtepia.kategoria
         pagese.arktar = request.user
         pagese.save()
+        caktoje_nga_pagesa(pagese)
         _sukses_pagese(request, pagese)
         return redirect('detaje_pagesa_antaresia', pk=pagese.pk)
     return render(request, 'pagesat/antaresia/forma.html', {
@@ -1848,7 +1849,12 @@ def lista_kategorive(request):
     if not mund_shikoje(request.user):
         messages.error(request, 'Aksesi i refuzuar.')
         return redirect('dashboard')
-    kategoritë = Kategoria.objects.all()
+    from .kategorite import numrat_e_kategorive
+    numrat = numrat_e_kategorive()
+    kategoritë = list(Kategoria.objects.annotate(nr_shtepive=Count('shtepia')))
+    for k in kategoritë:
+        k.nr = numrat.get(k.pk, '')
+    kategoritë.sort(key=lambda k: (k.nr == '', k.nr == 'G', k.nr, k.renditja, k.emri))
     return render(request, 'kategoritë/lista.html', {'kategoritë': kategoritë, 'faqja_aktive': 'kategoritë'})
 
 
