@@ -49,7 +49,7 @@
     <tr>
       <th>Nr.</th>
       {% if mund_regjistroje %}<th class="ikon"></th>{% endif %}
-      <th>Emri</th><th>Prindi</th><th>Mbiemri</th><th>Telefon</th><th>Kategoria</th><th>Paguar deri</th>
+      <th>Emri</th><th>Prindi</th><th>Mbiemri</th><th>Telefon</th><th style="text-align:center;">Kategoria</th><th>Paguar deri</th>
       <th class="ikon"></th>{% if eshte_admin %}<th class="ikon"></th>{% endif %}
     </tr>
   </thead>
@@ -66,8 +66,8 @@
       <td data-th>{{ sh.mbiemri_kryefamiljarit }}</td>
       <td data-th>{{ sh.nr_telefoni_kryesor }}</td>
       <td class="puna-kategoria" data-pa-kerkim>
-        {% if eshte_admin %}<button type="button" class="kat-zgjidh{% if not sh.kat %} bosh{% endif %}" data-kat-shtepia="{{ sh.pk }}" data-kat="{{ sh.kategoria_id|default:'' }}" title="Ndrysho kategorinë">{% if sh.kat %}{% if sh.kat.nr %}<b>{{ sh.kat.nr }}</b> {% endif %}{{ sh.kat.emri }}{% else %}+ zgjidh{% endif %}</button>
-        {% elif sh.kat %}{% if sh.kat.nr %}<b>{{ sh.kat.nr }}</b> {% endif %}{{ sh.kat.emri }}{% endif %}
+        {% if eshte_admin %}<button type="button" class="kat-zgjidh{% if not sh.kat %} bosh{% endif %}" data-kat-shtepia="{{ sh.pk }}" data-kat="{{ sh.kategoria_id|default:'' }}" title="{% if sh.kat %}{{ sh.kat.emri }} — {% endif %}kliko për ta ndryshuar">{% if sh.kat %}<b>{{ sh.kat.nr|default:sh.kat.emri }}</b>{% else %}+{% endif %}</button>
+        {% elif sh.kat %}<b title="{{ sh.kat.emri }}">{{ sh.kat.nr|default:sh.kat.emri }}</b>{% endif %}
       </td>
       <td class="puna-gjendja{% if sh.gjendja.1 %} me-borxh{% endif %}">{{ sh.gjendja.0 }}</td>
       <td class="ikon"><a class="btn-ikon" href="{% if eshte_admin %}{% url 'edito_shtepi' sh.pk %}{% else %}{% url 'detaje_shtepia' sh.pk %}{% endif %}" title="{% if eshte_admin %}Ndrysho{% else %}Hap{% endif %}">✏️</a></td>
@@ -95,9 +95,11 @@
   function etiketa(b, opsioni) {
     b.classList.toggle('bosh', !opsioni.value);
     b.innerHTML = '';
-    if (!opsioni.value) { b.textContent = '+ zgjidh'; return; }
-    if (opsioni.dataset.nr) { var n = document.createElement('b'); n.textContent = opsioni.dataset.nr; b.appendChild(n); b.append(' '); }
-    b.append(opsioni.dataset.emri);
+    b.title = (opsioni.value ? opsioni.dataset.emri + ' — ' : '') + 'kliko për ta ndryshuar';
+    if (!opsioni.value) { b.textContent = '+'; return; }
+    var n = document.createElement('b');
+    n.textContent = opsioni.dataset.nr || opsioni.dataset.emri;
+    b.appendChild(n);
   }
   document.addEventListener('click', function (e) {
     var b = e.target.closest('[data-kat-shtepia]');
