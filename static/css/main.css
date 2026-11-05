@@ -745,7 +745,7 @@ dialog.puna-dialog::backdrop { background: rgba(0,0,0,0.35); }
 .tabela-puna tr td.puna-gjendja.me-borxh { color: #CC2200; }
 
 /* Kolona "Kategoria" te Antarësia */
-.puna-kategoria { white-space: nowrap; text-align: center; }
+.tabela-puna th.kol-kategoria, .puna-kategoria { width: 110px; text-align: center !important; white-space: nowrap; }
 .puna-kategoria b { font-size: 15px; min-width: 26px !important; padding: 2px 6px !important; }
 .puna-kategoria b { display: inline-block; min-width: 20px; text-align: center; border-radius: 6px; background: #DCE6FA; color: #1A3E7A; padding: 0 5px; margin-right: 2px; }
 .kat-zgjidh { border: 1px dashed transparent; background: none; padding: 3px 6px; border-radius: 8px; cursor: pointer; font: inherit; color: inherit; }
@@ -763,3 +763,6 @@ dialog.puna-dialog::backdrop { background: rgba(0,0,0,0.35); }
 .vs-tabela tfoot td { font-weight: 600; }
 .vs-kat { color: #1A3E7A; white-space: nowrap; }
 .vs-gabim { color: var(--gabim, #C0392B); font-weight: 600; }
+
+.tabela-evidenca .ev-kat { background: #EEF3FC; }
+.tabela-evidenca th.ev-kat { background: #DCE6FA; }

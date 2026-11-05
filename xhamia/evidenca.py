@@ -51,6 +51,22 @@ def evidenca(vitet):
     return grupet, totali
 
 
+def kategorite_sipas_grupit():
+    """Kategoria e sotme e shtëpive aktive për çdo shkronjë: (kolonat, {grupi: [numrat]}, totali).
+    Kolonat: 1, 2, 3, 4 (sipas shumës), G (gratis), Pa (pa kategori)."""
+    from .kategorite import kufijte, numrat_e_kategorive
+    from .models import Shtepia
+    numrat = numrat_e_kategorive()
+    kolonat = [str(k.nr) for k in kufijte() if k.kategoria] + ['G', 'Pa']
+    indeksi = {k: i for i, k in enumerate(kolonat)}
+    tabela = {}
+    for emri, kategoria_id in Shtepia.objects.filter(është_aktiv=True).values_list('emri_kryefamiljarit', 'kategoria_id'):
+        rreshti = tabela.setdefault(grupi(emri), [0] * len(kolonat))
+        rreshti[indeksi.get(numrat.get(kategoria_id), indeksi['Pa'])] += 1
+    totali = [sum(r[i] for r in tabela.values()) for i in range(len(kolonat))]
+    return kolonat, tabela, totali
+
+
 def vitet_nga(params):
     """Vitet e zgjedhura (?vitet=2025&vitet=2026); parazgjedhur viti i kaluar dhe ky vit."""
     viti = timezone.localdate().year
@@ -58,7 +74,8 @@ def vitet_nga(params):
     return vitet or [viti - 1, viti]
 
 
-def pdf(vitet, grupet, totali, data):
+def pdf(vitet, grupet, totali, data, kategorite=None):
+    """kategorite = (kolonat, {grupi: [numrat]}, totali) nga kategorite_sipas_grupit(), ose None."""
     from io import BytesIO
 
     from reportlab.lib import colors
@@ -69,17 +86,23 @@ def pdf(vitet, grupet, totali, data):
     from reportlab.lib.enums import TA_CENTER
 
     kafe, gri = colors.HexColor('#C9BF9A'), colors.HexColor('#F2F2F2')
+    kolonat, sipas_grupit, totali_kat = kategorite or ([], {}, [])
     koka1 = ['Nr.', ''] + sum([[str(v), '', '', ''] for v in vitet], [])
     koka2 = ['', ''] + ['Nr. Antar', 'Kanë paguar', "S'kanë paguar", 'Gratis'] * len(vitet)
+    if kolonat:
+        koka1 += ['Kategoritë (sot)'] + [''] * (len(kolonat) - 1)
+        koka2 += [k if k in ('G', 'Pa') else f'Kat. {k}' for k in kolonat]
     te_dhenat = [koka1, koka2]
     for i, g in enumerate(grupet, 1):
         rr = [i, g['grupi']]
         for v in g['vitet']:
             rr += [v['antar'], v['paguar'] or '-', v['papaguar'] or '-', v['gratis'] or '-']
+        rr += [n or '-' for n in sipas_grupit.get(g['grupi'], [0] * len(kolonat))]
         te_dhenat.append(rr)
     rr = ['', 'Totali']
     for v in totali:
         rr += [v['antar'], v['paguar'], v['papaguar'], v['gratis']]
+    rr += totali_kat
     te_dhenat.append(rr)
 
     stili = [
@@ -99,8 +122,12 @@ def pdf(vitet, grupet, totali, data):
                   ('BACKGROUND', (k, 2), (k, -1), gri),
                   ('FONT', (k, 2), (k, -1), 'Helvetica-Bold', 9),
                   ('FONT', (k + 2, 2), (k + 2, -1), 'Helvetica-Bold', 9)]
-    faqja = landscape(A4) if len(vitet) > 2 else A4
-    gjeresite = [1.0 * cm, 1.4 * cm] + [1.65 * cm, 1.75 * cm, 2.05 * cm, 1.35 * cm] * len(vitet)
+    if kolonat:
+        k = 2 + 4 * len(vitet)
+        stili += [('SPAN', (k, 0), (-1, 0)), ('BACKGROUND', (k, 0), (-1, 1), colors.HexColor('#DCE6FA'))]
+    gjeresite = [1.0 * cm, 1.4 * cm] + [1.65 * cm, 1.75 * cm, 2.05 * cm, 1.35 * cm] * len(vitet) \
+        + [1.25 * cm] * len(kolonat)
+    faqja = landscape(A4) if sum(gjeresite) > A4[0] - 2.4 * cm else A4
     shkalla = min(1, (faqja[0] - 2.4 * cm) / sum(gjeresite))   # shumë vite → kolona më të ngushta
     if shkalla < 1:
         stili.append(('FONT', (0, 0), (-1, -1), 'Helvetica', 7))

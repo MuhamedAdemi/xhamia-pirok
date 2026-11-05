@@ -18,6 +18,7 @@
       {% endfor %}
     </div>
   </div>
+  <label class="vs-ndarje" style="align-self:end;"><input type="checkbox" name="kategorite" value="1" {% if me_kategori %}checked{% endif %}> Me kategoritë</label>
   <button type="submit" class="btn-dytësor">🔄 Shfaq</button>
   <button type="submit" name="shkarko" value="pdf" class="btn-kryesor">📄 Shkarko PDF</button>
 </form>
@@ -25,14 +26,17 @@
 <div class="puna-tabela-mbajtese">
 <table class="tabela-puna tabela-evidenca">
   <thead>
-    <tr><th rowspan="2">Nr.</th><th rowspan="2"></th>{% for v in vitet %}<th colspan="4">{{ v }}</th>{% endfor %}</tr>
-    <tr>{% for v in vitet %}<th>Nr. Antar</th><th>Kanë paguar</th><th>S'kanë paguar</th><th>Gratis</th>{% endfor %}</tr>
+    <tr><th rowspan="2">Nr.</th><th rowspan="2"></th>{% for v in vitet %}<th colspan="4">{{ v }}</th>{% endfor %}
+      {% if kolonat_kat %}<th colspan="{{ kolonat_kat|length }}" class="ev-kat">Kategoritë (sot)</th>{% endif %}</tr>
+    <tr>{% for v in vitet %}<th>Nr. Antar</th><th>Kanë paguar</th><th>S'kanë paguar</th><th>Gratis</th>{% endfor %}
+      {% for k in kolonat_kat %}<th class="ev-kat">{% if k == 'G' or k == 'Pa' %}{{ k }}{% else %}Kat. {{ k }}{% endif %}</th>{% endfor %}</tr>
   </thead>
   <tbody>
     {% for g in grupet %}
     <tr>
       <td>{{ forloop.counter }}</td><td><strong>{{ g.grupi }}</strong></td>
       {% for v in g.vitet %}<td><strong>{{ v.antar }}</strong></td><td class="fl-paguar">{{ v.paguar|default:"-" }}</td><td class="fl-borxh">{{ v.papaguar|default:"-" }}</td><td>{{ v.gratis|default:"-" }}</td>{% endfor %}
+      {% for n in g.kategorite %}<td class="ev-kat">{{ n|default:"-" }}</td>{% endfor %}
     </tr>
     {% endfor %}
   </tbody>
@@ -40,10 +44,12 @@
     <tr>
       <td></td><td><strong>Totali</strong></td>
       {% for v in totali %}<td><strong>{{ v.antar }}</strong></td><td class="fl-paguar">{{ v.paguar }}</td><td class="fl-borxh">{{ v.papaguar }}</td><td><strong>{{ v.gratis }}</strong></td>{% endfor %}
+      {% for n in totali_kat %}<td class="ev-kat"><strong>{{ n }}</strong></td>{% endfor %}
     </tr>
   </tfoot>
 </table>
 </div>
 <p class="ndihma" style="margin-top:10px;">"Gratis" janë shtëpitë me kategori me shumë vjetore 0 € (p.sh. "E Liruar") — ato nuk kanë borxh dhe nuk marrin letra.
-  Si anëtar i vitit numërohet kushdo që e ka filluar antarësinë deri atë vit.</p>
+  Si anëtar i vitit numërohet kushdo që e ka filluar antarësinë deri atë vit.
+  <br>"Kategoritë (sot)": kategoria aktuale e shtëpive aktive (kolona Kategoria te Antarësia) — 1 = më e larta … 4 = më e ulëta, "Pa" = ende pa kategori.</p>
 {% endblock %}

@@ -348,14 +348,21 @@ def evidenca_antaresise(request):
     """Evidenca sipas shkronjave: anëtarë / kanë paguar / s'kanë paguar / gratis për vitet e zgjedhura."""
     vitet = evidenca.vitet_nga(request.GET)
     grupet, totali = evidenca.evidenca(vitet)
+    # kategoritë shfaqen parazgjedhur; pasi dërgohet forma, vetëm kur shenja "Me kategoritë" është e vënë
+    me_kategori = request.GET.get('kategorite', '0' if 'vitet' in request.GET else '1') == '1'
+    kategorite = evidenca.kategorite_sipas_grupit() if me_kategori else None
+    if kategorite:
+        for g in grupet:
+            g['kategorite'] = kategorite[1].get(g['grupi'], [0] * len(kategorite[0]))
     if request.GET.get('shkarko') == 'pdf':
         data = timezone.localdate()
-        resp = HttpResponse(evidenca.pdf(vitet, grupet, totali, data), content_type='application/pdf')
+        resp = HttpResponse(evidenca.pdf(vitet, grupet, totali, data, kategorite), content_type='application/pdf')
         resp['Content-Disposition'] = f'attachment; filename="evidenca_antaresise_{data.isoformat()}.pdf"'
         return resp
     viti = timezone.localdate().year
     return render(request, 'puna/evidenca.html', {
-        'vitet': vitet, 'grupet': grupet, 'totali': totali,
+        'vitet': vitet, 'grupet': grupet, 'totali': totali, 'me_kategori': me_kategori,
+        'kolonat_kat': kategorite[0] if kategorite else [], 'totali_kat': kategorite[2] if kategorite else [],
         'te_gjitha_vitet': list(range(2015, viti + 2)), 'faqja_aktive': 'evidenca',
     })
 

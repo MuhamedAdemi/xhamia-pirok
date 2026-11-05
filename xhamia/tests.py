@@ -1266,3 +1266,23 @@ class KategoriteDheShumatSipasViteveTest(TestCase):
         vetem_historik.refresh_from_db()
         self.assertIsNone(vetem_historik.kategoria)
         self.assertContains(self.client.get(reverse('lista_kategorive')), '6.000 den')
+
+    def test_evidenca_me_kategorite(self):
+        from . import evidenca
+        self.sh.kategoria = self.k2
+        self.sh.save()
+        Shtepia.objects.create(nr_shtepise='0002', emri_kryefamiljarit='Arben', mbiemri_kryefamiljarit='Y')
+        Shtepia.objects.create(nr_shtepise='0003', emri_kryefamiljarit='Besnik', mbiemri_kryefamiljarit='Z',
+                               kategoria=self.gratis)
+        kolonat, sipas_grupit, totali = evidenca.kategorite_sipas_grupit()
+        self.assertEqual(kolonat, ['1', '2', '3', '4', 'G', 'Pa'])
+        self.assertEqual(sipas_grupit['A'], [0, 1, 0, 0, 0, 1])
+        self.assertEqual(sipas_grupit['B'], [0, 0, 0, 0, 1, 0])
+        self.assertEqual(totali, [0, 1, 0, 0, 1, 1])
+        r = self.client.get(reverse('evidenca_antaresise'))
+        self.assertContains(r, 'Kategoritë (sot)')
+        self.assertContains(r, 'Kat. 4')
+        r = self.client.get(reverse('evidenca_antaresise'), {'vitet': [self.V]})
+        self.assertNotContains(r, 'class="ev-kat"')   # forma pa shenjën "Me kategoritë"
+        r = self.client.get(reverse('evidenca_antaresise'), {'vitet': [self.V - 1, self.V], 'kategorite': '1', 'shkarko': 'pdf'})
+        self.assertEqual(r['Content-Type'], 'application/pdf')
