@@ -5,13 +5,14 @@
 {% block kontent %}
 <div class="page-header">
   <div class="flex items-center gap-3">
-    <a href="{% url 'lista_shtepive' %}" class="btn-dytësor btn-sm">← Kthehu</a>
+    <a href="{% if kthimi %}{{ kthimi }}{% else %}{% url 'lista_shtepive' %}{% endif %}" class="btn-dytësor btn-sm">← Kthehu</a>
     <h2>{{ titulli }}</h2>
   </div>
 </div>
 
 <form method="post" style="max-width:760px;">
   {% csrf_token %}
+  {% if kthimi %}<input type="hidden" name="next" value="{{ kthimi }}">{% endif %}
 
   <div class="card" style="margin-bottom:20px;">
     <div class="card-header"><h5>🏠 Informacione Bazë</h5></div>
@@ -139,7 +140,7 @@
 
   <div class="flex gap-3">
     <button type="submit" class="btn-kryesor">💾 Ruaj</button>
-    <a href="{% url 'lista_shtepive' %}" class="btn-dytësor">Anulo</a>
+    <a href="{% if kthimi %}{{ kthimi }}{% else %}{% url 'lista_shtepive' %}{% endif %}" class="btn-dytësor">Anulo</a>
   </div>
 </form>
 {% endblock %}

@@ -6,7 +6,6 @@ urlpatterns = [
     # Puna e përditshme (si Masjid Manager)
     path('puna/antaresia/', views_puna.puna_antaresia, name='puna_antaresia'),
     path('puna/antaresia/kategoria/', views_puna.ndrysho_kategorine, name='ndrysho_kategorine'),
-    path('puna/pagese/', views_puna.pagese_e_shpejte, name='pagese_e_shpejte'),
     path('puna/hyrese/', views_puna.puna_hyrese, name='puna_hyrese'),
     path('puna/dalese/', views_puna.puna_dalese, name='puna_dalese'),
     path('puna/llojet/', views_puna.puna_llojet, name='puna_llojet'),

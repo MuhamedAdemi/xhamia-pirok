@@ -71,7 +71,8 @@ and open a new Bash console). Free tier: requests must be fast — avoid heavy w
 - **Membership payments** can be in two currencies (`monedha_2`/`shuma_monedhe_2`, e.g. 150 € + 3.700 den;
   `shuma_mkd`/`shuma_paguar` hold the total) and can store an amount per year in `vitet_shumat`
   (`{"2024": {"EUR": "50", "MKD": "1233"}}`, totals must match; empty = equal split) — see
-  `PagesaAntaresia.shumat_e_viteve()`, UI in `static/js/vitet_shumat.js` (full form + ⊕ dialog).
+  `PagesaAntaresia.shumat_e_viteve()`, UI in `static/js/vitet_shumat.js`
+  (years pre-filled with the tariffs, the user edits; the totals above are filled from the years).
 - Cemetery fee is obligatory only from **2027** (`viti_fillimit_varrezave` default 2027).
 - **Invoices**: paper receipt books from the Muftiate — `blloku` (4 digits) + `nr_fatures` (6 digits),
   shown as "Bllok 1100 nr 046386"; unique together; `sugjero_faturen` suggests the next one.
@@ -88,7 +89,9 @@ and open a new Bash console). Free tier: requests must be fast — avoid heavy w
 
 ## Main parts (where to look)
 - `xhamia/views.py` — most pages (houses, payments, dashboards, letters, backup, SMS…).
-- `xhamia/views_puna.py` — "Puna e përditshme": Antarësia list with ⊕ quick-pay dialog and "Paguar deri"
+- `xhamia/views_puna.py` — "Puna e përditshme": Antarësia list (the user's main screen: search → + opens the full
+  membership form, F the Fondi form, ✏️ the house edit form — all with `?shtepi=` and `next=` so saving returns to
+  the list with the same search and a link to the new payment; Kategoria column) and "Paguar deri"
   column, Pagesat hyrëse/dalëse, Llojet e pagesave (`LlojiPageses`), Fletorja, Evidenca.
 - `xhamia/fletorja.py` — membership ledger: build rows, read a ledger PDF, compare with the app
   (`krahaso`: corrections / conflicts with old debt / name suggestions), apply chosen fixes.

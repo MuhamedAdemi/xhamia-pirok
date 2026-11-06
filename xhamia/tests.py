@@ -915,34 +915,43 @@ class PunaEPerditshmeTest(TestCase):
         r = self.client.get(reverse('puna_antaresia'))
         self.assertContains(r, 'data-statusi="papaguar" class="pa-paguar"')
         self.assertContains(r, 'Afrim')
-        self.assertContains(r, 'Kurbana')   # llojet e Fondit në dritaren ⊕
+        self.assertContains(r, f'/pagesat/antaresia/shto/?shtepi={self.sh.pk}')   # + → faqja e plotë
+        self.assertContains(r, f'/pagesat/fondi/shto/?shtepi={self.sh.pk}')       # F → fondi
         self.assertContains(r, '<td class="puna-gjendja me-borxh">2024</td>')   # viti i fundit i paguar, me të kuqe
 
-    def test_pagesa_e_shpejte_antaresi_dhe_fond(self):
-        url = reverse('pagese_e_shpejte')
-        d = self.client.get(url, {'shtepia': self.sh.pk, 'per': 'ANTARESIA'}).json()
-        self.assertEqual((d['viti'], d['viti_deri']), (2025, timezone.now().year))
-        r = self.client.post(url, {'shtepia': self.sh.pk, 'per': 'ANTARESIA', 'blloku': '1100', 'nr_fatures': '000001',
-                                   'viti': d['viti'], 'viti_deri': d['viti_deri'], 'shuma_hyrese': '7300',
-                                   'monedha': 'MKD', 'data_pageses': date.today().isoformat()}).json()
-        self.assertTrue(r['ok'], r)
-        self.assertContains(self.client.get(reverse('puna_antaresia')), 'data-statusi="paguar"')
-        self.assertContains(self.client.get(reverse('puna_antaresia')), f'<td class="puna-gjendja">{timezone.now().year}</td>')
+    def test_pagesa_nga_lista_kthehet_te_lista(self):
+        lista = reverse('puna_antaresia') + '?viti=2026&aktive=1&q=afrim'
+        # + hap formën me shtëpinë, vitet e papaguara dhe lidhjet për varrezat/fondin
+        r = self.client.get(reverse('shto_pagese_antaresia'), {'shtepi': self.sh.pk, 'next': lista})
+        self.assertEqual(r.context['form'].initial['shtepia'], self.sh)
+        self.assertEqual((r.context['form'].initial['viti'], r.context['form'].initial['viti_deri']), (2025, timezone.now().year))
+        self.assertContains(r, 'name="next"')
+        self.assertContains(r, '⚰️ Varrezat')
+        r = self.client.post(reverse('shto_pagese_antaresia'), {
+            'blloku': '1100', 'nr_fatures': '000001', 'shtepia': self.sh.pk, 'viti': 2025, 'viti_deri': timezone.now().year,
+            'data_pageses': date.today().isoformat(), 'shuma_hyrese': '7300', 'monedha': 'MKD', 'kursi': '61.5', 'next': lista})
+        self.assertRedirects(r, lista, fetch_redirect_response=False)
+        r = self.client.get(lista)
+        self.assertContains(r, 'U regjistrua: <strong>Bllok 1100 nr 000001')
+        self.assertContains(r, PagesaAntaresia.objects.get().get_absolute_url())
+        self.assertContains(r, f'<td class="puna-gjendja">{timezone.now().year}</td>')
+        self.assertNotContains(self.client.get(lista), 'U regjistrua:')   # njoftimi del vetëm një herë
         # e njëjta faturë → gabim, jo pagesë e dytë
-        r = self.client.post(url, {'shtepia': self.sh.pk, 'per': 'ANTARESIA', 'blloku': '1100', 'nr_fatures': '000001',
-                                   'viti': 2030, 'viti_deri': 2030, 'shuma_hyrese': '70', 'monedha': 'EUR',
-                                   'data_pageses': date.today().isoformat()}).json()
-        self.assertFalse(r['ok'])
+        r = self.client.post(reverse('shto_pagese_antaresia'), {
+            'blloku': '1100', 'nr_fatures': '000001', 'shtepia': self.sh.pk, 'viti': 2030,
+            'data_pageses': date.today().isoformat(), 'shuma_hyrese': '70', 'monedha': 'EUR', 'kursi': '61.5', 'next': lista})
+        self.assertEqual(r.status_code, 200)
         self.assertEqual(PagesaAntaresia.objects.count(), 1)
-        # Fondi me lloj nga lista; paguesi merret nga shtëpia
-        d = self.client.get(url, {'shtepia': self.sh.pk, 'per': 'Kurbana'}).json()
-        r = self.client.post(url, {'shtepia': self.sh.pk, 'per': 'Kurbana', 'blloku': '2000', 'nr_fatures': '000010',
-                                   'shuma_hyrese': '100', 'monedha': 'EUR', 'data_pageses': date.today().isoformat(),
-                                   'emri_donatorit': d['emri_donatorit'], 'mbiemri_donatorit': d['mbiemri_donatorit'],
-                                   'shenime': 'kurbani i bajramit'}).json()
-        self.assertTrue(r['ok'], r)
+        # F → Fondi me paguesin nga shtëpia, kthehet te lista
+        r = self.client.get(reverse('shto_pagese_fondi'), {'shtepi': self.sh.pk, 'next': lista})
+        self.assertEqual(r.context['form'].initial['emri_donatorit'], 'Afrim')
+        r = self.client.post(reverse('shto_pagese_fondi'), {
+            'blloku': '2000', 'nr_fatures': '000010', 'lloji': 'Kurbana', 'shtepia': self.sh.pk,
+            'emri_donatorit': 'Afrim', 'mbiemri_donatorit': 'Elezi', 'data_pageses': date.today().isoformat(),
+            'shuma_hyrese': '100', 'monedha': 'EUR', 'kursi': '61.5', 'arsyeja': 'kurbani i bajramit', 'next': lista})
+        self.assertRedirects(r, lista, fetch_redirect_response=False)
         fondi = PagesaFondi.objects.get()
-        self.assertEqual((fondi.lloji, fondi.emri_donatorit, fondi.arsyeja, fondi.shtepia), ('Kurbana', 'Afrim', 'kurbani i bajramit', self.sh))
+        self.assertEqual((fondi.lloji, fondi.emri_donatorit, fondi.shtepia), ('Kurbana', 'Afrim', self.sh))
         # Pagesat hyrëse: të dyja, filtri sipas llojit dhe totali në den (€)
         r = self.client.get(reverse('puna_hyrese'))
         self.assertContains(r, 'Antarësia 2025')
@@ -950,6 +959,23 @@ class PunaEPerditshmeTest(TestCase):
         self.assertContains(r, '13.450 den')
         r = self.client.get(reverse('puna_hyrese'), {'per': 'Kurbana'})
         self.assertNotContains(r, 'Antarësia 2025')
+
+    def test_kthimi_vetem_brenda_aplikacionit_dhe_edito_shtepine(self):
+        r = self.client.post(reverse('shto_pagese_antaresia'), {
+            'blloku': '1100', 'nr_fatures': '000002', 'shtepia': self.sh.pk, 'viti': 2025,
+            'data_pageses': date.today().isoformat(), 'shuma_hyrese': '50', 'monedha': 'EUR', 'kursi': '61.5',
+            'next': 'https://keq.example.com/'})
+        self.assertRedirects(r, PagesaAntaresia.objects.get().get_absolute_url(), fetch_redirect_response=False)
+        lista = reverse('puna_antaresia') + '?q=elezi'
+        r = self.client.get(reverse('edito_shtepi', args=[self.sh.pk]), {'next': lista})
+        self.assertContains(r, 'name="next"')
+        data = {k: (v if v is not None else '') for k, v in r.context['form'].initial.items()}
+        data.update(emri_prindit='Hashim B', next=lista, kategoria='', paguar_deri_viti='', varrezat_paguar_deri_viti='')
+        data['është_aktiv'] = 'on'
+        r = self.client.post(reverse('edito_shtepi', args=[self.sh.pk]), data)
+        self.assertRedirects(r, lista, fetch_redirect_response=False)
+        self.sh.refresh_from_db()
+        self.assertEqual(self.sh.emri_prindit, 'Hashim B')
 
     def test_llojet_shto_riemerto_fshi(self):
         url = reverse('ndrysho_llojin')
@@ -969,7 +995,7 @@ class PunaEPerditshmeTest(TestCase):
         self.client.force_login(mon)
         self.client.post(url, {'veprimi': 'shto', 'drejtimi': 'HYRESE', 'emri': 'Tjetër X'})
         self.assertFalse(self.LlojiPageses.objects.filter(emri='Tjetër X').exists())
-        self.assertEqual(self.client.get(reverse('pagese_e_shpejte'), {'shtepia': self.sh.pk}).status_code, 403)
+        self.assertNotContains(self.client.get(reverse('puna_antaresia')), 'btn-plus')   # monitoruesi pa +
 
 
 @override_settings(SMS_GATEWAY_USER='u', SMS_GATEWAY_PASSWORD='p', SMS_PRIT_SEKONDA=0)
@@ -1221,19 +1247,25 @@ class KategoriteDheShumatSipasViteveTest(TestCase):
         self.sh.refresh_from_db()
         self.assertEqual(self.sh.kategoria, self.k1)
 
-    def test_dritarja_e_shpejte_me_dy_monedha(self):
+    def test_tarifat_dhe_den_te_viti_i_fundit(self):
         import json
         V = self.V
-        r = self.client.post(reverse('pagese_e_shpejte'), {
-            'shtepia': self.sh.pk, 'per': 'ANTARESIA', 'blloku': '1100', 'nr_fatures': '000200',
-            'viti': V - 1, 'viti_deri': V, 'shuma_hyrese': '100', 'monedha': 'EUR', 'shuma_2': '4000',
-            'monedha_2': 'MKD', 'data_pageses': date.today().isoformat(),
-            'vitet_shumat': json.dumps({str(V - 1): {'EUR': '100'}, str(V): {'MKD': '4000'}}),
-        })
-        self.assertTrue(r.json()['ok'], r.json())
-        self.assertEqual(r.json()['shuma'], '100 € + 4.000 den')
+        # 2020–2025 nga 50 € (300 €) dhe viti i fundit 5000 den — si në formë
+        ndarja = {str(v): {'EUR': '50'} for v in range(V - 6, V)}
+        ndarja[str(V)] = {'MKD': '5000'}
+        r = self._paguaj(viti=V - 6, viti_deri=V, shuma_hyrese='300', shuma_2='5000', monedha_2='MKD',
+                         vitet_shumat=json.dumps(ndarja))
+        p = PagesaAntaresia.objects.get()
+        self.assertEqual(r.status_code, 302)
+        self.assertEqual(p.shuma_origjinale, '300 € + 5.000 den')
         self.sh.refresh_from_db()
-        self.assertEqual(self.sh.kategoria, self.k4)
+        self.assertEqual(self.sh.kategoria, self.k3)   # 5000 den për vitin e fundit → kategoria 3
+
+    def test_ndarja_me_monedhe_qe_nuk_eshte_te_pagesa(self):
+        import json
+        r = self._paguaj(shuma_hyrese='70', vitet_shumat=json.dumps({str(self.V): {'EUR': '70', 'MKD': '100'}}))
+        self.assertContains(r, 'por pagesa nuk ka pjesë në këtë monedhë')
+        self.assertFalse(PagesaAntaresia.objects.exists())
 
     def test_kolona_dhe_ndryshimi_i_kategorise(self):
         r = self.client.get(reverse('puna_antaresia'))

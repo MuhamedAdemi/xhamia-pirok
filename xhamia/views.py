@@ -858,11 +858,11 @@ def edito_shtepi(request, pk):
     form = ShtepiaForm(request.POST or None, instance=shtepi)
     if request.method == 'POST' and form.is_valid():
         form.save()
-        messages.success(request, 'Shtëpia u përditësua me sukses.')
-        return redirect('detaje_shtepia', pk=shtepi.pk)
+        messages.success(request, f'Shtëpia #{shtepi.nr_shtepise} u përditësua me sukses.')
+        return redirect(_kthimi(request) or reverse('detaje_shtepia', args=[shtepi.pk]))
     return render(request, 'shtepite/forma.html', {
         'form': form, 'titulli': f'Edito Shtëpinë #{shtepi.nr_shtepise}',
-        'shtepi': shtepi, 'faqja_aktive': 'shtepite'
+        'shtepi': shtepi, 'faqja_aktive': 'shtepite', 'kthimi': _kthimi(request),
     })
 
 
@@ -909,6 +909,29 @@ VLERAT_SHPEJTA_ANTARESIA = [
 ]
 
 
+def _kthimi(request):
+    """Faqja ku kthehemi pas ruajtjes (p.sh. lista e Antarësisë me kërkimin e njëjtë), vetëm adresë e brendshme."""
+    from django.utils.http import url_has_allowed_host_and_scheme
+    url = request.POST.get('next') or request.GET.get('next') or ''
+    if url and url_has_allowed_host_and_scheme(url, allowed_hosts={request.get_host()}, require_https=request.is_secure()):
+        return url
+    return ''
+
+
+def _pas_ruajtjes(request, pagese, faqja_e_pageses):
+    """Kur pagesa u regjistrua nga lista e Antarësisë, kthehu atje (me lidhjen për SMS/Email/Faturë);
+    ndryshe hap faqen e pagesës si më parë."""
+    kthimi = _kthimi(request)
+    if kthimi:
+        request.session['pagesa_e_fundit'] = {
+            'teksti': f'{pagese.fatura_tekst} — {pagese.shtepia.emri_i_plote if pagese.shtepia_id else ""} — '
+                      f'{pagese.shuma_origjinale}',
+            'url': pagese.get_absolute_url(),
+        }
+        return redirect(kthimi)
+    return redirect(faqja_e_pageses, pk=pagese.pk)
+
+
 def _sukses_pagese(request, pagese):
     """Mesazhi pas regjistrimit + email-i automatik te stafi."""
     gabimi = njofto_stafin(pagese, request)
@@ -951,10 +974,11 @@ def shto_pagese_antaresia(request):
         pagese.save()
         caktoje_nga_pagesa(pagese)
         _sukses_pagese(request, pagese)
-        return redirect('detaje_pagesa_antaresia', pk=pagese.pk)
+        return _pas_ruajtjes(request, pagese, 'detaje_pagesa_antaresia')
     return render(request, 'pagesat/antaresia/forma.html', {
         'form': form, 'titulli': 'Regjistro Pagesë Antarësia', 'faqja_aktive': 'pagesat_antaresia',
-        'vlerat_shpejta': VLERAT_SHPEJTA_ANTARESIA,
+        'vlerat_shpejta': VLERAT_SHPEJTA_ANTARESIA, 'kthimi': _kthimi(request),
+        'shtepia_e_zgjedhur': form.initial.get('shtepia') if not form.is_bound else None,
     })
 
 
@@ -1026,9 +1050,9 @@ def shto_pagese_fondi(request):
         pagese.arktar = request.user
         pagese.save()
         _sukses_pagese(request, pagese)
-        return redirect('detaje_pagesa_fondi', pk=pagese.pk)
+        return _pas_ruajtjes(request, pagese, 'detaje_pagesa_fondi')
     return render(request, 'pagesat/fondi/forma.html', {
-        'form': form, 'titulli': 'Regjistro Pagesë Fondi', 'faqja_aktive': 'pagesat_fondi'
+        'form': form, 'titulli': 'Regjistro Pagesë Fondi', 'faqja_aktive': 'pagesat_fondi', 'kthimi': _kthimi(request),
     })
 
 
@@ -1103,9 +1127,9 @@ def shto_pagese_varrezat(request):
         pagese.arktar = request.user
         pagese.save()
         _sukses_pagese(request, pagese)
-        return redirect('detaje_pagesa_varrezat', pk=pagese.pk)
+        return _pas_ruajtjes(request, pagese, 'detaje_pagesa_varrezat')
     return render(request, 'pagesat/varrezat/forma.html', {
-        'form': form, 'titulli': 'Regjistro Pagesë Varrezash',
+        'form': form, 'titulli': 'Regjistro Pagesë Varrezash', 'kthimi': _kthimi(request),
         'shuma_paracaktuar': shuma_paracaktuar, 'faqja_aktive': 'pagesat_varrezat',
     })
 

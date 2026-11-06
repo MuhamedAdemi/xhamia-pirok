@@ -16,22 +16,18 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from . import evidenca, fletorja, word
-from .kategorite import caktoje_nga_pagesa, kufijte, numrat_e_kategorive
+from .kategorite import kufijte, numrat_e_kategorive
 
 WORD = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
 
-from .forms import (
-    PagesaAntaresiaForm, PagesaFondiForm, PagesaVarrezaveForm, kufijte_json, llojet_hyrese_te_fondit,
-    sugjero_faturen,
-)
+from .forms import llojet_hyrese_te_fondit
 from .gjendja import gjendja_e_shtepive, kategorite_gratis
-from .utils import njofto_stafin
 from .models import (
-    Harxhimi, KonfigurimiSistemit, KonfigurimiVarrezave, LlojiPageses, PagesaAntaresia, PagesaFondi,
+    Harxhimi, KonfigurimiSistemit, LlojiPageses, PagesaAntaresia, PagesaFondi,
     PagesaVarrezave, Shtepia, formato_shumen,
 )
 from .views import (
-    _shtepite_paguara_ids, _tabela_vjetore, mund_regjistrojë, mund_shikoje, është_admin,
+    _shtepite_paguara_ids, mund_regjistrojë, mund_shikoje, është_admin,
 )
 
 ANTARESIA, VARREZAT = 'ANTARESIA', 'VARREZAT'
@@ -81,10 +77,10 @@ def puna_antaresia(request):
     return render(request, 'puna/antaresia.html', {
         'shtepite': shtepite, 'viti': viti, 'aktive': aktive, 'kerkimi': request.GET.get('q', ''),
         'kategorite': kategorite, 'pa_kategori': sum(1 for sh in shtepite if not sh.kat),
-        'kategorite_json': kufijte_json(),
+        'pagesa_e_fundit': request.session.pop('pagesa_e_fundit', None),
+        'url_antaresia': reverse('shto_pagese_antaresia'), 'url_fondi': reverse('shto_pagese_fondi'),
         'vitet': list(range(sot.year + 1, 2009, -1)),
         'totali': _totali(PagesaAntaresia.objects.filter(data_pageses__year=viti)),
-        'llojet_hyrese': llojet_hyrese_te_fondit(),
         'mund_regjistroje': mund_regjistrojë(request.user), 'eshte_admin': është_admin(request.user),
         'faqja_aktive': 'puna_antaresia',
     })
@@ -129,68 +125,6 @@ def _gjendja_tekst(g, gratis, viti_aktual):
     if not viti and ka_borxh and g['borxh_nga'] < viti_aktual:
         viti = g['borxh_nga'] - 1
     return (str(viti) if viti else '—'), ka_borxh
-
-
-def _fillestare(shtepi, per):
-    """Vlerat e sugjeruara për dritaren e pagesës: fatura e radhës, vitet e papaguara, shuma, paguesi."""
-    sot = timezone.now()
-    if per in (ANTARESIA, VARREZAT):
-        if per == ANTARESIA:
-            model, tarifa = PagesaAntaresia, KonfigurimiSistemit.merr().tarifa_antaresise
-            te_dhenat = (shtepi.pagesat, shtepi.viti_fillimit_antaresise, shtepi.paguar_deri_viti)
-        else:
-            model, tarifa = PagesaVarrezave, KonfigurimiVarrezave.merr().shuma_vjetore
-            te_dhenat = (shtepi.pagesat_varrezave, shtepi.viti_fillimit_varrezave, shtepi.varrezat_paguar_deri_viti)
-        _, borxhi, papaguara = _tabela_vjetore(*te_dhenat, tarifa)
-        viti, viti_deri = (papaguara[0], papaguara[-1]) if papaguara else (sot.year + 1, sot.year + 1)
-        info = (f"Pa paguar: {', '.join(map(str, papaguara))} — {formato_shumen(borxhi, 'EUR')}"
-                if papaguara else 'Asnjë vit pa paguar.')
-    else:
-        model, viti, viti_deri, borxhi, info = PagesaFondi, None, None, None, ''
-    blloku, nr = sugjero_faturen(model)
-    return {
-        'blloku': blloku, 'nr_fatures': nr, 'viti': viti, 'viti_deri': viti_deri,
-        'data_pageses': sot.date().isoformat(), 'info': info,
-        'shuma_sugjeruar': str(borxhi) if borxhi else '',
-        'emri_donatorit': shtepi.emri_kryefamiljarit, 'mbiemri_donatorit': shtepi.mbiemri_kryefamiljarit,
-    }
-
-
-@login_required
-def pagese_e_shpejte(request):
-    """Dritarja ⊕: GET jep vlerat e sugjeruara, POST e regjistron pagesën me të njëjtat kontrolle si format e plota."""
-    if not mund_regjistrojë(request.user):
-        return JsonResponse({'ok': False, 'gabimet': ['Nuk keni leje për të regjistruar pagesa.']}, status=403)
-    burimi = request.POST if request.method == 'POST' else request.GET
-    shtepi = get_object_or_404(Shtepia, pk=_viti(burimi.get('shtepia'), 0))
-    per = burimi.get('per') or ANTARESIA
-    if request.method != 'POST':
-        return JsonResponse(_fillestare(shtepi, per))
-
-    data = request.POST.copy()
-    if per == ANTARESIA:
-        form = PagesaAntaresiaForm(data)
-    elif per == VARREZAT:
-        form = PagesaVarrezaveForm(data)
-    else:
-        # QueryDict.update() shton vlera në vend që t'i zëvendësojë — prandaj caktohen një nga një
-        for fusha, vlera in {'lloji': per, 'arsyeja': data.get('shenime', ''), 'shenime': '',
-                             'nr_telefoni': shtepi.nr_telefoni_kryesor, 'email_donatorit': shtepi.email}.items():
-            data[fusha] = vlera
-        form = PagesaFondiForm(data)
-    if not form.is_valid():
-        gabimet = [f"{form.fields[f].label}: {g}" if f in form.fields and f != '__all__' else g
-                   for f, lista in form.errors.items() for g in lista]
-        return JsonResponse({'ok': False, 'gabimet': gabimet})
-    pagese = form.apliko_shumen(form.save(commit=False))
-    pagese.arktar = request.user
-    pagese.save()
-    if per == ANTARESIA:
-        caktoje_nga_pagesa(pagese)
-    return JsonResponse({
-        'ok': True, 'fatura': pagese.fatura_tekst, 'shuma': pagese.shuma_origjinale,
-        'url': pagese.get_absolute_url(), 'gabim_emaili': njofto_stafin(pagese, request),
-    })
 
 
 # ─── Pagesat hyrëse ──────────────────────────────────────────────────────────

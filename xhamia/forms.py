@@ -276,6 +276,10 @@ class PagesaAntaresiaForm(ShumaMonedhaMixin, VitetFormMixin, forms.ModelForm):
         rezultati, totalet = {}, {m: Decimal('0') for m in pritet}
         for v in range(viti, viti_deri + 1):
             vlerat = ndarja.get(str(v)) or {}
+            for m, s in vlerat.items():
+                if m not in pritet and _decimal(s) not in (None, 0):
+                    self.add_error(None, f'Viti {v} ka shumë në {m}, por pagesa nuk ka pjesë në këtë monedhë.')
+                    return {}
             rreshti = {}
             for m in pritet:
                 s = _decimal(vlerat.get(m, ''))

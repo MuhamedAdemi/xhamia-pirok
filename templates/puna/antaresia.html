@@ -41,6 +41,12 @@
   <button type="button" class="btn-kryesor" onclick="window.print()">Printo</button>
 </div>
 
+{% if pagesa_e_fundit %}
+<div class="njoftim sukses puna-pagesa-fundit">
+  ✅ U regjistrua: <strong>{{ pagesa_e_fundit.teksti }}</strong>
+  <a href="{{ pagesa_e_fundit.url }}" class="btn-dytësor btn-sm">📱 Hap pagesën (SMS · Email · Fatura)</a>
+</div>
+{% endif %}
 <div class="puna-totali">Totali {{ viti }}: <strong>{{ totali }}</strong></div>
 
 <div class="puna-tabela-mbajtese">
@@ -48,7 +54,7 @@
   <thead>
     <tr>
       <th>Nr.</th>
-      {% if mund_regjistroje %}<th class="ikon"></th>{% endif %}
+      {% if mund_regjistroje %}<th class="ikon-dy"></th>{% endif %}
       <th>Emri</th><th>Prindi</th><th>Mbiemri</th><th>Telefon</th><th class="kol-kategoria">Kategoria</th><th>Paguar deri</th>
       <th class="ikon"></th>{% if eshte_admin %}<th class="ikon"></th>{% endif %}
     </tr>
@@ -58,8 +64,7 @@
     <tr data-statusi="{% if sh.ka_paguar %}paguar{% else %}papaguar{% endif %}" {% if not sh.ka_paguar %}class="pa-paguar"{% endif %} data-kategoria="{{ sh.kategoria_id|default:'asnje' }}">
       <td data-th>{{ sh.nr_shtepise }}</td>
       {% if mund_regjistroje %}
-      <td class="ikon"><button type="button" class="btn-ikon btn-plus" title="Regjistro pagesë"
-            data-pagese="{{ sh.pk }}" data-emri="#{{ sh.nr_shtepise }} — {{ sh.emri_i_plote }}">+</button></td>
+      <td class="ikon-dy"><a class="btn-ikon btn-plus" data-me-kthim href="{{ url_antaresia }}?shtepi={{ sh.pk }}" title="Pagesë antarësie">+</a><a class="btn-ikon btn-fond" data-me-kthim href="{{ url_fondi }}?shtepi={{ sh.pk }}" title="Donacion / pagesë për Fondin">F</a></td>
       {% endif %}
       <td><a href="{% url 'detaje_shtepia' sh.pk %}" data-th>{{ sh.emri_kryefamiljarit }}</a></td>
       <td data-th>{{ sh.emri_prindit }}</td>
@@ -70,7 +75,7 @@
         {% elif sh.kat %}<b title="{{ sh.kat.emri }}">{{ sh.kat.nr|default:sh.kat.emri }}</b>{% endif %}
       </td>
       <td class="puna-gjendja{% if sh.gjendja.1 %} me-borxh{% endif %}">{{ sh.gjendja.0 }}</td>
-      <td class="ikon"><a class="btn-ikon" href="{% if eshte_admin %}{% url 'edito_shtepi' sh.pk %}{% else %}{% url 'detaje_shtepia' sh.pk %}{% endif %}" title="{% if eshte_admin %}Ndrysho{% else %}Hap{% endif %}">✏️</a></td>
+      <td class="ikon">{% if eshte_admin %}<a class="btn-ikon" data-me-kthim href="/shtepite/{{ sh.pk }}/edito/" title="Ndrysho të dhënat e shtëpisë">✏️</a>{% else %}<a class="btn-ikon" href="/shtepite/{{ sh.pk }}/" title="Hap">✏️</a>{% endif %}</td>
       {% if eshte_admin %}<td class="ikon"><a class="btn-ikon" href="{% url 'fshi_shtepi' sh.pk %}" title="Çaktivizo">🗑️</a></td>{% endif %}
     </tr>
     {% endfor %}
@@ -79,7 +84,16 @@
 </table>
 </div>
 
-{% if mund_regjistroje %}{% include 'puna/_dritarja_pageses.html' %}{% endif %}
+<script>
+// +, F dhe ✏️ hapin faqen e plotë; pas ruajtjes kthehemi këtu me të njëjtin kërkim
+document.addEventListener('click', function (e) {
+  var a = e.target.closest('a[data-me-kthim]');
+  if (!a) return;
+  var kerkimi = document.getElementById('kerkoShtepite').value;
+  var kthimi = location.pathname + '?viti={{ viti }}&aktive={% if aktive %}1{% else %}0{% endif %}' + (kerkimi ? '&q=' + encodeURIComponent(kerkimi) : '');
+  a.href = a.href.split('&next=')[0] + (a.href.indexOf('?') === -1 ? '?' : '&') + 'next=' + encodeURIComponent(kthimi);
+});
+</script>
 {% if eshte_admin %}
 <template id="zgjedhjaKategorise">
   <select class="kat-select">

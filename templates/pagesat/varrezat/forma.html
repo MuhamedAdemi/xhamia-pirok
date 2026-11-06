@@ -6,7 +6,7 @@
 {% block kontent %}
 <div class="page-header">
   <div class="flex items-center gap-3">
-    <a href="{% url 'lista_pagesa_varrezave' %}" class="btn-dytësor btn-sm">← Kthehu</a>
+    <a href="{% if kthimi %}{{ kthimi }}{% else %}{% url 'lista_pagesa_varrezave' %}{% endif %}" class="btn-dytësor btn-sm">← Kthehu</a>
     <h2>⚰️ Regjistro Pagesë Varrezash</h2>
   </div>
 </div>
@@ -19,6 +19,7 @@
 
 <form method="post" style="max-width:680px;">
   {% csrf_token %}
+  {% if kthimi %}<input type="hidden" name="next" value="{{ kthimi }}">{% endif %}
   <div class="card" style="margin-bottom:20px;">
     <div class="card-header"><h5>🧾 Fatura & Shtëpia</h5></div>
     <div class="card-body">
@@ -75,7 +76,7 @@
 
   <div class="flex gap-3">
     <button type="submit" class="btn-kryesor">✅ Regjistro Pagesën</button>
-    <a href="{% url 'lista_pagesa_varrezave' %}" class="btn-dytësor">Anulo</a>
+    <a href="{% if kthimi %}{{ kthimi }}{% else %}{% url 'lista_pagesa_varrezave' %}{% endif %}" class="btn-dytësor">Anulo</a>
   </div>
 </form>
 {% endblock %}

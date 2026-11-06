@@ -5,13 +5,22 @@
 {% block kontent %}
 <div class="page-header">
   <div class="flex items-center gap-3">
-    <a href="{% url 'lista_pagesa_antaresia' %}" class="btn-dytësor btn-sm">← Kthehu</a>
+    <a href="{% if kthimi %}{{ kthimi }}{% else %}{% url 'lista_pagesa_antaresia' %}{% endif %}" class="btn-dytësor btn-sm">← Kthehu</a>
     <h2>📋 Regjistro Pagesë Antarësia</h2>
   </div>
 </div>
 
+{% if shtepia_e_zgjedhur %}
+<div class="puna-info" style="max-width:680px; margin-bottom:14px; display:flex; flex-wrap:wrap; gap:8px; align-items:center;">
+  <span>Për <strong>#{{ shtepia_e_zgjedhur.nr_shtepise }} {{ shtepia_e_zgjedhur.emri_i_plote }}</strong> mund të regjistroni edhe:</span>
+  <a class="btn-dytësor btn-sm" href="{% url 'shto_pagese_varrezat' %}?shtepi={{ shtepia_e_zgjedhur.pk }}{% if kthimi %}&next={{ kthimi|urlencode }}{% endif %}">⚰️ Varrezat</a>
+  <a class="btn-dytësor btn-sm" href="{% url 'shto_pagese_fondi' %}?shtepi={{ shtepia_e_zgjedhur.pk }}{% if kthimi %}&next={{ kthimi|urlencode }}{% endif %}">🤲 Fondi</a>
+</div>
+{% endif %}
+
 <form method="post" style="max-width:680px;">
   {% csrf_token %}
+  {% if kthimi %}<input type="hidden" name="next" value="{{ kthimi }}">{% endif %}
   <div class="card" style="margin-bottom:20px;">
     <div class="card-header"><h5>🧾 Fatura & Shtëpia</h5></div>
     <div class="card-body">
@@ -55,8 +64,8 @@
     </div>
   </div>
 
-  {% include 'pagesat/_shuma_monedha.html' %}
   {% include 'pagesat/_dy_monedha_vitet.html' %}
+  {% include 'pagesat/_shuma_monedha.html' %}
 
   <div class="card" style="margin-bottom:24px;">
     <div class="card-header"><h5>📝 Shënime</h5></div>
@@ -69,7 +78,7 @@
 
   <div class="flex gap-3">
     <button type="submit" class="btn-kryesor">✅ Regjistro Pagesën</button>
-    <a href="{% url 'lista_pagesa_antaresia' %}" class="btn-dytësor">Anulo</a>
+    <a href="{% if kthimi %}{{ kthimi }}{% else %}{% url 'lista_pagesa_antaresia' %}{% endif %}" class="btn-dytësor">Anulo</a>
   </div>
 </form>
 {% endblock %}

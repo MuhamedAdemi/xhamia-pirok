@@ -51,7 +51,14 @@
       if (bosh) bosh.hidden = n > 0;
       if (pastro) pastro.hidden = !input.value;
     }
-    input.addEventListener('input', filtro);
+    input.addEventListener('input', function () {
+      filtro();
+      try {
+        var u = new URL(location.href);
+        if (input.value) u.searchParams.set('q', input.value); else u.searchParams.delete('q');
+        history.replaceState(null, '', u);
+      } catch (x) {}
+    });
     tabela.addEventListener('filtro', filtro);
     if (pastro) pastro.addEventListener('click', function () { input.value = ''; filtro(); input.focus(); });
     filtro();
