@@ -799,6 +799,9 @@ def detaje_shtepia(request, pk):
 
     return render(request, 'shtepite/detaje.html', {
         'shtepi': shtepi,
+        # nga Antarësia: "← Kthehu" shkon te lista me kërkimin; çdo veprim kthehet te kjo faqe
+        'kthimi': _kthimi(request), 'kjo_faqe': request.get_full_path(),
+        'pagesa_e_fundit': request.session.pop('pagesa_e_fundit', None),
         'pagesat': pagesat,
         'pagesat_per_vit': pagesat_per_vit,
         'borxhi_total': borxhi_total,

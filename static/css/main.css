@@ -767,10 +767,8 @@ dialog.puna-dialog::backdrop { background: rgba(0,0,0,0.35); }
 .tabela-evidenca .ev-kat { background: #EEF3FC; }
 .tabela-evidenca th.ev-kat { background: #DCE6FA; }
 
-/* Antarësia: + (antarësia) dhe F (fondi) në të njëjtën qelizë; njoftimi i pagesës së fundit */
-.tabela-puna .ikon-dy { width: 78px; padding: 6px 4px; white-space: nowrap; text-align: center; }
-.tabela-puna .ikon-dy .btn-ikon { margin: 0 2px; text-decoration: none; }
-.btn-fond { background: #8A5A2B; color: #fff; font-size: 13px; font-weight: 700; width: 28px; height: 28px; }
-.btn-fond:hover { background: #6B4423; }
+/* Njoftimi i pagesës së fundit; butonat e veprimeve te faqja e shtëpisë */
+a.btn-plus { text-decoration: none; }
+.shtepia-veprimet { display: flex; flex-wrap: wrap; gap: 10px; margin: 0 0 20px; }
+.shtepia-veprimet a { font-size: 16px; padding: 12px 18px; }
 .puna-pagesa-fundit { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 12px; }
-@media print { .tabela-puna .ikon-dy { display: none !important; } }

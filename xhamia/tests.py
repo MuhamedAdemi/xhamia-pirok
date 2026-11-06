@@ -915,8 +915,7 @@ class PunaEPerditshmeTest(TestCase):
         r = self.client.get(reverse('puna_antaresia'))
         self.assertContains(r, 'data-statusi="papaguar" class="pa-paguar"')
         self.assertContains(r, 'Afrim')
-        self.assertContains(r, f'/pagesat/antaresia/shto/?shtepi={self.sh.pk}')   # + → faqja e plotë
-        self.assertContains(r, f'/pagesat/fondi/shto/?shtepi={self.sh.pk}')       # F → fondi
+        self.assertContains(r, f'href="/shtepite/{self.sh.pk}/" title="Hap shtëpinë')   # + → faqja e shtëpisë
         self.assertContains(r, '<td class="puna-gjendja me-borxh">2024</td>')   # viti i fundit i paguar, me të kuqe
 
     def test_pagesa_nga_lista_kthehet_te_lista(self):
@@ -960,6 +959,32 @@ class PunaEPerditshmeTest(TestCase):
         r = self.client.get(reverse('puna_hyrese'), {'per': 'Kurbana'})
         self.assertNotContains(r, 'Antarësia 2025')
 
+    def test_shtepia_si_qender_pune(self):
+        from urllib.parse import quote
+        lista = reverse('puna_antaresia') + '?viti=2026&aktive=1&q=afrim'
+        shtepia = reverse('detaje_shtepia', args=[self.sh.pk]) + '?next=' + quote(lista, safe='')
+        r = self.client.get(shtepia)
+        self.assertContains(r, '← Kthehu te lista')
+        self.assertContains(r, f'href="{lista}"'.replace('&', '&amp;'))
+        kthimi = quote(shtepia, safe='/')
+        for veprimi in ('edito_shtepi', 'shto_pagese_antaresia', 'shto_pagese_fondi', 'shto_pagese_varrezat'):
+            self.assertContains(r, f'next={kthimi}', msg_prefix=veprimi)
+        # pagesa e antarësisë → kthehet te shtëpia me njoftimin; prej andej lista
+        r = self.client.post(reverse('shto_pagese_antaresia'), {
+            'blloku': '1100', 'nr_fatures': '000005', 'shtepia': self.sh.pk, 'viti': 2025,
+            'data_pageses': date.today().isoformat(), 'shuma_hyrese': '50', 'monedha': 'EUR', 'kursi': '61.5',
+            'next': shtepia})
+        self.assertRedirects(r, shtepia, fetch_redirect_response=False)
+        r = self.client.get(shtepia)
+        self.assertContains(r, 'U regjistrua: <strong>Bllok 1100 nr 000005')
+        self.assertContains(r, '← Kthehu te lista')
+        # donacion për fondin nga e njëjta faqe → përsëri te shtëpia
+        r = self.client.post(reverse('shto_pagese_fondi'), {
+            'blloku': '2000', 'nr_fatures': '000011', 'lloji': 'Kurbana', 'shtepia': self.sh.pk,
+            'emri_donatorit': 'Afrim', 'mbiemri_donatorit': 'Elezi', 'data_pageses': date.today().isoformat(),
+            'shuma_hyrese': '20', 'monedha': 'EUR', 'kursi': '61.5', 'next': shtepia})
+        self.assertRedirects(r, shtepia, fetch_redirect_response=False)
+
     def test_kthimi_vetem_brenda_aplikacionit_dhe_edito_shtepine(self):
         r = self.client.post(reverse('shto_pagese_antaresia'), {
             'blloku': '1100', 'nr_fatures': '000002', 'shtepia': self.sh.pk, 'viti': 2025,
@@ -995,7 +1020,9 @@ class PunaEPerditshmeTest(TestCase):
         self.client.force_login(mon)
         self.client.post(url, {'veprimi': 'shto', 'drejtimi': 'HYRESE', 'emri': 'Tjetër X'})
         self.assertFalse(self.LlojiPageses.objects.filter(emri='Tjetër X').exists())
-        self.assertNotContains(self.client.get(reverse('puna_antaresia')), 'btn-plus')   # monitoruesi pa +
+        r = self.client.get(reverse('detaje_shtepia', args=[self.sh.pk]))
+        self.assertNotContains(r, 'Paguaj antarësinë')   # monitoruesi vetëm shikon
+        self.assertNotContains(r, 'Edito shtëpinë')
 
 
 @override_settings(SMS_GATEWAY_USER='u', SMS_GATEWAY_PASSWORD='p', SMS_PRIT_SEKONDA=0)

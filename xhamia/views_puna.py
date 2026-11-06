@@ -78,7 +78,6 @@ def puna_antaresia(request):
         'shtepite': shtepite, 'viti': viti, 'aktive': aktive, 'kerkimi': request.GET.get('q', ''),
         'kategorite': kategorite, 'pa_kategori': sum(1 for sh in shtepite if not sh.kat),
         'pagesa_e_fundit': request.session.pop('pagesa_e_fundit', None),
-        'url_antaresia': reverse('shto_pagese_antaresia'), 'url_fondi': reverse('shto_pagese_fondi'),
         'vitet': list(range(sot.year + 1, 2009, -1)),
         'totali': _totali(PagesaAntaresia.objects.filter(data_pageses__year=viti)),
         'mund_regjistroje': mund_regjistrojë(request.user), 'eshte_admin': është_admin(request.user),

@@ -41,12 +41,7 @@
   <button type="button" class="btn-kryesor" onclick="window.print()">Printo</button>
 </div>
 
-{% if pagesa_e_fundit %}
-<div class="njoftim sukses puna-pagesa-fundit">
-  ✅ U regjistrua: <strong>{{ pagesa_e_fundit.teksti }}</strong>
-  <a href="{{ pagesa_e_fundit.url }}" class="btn-dytësor btn-sm">📱 Hap pagesën (SMS · Email · Fatura)</a>
-</div>
-{% endif %}
+{% include 'pagesat/_pagesa_e_fundit.html' %}
 <div class="puna-totali">Totali {{ viti }}: <strong>{{ totali }}</strong></div>
 
 <div class="puna-tabela-mbajtese">
@@ -54,7 +49,7 @@
   <thead>
     <tr>
       <th>Nr.</th>
-      {% if mund_regjistroje %}<th class="ikon-dy"></th>{% endif %}
+      <th class="ikon"></th>
       <th>Emri</th><th>Prindi</th><th>Mbiemri</th><th>Telefon</th><th class="kol-kategoria">Kategoria</th><th>Paguar deri</th>
       <th class="ikon"></th>{% if eshte_admin %}<th class="ikon"></th>{% endif %}
     </tr>
@@ -63,10 +58,8 @@
     {% for sh in shtepite %}
     <tr data-statusi="{% if sh.ka_paguar %}paguar{% else %}papaguar{% endif %}" {% if not sh.ka_paguar %}class="pa-paguar"{% endif %} data-kategoria="{{ sh.kategoria_id|default:'asnje' }}">
       <td data-th>{{ sh.nr_shtepise }}</td>
-      {% if mund_regjistroje %}
-      <td class="ikon-dy"><a class="btn-ikon btn-plus" data-me-kthim href="{{ url_antaresia }}?shtepi={{ sh.pk }}" title="Pagesë antarësie">+</a><a class="btn-ikon btn-fond" data-me-kthim href="{{ url_fondi }}?shtepi={{ sh.pk }}" title="Donacion / pagesë për Fondin">F</a></td>
-      {% endif %}
-      <td><a href="{% url 'detaje_shtepia' sh.pk %}" data-th>{{ sh.emri_kryefamiljarit }}</a></td>
+      <td class="ikon"><a class="btn-ikon btn-plus" data-me-kthim href="/shtepite/{{ sh.pk }}/" title="Hap shtëpinë: edito, antarësia, fondi, varrezat">+</a></td>
+      <td><a href="/shtepite/{{ sh.pk }}/" data-me-kthim data-th>{{ sh.emri_kryefamiljarit }}</a></td>
       <td data-th>{{ sh.emri_prindit }}</td>
       <td data-th>{{ sh.mbiemri_kryefamiljarit }}</td>
       <td data-th>{{ sh.nr_telefoni_kryesor }}</td>
@@ -85,7 +78,7 @@
 </div>
 
 <script>
-// +, F dhe ✏️ hapin faqen e plotë; pas ruajtjes kthehemi këtu me të njëjtin kërkim
+// + dhe ✏️ hapin shtëpinë; prej andej "← Kthehu te lista" sjell këtu me të njëjtin kërkim
 document.addEventListener('click', function (e) {
   var a = e.target.closest('a[data-me-kthim]');
   if (!a) return;

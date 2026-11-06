@@ -5,7 +5,7 @@
 {% block kontent %}
 <div class="page-header">
   <div class="flex items-center gap-3">
-    <a href="{% url 'lista_shtepive' %}" class="btn-dytësor btn-sm">← Kthehu</a>
+    <a href="{% if kthimi %}{{ kthimi }}{% else %}{% url 'lista_shtepive' %}{% endif %}" class="btn-dytësor btn-sm">← Kthehu{% if kthimi %} te lista{% endif %}</a>
     <div>
       <h2><span class="nr-shtepi" style="font-size:18px; width:60px; height:34px;">{{ shtepi.nr_shtepise }}</span>
         {{ shtepi.emri_i_plote }}
@@ -13,18 +13,24 @@
       <p>{% if shtepi.kategoria %}{{ shtepi.kategoria.emri }} • {% endif %}{{ shtepi.nr_antareve_familjes }} anëtarë familje</p>
     </div>
   </div>
+  {% if request.user.profili.është_admin %}
   <div class="flex gap-3">
-    {% if request.user.profili.është_admin %}
-    <a href="{% url 'edito_shtepi' shtepi.pk %}" class="btn-dytësor">Edito</a>
     <a href="{% url 'fshi_shtepi' shtepi.pk %}" class="btn-rrezik">Çaktivizo</a>
     <a href="{% url 'fshi_perfundimisht_shtepi' shtepi.pk %}" class="btn-rrezik">🗑️ Fshi (duplikat)</a>
-    {% endif %}
-    {% if request.user.profili.mund_regjistroje %}
-    <a href="{% url 'shto_pagese_fondi' %}?shtepi={{ shtepi.pk }}" class="btn-dytësor">🤲 Donacion për Fondin</a>
-    <a href="{% url 'shto_pagese_varrezat' %}?shtepi={{ shtepi.pk }}" class="btn-dytësor">+ Pagesë Varrezash</a>
-    <a href="{% url 'shto_pagese_antaresia' %}?shtepi={{ shtepi.pk }}" class="btn-kryesor">+ Regjistro Pagesë</a>
-    {% endif %}
   </div>
+  {% endif %}
+</div>
+
+{% include 'pagesat/_pagesa_e_fundit.html' %}
+<div class="shtepia-veprimet">
+  {% if request.user.profili.është_admin %}
+  <a href="{% url 'edito_shtepi' shtepi.pk %}?next={{ kjo_faqe|urlencode }}" class="btn-dytësor">✏️ Edito shtëpinë</a>
+  {% endif %}
+  {% if request.user.profili.mund_regjistroje %}
+  <a href="{% url 'shto_pagese_antaresia' %}?shtepi={{ shtepi.pk }}&next={{ kjo_faqe|urlencode }}" class="btn-kryesor">📋 Paguaj antarësinë</a>
+  <a href="{% url 'shto_pagese_fondi' %}?shtepi={{ shtepi.pk }}&next={{ kjo_faqe|urlencode }}" class="btn-dytësor">🤲 Donacion për Fondin</a>
+  <a href="{% url 'shto_pagese_varrezat' %}?shtepi={{ shtepi.pk }}&next={{ kjo_faqe|urlencode }}" class="btn-dytësor">⚰️ Paguaj varrezat</a>
+  {% endif %}
 </div>
 
 <div class="grid-2" style="margin-bottom:24px;">
