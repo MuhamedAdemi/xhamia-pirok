@@ -915,7 +915,9 @@ class PunaEPerditshmeTest(TestCase):
         r = self.client.get(reverse('puna_antaresia'))
         self.assertContains(r, 'data-statusi="papaguar" class="pa-paguar"')
         self.assertContains(r, 'Afrim')
-        self.assertContains(r, f'href="/shtepite/{self.sh.pk}/" title="Hap shtëpinë')   # + → faqja e shtëpisë
+        self.assertContains(r, f'data-hap="{self.sh.pk}"')   # + → dritarja me veprimet
+        for butoni in ('Edito shtëpinë', 'Paguaj antarësinë', 'Donacion për Fondin', 'Paguaj varrezat'):
+            self.assertContains(r, butoni)
         self.assertContains(r, '<td class="puna-gjendja me-borxh">2024</td>')   # viti i fundit i paguar, me të kuqe
 
     def test_pagesa_nga_lista_kthehet_te_lista(self):
@@ -984,6 +986,29 @@ class PunaEPerditshmeTest(TestCase):
             'emri_donatorit': 'Afrim', 'mbiemri_donatorit': 'Elezi', 'data_pageses': date.today().isoformat(),
             'shuma_hyrese': '20', 'monedha': 'EUR', 'kursi': '61.5', 'next': shtepia})
         self.assertRedirects(r, shtepia, fetch_redirect_response=False)
+
+    def test_dritarja_rihapet_dhe_forma_e_shpejte(self):
+        tjeter = Shtepia.objects.create(nr_shtepise='0301', emri_kryefamiljarit='Besim', mbiemri_kryefamiljarit='X')
+        lista = reverse('puna_antaresia') + f'?viti=2026&aktive=1&q=afrim&hap={self.sh.pk}'
+        # forma e hapur nga dritarja ngarkon vetëm shtëpinë e zgjedhur (më shpejt)
+        r = self.client.get(reverse('shto_pagese_antaresia'), {'shtepi': self.sh.pk, 'next': lista})
+        self.assertEqual(list(r.context['form'].fields['shtepia'].queryset), [self.sh])
+        self.assertNotContains(r, 'Besim')
+        # pa next (nga menyja) — lista e plotë
+        r = self.client.get(reverse('shto_pagese_antaresia'), {'shtepi': self.sh.pk})
+        self.assertEqual(r.context['form'].fields['shtepia'].queryset.count(), 2)
+        # pas ruajtjes: lista me ?hap= dhe njoftimin brenda dritares
+        r = self.client.post(reverse('shto_pagese_antaresia'), {
+            'blloku': '1100', 'nr_fatures': '000007', 'shtepia': self.sh.pk, 'viti': 2025,
+            'data_pageses': date.today().isoformat(), 'shuma_hyrese': '50', 'monedha': 'EUR', 'kursi': '61.5', 'next': lista})
+        self.assertRedirects(r, lista, fetch_redirect_response=False)
+        r = self.client.get(lista)
+        self.assertContains(r, 'id="dsPagesaFundit"')
+        self.assertContains(r, 'Bllok 1100 nr 000007')
+        # gzip: faqja e madhe udhëton e ngjeshur
+        r = self.client.get(reverse('puna_antaresia'), HTTP_ACCEPT_ENCODING='gzip')
+        self.assertEqual(r.get('Content-Encoding'), 'gzip')
+        self.assertEqual(tjeter.nr_shtepise, '0301')
 
     def test_kthimi_vetem_brenda_aplikacionit_dhe_edito_shtepine(self):
         r = self.client.post(reverse('shto_pagese_antaresia'), {

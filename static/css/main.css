@@ -769,6 +769,14 @@ dialog.puna-dialog::backdrop { background: rgba(0,0,0,0.35); }
 
 /* Njoftimi i pagesës së fundit; butonat e veprimeve te faqja e shtëpisë */
 a.btn-plus { text-decoration: none; }
+/* Dritarja e + te Antarësia */
+.ds-trupi { padding: 16px 20px 20px; }
+.ds-info { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-bottom: 16px; font-size: 15px; }
+.ds-info small { color: var(--tekst-dytësor); }
+.ds-info .me-borxh strong { color: #E0201B; }
+.ds-butonat { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.ds-butonat a { display: flex; align-items: center; justify-content: center; text-align: center; padding: 14px 10px; font-size: 15px; text-decoration: none; }
+@media (max-width: 480px) { .ds-butonat { grid-template-columns: 1fr; } }
 .shtepia-veprimet { display: flex; flex-wrap: wrap; gap: 10px; margin: 0 0 20px; }
 .shtepia-veprimet a { font-size: 16px; padding: 12px 18px; }
 .puna-pagesa-fundit { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 12px; }

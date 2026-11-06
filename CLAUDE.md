@@ -89,10 +89,11 @@ and open a new Bash console). Free tier: requests must be fast — avoid heavy w
 
 ## Main parts (where to look)
 - `xhamia/views.py` — most pages (houses, payments, dashboards, letters, backup, SMS…).
-- `xhamia/views_puna.py` — "Puna e përditshme": Antarësia list (the user's main screen: search → + opens the
-  house page as the hub — ✏️ Edito, 📋 Antarësia, 🤲 Fondi, ⚰️ Varrezat; every action carries `next=` and returns to
-  the same house with a "U regjistrua … Hap pagesën" banner; "← Kthehu te lista" restores the search; Kategoria
-  column) and "Paguar deri"
+- `xhamia/views_puna.py` — "Puna e përditshme": Antarësia list (the user's main screen, speed matters: search →
+  + (or Enter when one row is left) opens a small dialog with ✏️ Edito, 📋 Antarësia, 🤲 Fondi, ⚰️ Varrezat, 🏠 Kartela;
+  each link carries `next=<list ?q=…&hap=<pk>>`, so after saving the list reopens the same house's dialog with the
+  "U regjistrua … Hap pagesën" banner. Forms opened with `next` load only that house in the select
+  (`_vetem_shtepia_e_zgjedhur`); GZipMiddleware shrinks the 1 MB list to ~50 KB. Kategoria column) and "Paguar deri"
   column, Pagesat hyrëse/dalëse, Llojet e pagesave (`LlojiPageses`), Fletorja, Evidenca.
 - `xhamia/fletorja.py` — membership ledger: build rows, read a ledger PDF, compare with the app
   (`krahaso`: corrections / conflicts with old debt / name suggestions), apply chosen fixes.

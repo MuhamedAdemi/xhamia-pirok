@@ -921,6 +921,15 @@ def _kthimi(request):
     return ''
 
 
+def _vetem_shtepia_e_zgjedhur(request, form):
+    """Kur forma hapet nga lista/shtëpia (me next) për një shtëpi të caktuar, mos i ngarko të 1155 shtëpitë
+    në listën e zgjedhjes — faqja hapet shumë më shpejt. Pas dërgimit (POST) vlen sërish lista e plotë."""
+    shtepia = form.initial.get('shtepia')
+    if not form.is_bound and shtepia and _kthimi(request) and 'shtepia' in form.fields:
+        form.fields['shtepia'].queryset = Shtepia.objects.filter(pk=shtepia.pk)
+    return form
+
+
 def _pas_ruajtjes(request, pagese, faqja_e_pageses):
     """Kur pagesa u regjistrua nga lista e Antarësisë, kthehu atje (me lidhjen për SMS/Email/Faturë);
     ndryshe hap faqen e pagesës si më parë."""
@@ -978,6 +987,7 @@ def shto_pagese_antaresia(request):
         caktoje_nga_pagesa(pagese)
         _sukses_pagese(request, pagese)
         return _pas_ruajtjes(request, pagese, 'detaje_pagesa_antaresia')
+    _vetem_shtepia_e_zgjedhur(request, form)
     return render(request, 'pagesat/antaresia/forma.html', {
         'form': form, 'titulli': 'Regjistro Pagesë Antarësia', 'faqja_aktive': 'pagesat_antaresia',
         'vlerat_shpejta': VLERAT_SHPEJTA_ANTARESIA, 'kthimi': _kthimi(request),
@@ -1054,6 +1064,7 @@ def shto_pagese_fondi(request):
         pagese.save()
         _sukses_pagese(request, pagese)
         return _pas_ruajtjes(request, pagese, 'detaje_pagesa_fondi')
+    _vetem_shtepia_e_zgjedhur(request, form)
     return render(request, 'pagesat/fondi/forma.html', {
         'form': form, 'titulli': 'Regjistro Pagesë Fondi', 'faqja_aktive': 'pagesat_fondi', 'kthimi': _kthimi(request),
     })
@@ -1131,6 +1142,7 @@ def shto_pagese_varrezat(request):
         pagese.save()
         _sukses_pagese(request, pagese)
         return _pas_ruajtjes(request, pagese, 'detaje_pagesa_varrezat')
+    _vetem_shtepia_e_zgjedhur(request, form)
     return render(request, 'pagesat/varrezat/forma.html', {
         'form': form, 'titulli': 'Regjistro Pagesë Varrezash', 'kthimi': _kthimi(request),
         'shuma_paracaktuar': shuma_paracaktuar, 'faqja_aktive': 'pagesat_varrezat',

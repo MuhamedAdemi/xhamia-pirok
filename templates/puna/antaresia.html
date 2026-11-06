@@ -58,7 +58,7 @@
     {% for sh in shtepite %}
     <tr data-statusi="{% if sh.ka_paguar %}paguar{% else %}papaguar{% endif %}" {% if not sh.ka_paguar %}class="pa-paguar"{% endif %} data-kategoria="{{ sh.kategoria_id|default:'asnje' }}">
       <td data-th>{{ sh.nr_shtepise }}</td>
-      <td class="ikon"><a class="btn-ikon btn-plus" data-me-kthim href="/shtepite/{{ sh.pk }}/" title="Hap shtëpinë: edito, antarësia, fondi, varrezat">+</a></td>
+      <td class="ikon"><button type="button" class="btn-ikon btn-plus" data-hap="{{ sh.pk }}" title="Veprimet: edito, antarësia, fondi, varrezat">+</button></td>
       <td><a href="/shtepite/{{ sh.pk }}/" data-me-kthim data-th>{{ sh.emri_kryefamiljarit }}</a></td>
       <td data-th>{{ sh.emri_prindit }}</td>
       <td data-th>{{ sh.mbiemri_kryefamiljarit }}</td>
@@ -68,7 +68,7 @@
         {% elif sh.kat %}<b title="{{ sh.kat.emri }}">{{ sh.kat.nr|default:sh.kat.emri }}</b>{% endif %}
       </td>
       <td class="puna-gjendja{% if sh.gjendja.1 %} me-borxh{% endif %}">{{ sh.gjendja.0 }}</td>
-      <td class="ikon">{% if eshte_admin %}<a class="btn-ikon" data-me-kthim href="/shtepite/{{ sh.pk }}/edito/" title="Ndrysho të dhënat e shtëpisë">✏️</a>{% else %}<a class="btn-ikon" href="/shtepite/{{ sh.pk }}/" title="Hap">✏️</a>{% endif %}</td>
+      <td class="ikon">{% if eshte_admin %}<a class="btn-ikon" data-me-kthim data-pk="{{ sh.pk }}" href="/shtepite/{{ sh.pk }}/edito/" title="Ndrysho të dhënat e shtëpisë">✏️</a>{% else %}<a class="btn-ikon" href="/shtepite/{{ sh.pk }}/" title="Hap">✏️</a>{% endif %}</td>
       {% if eshte_admin %}<td class="ikon"><a class="btn-ikon" href="{% url 'fshi_shtepi' sh.pk %}" title="Çaktivizo">🗑️</a></td>{% endif %}
     </tr>
     {% endfor %}
@@ -77,15 +77,92 @@
 </table>
 </div>
 
+{# Dritarja e +: veprimet për një shtëpi pa dalë nga lista. Pas ruajtjes kthehemi këtu me të njëjtën dritare të hapur. #}
+<dialog class="puna-dialog" id="dritarjaShtepise">
+  <div class="puna-dialog-koka">
+    <h3 id="dsTitulli"></h3>
+    <button type="button" class="btn-ikon" data-mbyll title="Mbyll">✕</button>
+  </div>
+  <div class="ds-trupi">
+    {% if pagesa_e_fundit %}<div id="dsPagesaFundit" hidden>{% include 'pagesat/_pagesa_e_fundit.html' %}</div>{% endif %}
+    <div class="ds-info" id="dsInfo"></div>
+    <div class="ds-butonat">
+      {% if eshte_admin %}<a class="btn-dytësor" data-ds="edito">✏️ Edito shtëpinë</a>{% endif %}
+      {% if mund_regjistroje %}
+      <a class="btn-kryesor" data-ds="antaresia">📋 Paguaj antarësinë</a>
+      <a class="btn-dytësor" data-ds="fondi">🤲 Donacion për Fondin</a>
+      <a class="btn-dytësor" data-ds="varrezat">⚰️ Paguaj varrezat</a>
+      {% endif %}
+      <a class="btn-dytësor" data-ds="kartela">🏠 Kartela e shtëpisë (pagesat)</a>
+    </div>
+  </div>
+</dialog>
 <script>
-// + dhe ✏️ hapin shtëpinë; prej andej "← Kthehu te lista" sjell këtu me të njëjtin kërkim
-document.addEventListener('click', function (e) {
-  var a = e.target.closest('a[data-me-kthim]');
-  if (!a) return;
-  var kerkimi = document.getElementById('kerkoShtepite').value;
-  var kthimi = location.pathname + '?viti={{ viti }}&aktive={% if aktive %}1{% else %}0{% endif %}' + (kerkimi ? '&q=' + encodeURIComponent(kerkimi) : '');
-  a.href = a.href.split('&next=')[0] + (a.href.indexOf('?') === -1 ? '?' : '&') + 'next=' + encodeURIComponent(kthimi);
-});
+(function () {
+  var dritarja = document.getElementById('dritarjaShtepise');
+  var URL = {
+    edito: '{% url "edito_shtepi" 0 %}', kartela: '{% url "detaje_shtepia" 0 %}',
+    antaresia: '{% url "shto_pagese_antaresia" %}?shtepi=0', fondi: '{% url "shto_pagese_fondi" %}?shtepi=0',
+    varrezat: '{% url "shto_pagese_varrezat" %}?shtepi=0'
+  };
+  function kthimi(pk) {   // lista me të njëjtin kërkim, që rihap dritaren e kësaj shtëpie
+    var kerkimi = document.getElementById('kerkoShtepite').value;
+    return location.pathname + '?viti={{ viti }}&aktive={% if aktive %}1{% else %}0{% endif %}'
+      + (kerkimi ? '&q=' + encodeURIComponent(kerkimi) : '') + (pk ? '&hap=' + pk : '');
+  }
+  function lidhja(lloji, pk) {
+    var u = URL[lloji].replace('/0/', '/' + pk + '/').replace('shtepi=0', 'shtepi=' + pk);
+    return u + (u.indexOf('?') === -1 ? '?' : '&') + 'next=' + encodeURIComponent(kthimi(pk));
+  }
+  function hap(pk) {
+    var b = document.querySelector('[data-hap="' + pk + '"]');
+    if (!b) return;
+    var q = b.closest('tr').cells;
+    var nr = q[0].textContent.trim(), emri = [q[2], q[3], q[4]].map(function (c) { return c.textContent.trim(); }).filter(Boolean).join(' ');
+    document.getElementById('dsTitulli').textContent = '#' + nr + ' — ' + emri;
+    var tel = q[5].textContent.trim(), kat = q[6].textContent.trim().replace(/^\+$/, ''), deri = q[7].textContent.trim();
+    var info = document.getElementById('dsInfo');
+    info.innerHTML = '';
+    [['📞', tel || '—'], ['Kategoria', kat || '—'], ['Paguar deri', deri]].forEach(function (x) {
+      var s = document.createElement('span');
+      s.innerHTML = '<small></small> <strong></strong>';
+      s.firstChild.textContent = x[0];
+      s.lastChild.textContent = x[1];
+      if (x[0] === 'Paguar deri' && q[7].classList.contains('me-borxh')) s.className = 'me-borxh';
+      info.appendChild(s);
+    });
+    dritarja.querySelectorAll('[data-ds]').forEach(function (a) { a.href = lidhja(a.dataset.ds, pk); });
+    dritarja.showModal();
+    var kryesori = dritarja.querySelector('[data-ds="antaresia"]') || dritarja.querySelector('[data-ds]');
+    if (kryesori) kryesori.focus();
+  }
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-hap]');
+    if (b) { hap(b.dataset.hap); return; }
+    var a = e.target.closest('a[data-me-kthim]');   // emri dhe ✏️ te rreshti
+    if (a) {
+      a.href = a.href.split(/[?&]next=/)[0] + (a.href.indexOf('?') === -1 ? '?' : '&') + 'next=' + encodeURIComponent(kthimi(a.dataset.pk));
+    }
+  });
+  // Enter te kërkimi: kur ka mbetur vetëm një shtëpi, hape direkt dritaren e saj
+  document.getElementById('kerkoShtepite').addEventListener('keydown', function (e) {
+    if (e.key !== 'Enter') return;
+    var te_dukshme = Array.prototype.filter.call(document.querySelectorAll('#tabelaShtepite [data-hap]'),
+      function (b) { return !b.closest('tr').hidden; });
+    if (te_dukshme.length === 1) { e.preventDefault(); hap(te_dukshme[0].dataset.hap); }
+  });
+  dritarja.querySelector('[data-mbyll]').addEventListener('click', function () { dritarja.close(); });
+  dritarja.addEventListener('click', function (e) { if (e.target === dritarja) dritarja.close(); });   // kliko jashtë = mbyll
+
+  // U kthyem pas një veprimi (?hap=…): rihap dritaren e së njëjtës shtëpi me njoftimin e pagesës
+  var pk = new URLSearchParams(location.search).get('hap');
+  if (pk) {
+    var njoftimi = document.getElementById('dsPagesaFundit');
+    if (njoftimi) njoftimi.hidden = false;
+    document.addEventListener('DOMContentLoaded', function () { hap(pk); });
+    try { var u = new URL(location.href); u.searchParams.delete('hap'); history.replaceState(null, '', u); } catch (x) {}
+  }
+})();
 </script>
 {% if eshte_admin %}
 <template id="zgjedhjaKategorise">
