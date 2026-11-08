@@ -21,7 +21,6 @@
           <th>Email</th>
           <th>Telefoni</th>
           <th>Mund të regjistrojë</th>
-          <th>Email pagese</th>
           <th>Statusi</th>
           <th></th>
         </tr>
@@ -51,7 +50,6 @@
           <td class="tekst-dytësor">{{ s.user.email|default:"—" }}</td>
           <td class="tekst-dytësor">{{ s.nr_telefoni|default:"—" }}</td>
           <td>{% if s.mund_regjistrojë_pagesa %}✅{% else %}❌{% endif %}</td>
-          <td>{% if s.merr_email_pagese %}✅{% else %}❌{% endif %}</td>
           <td>{% if s.është_aktiv %}<span class="badge-gjelbër">Aktiv</span>{% else %}<span class="badge-gri">Joaktiv</span>{% endif %}</td>
           <td>
             <div class="flex gap-3">

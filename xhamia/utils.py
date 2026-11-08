@@ -23,13 +23,9 @@ def _perdoruesi(request):
 
 
 def emailat_e_stafit():
-    """Kush njoftohet për çdo pagesë: emailat zyrtarë (arkëtari, këshilli, imami) dhe stafi që e ka
-    të aktivizuar "Merr email për çdo pagesë"."""
-    from .models import ProfilStafi
-    stafi = ProfilStafi.objects.filter(
-        merr_email_pagese=True, është_aktiv=True, user__is_active=True,
-    ).exclude(user__email='').values_list('user__email', flat=True)
-    return list(dict.fromkeys(e.strip().lower() for e in list(settings.EMAILET_ZYRTARE) + list(stafi) if e))
+    """Kush njoftohet për çdo pagesë: VETËM emailat zyrtarë (xhamia, kryetari i këshillit, imami) —
+    asnjë email personal i stafit."""
+    return list(dict.fromkeys(e.strip().lower() for e in settings.EMAILET_ZYRTARE if e))
 
 
 def _dergo(subjekti, template, pagese, email_i_paguesit, request, shtepi=None, stafit=False):

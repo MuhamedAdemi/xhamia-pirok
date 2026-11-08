@@ -11,7 +11,7 @@ from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from docx.shared import Cm, Pt, RGBColor
 
-from .fletorja import BORXH, JO_ANETAR, PAGUAR, kategorite_e_pagesave
+from .fletorja import SHPJEGIMI, plotëso_qelizat
 
 BLU = RGBColor(0x1F, 0x4E, 0x79)
 GRI = RGBColor(0x8E, 0x8E, 0x93)
@@ -75,34 +75,20 @@ def _shkruaj(qeliza, teksti, madhesia=9, bold=False, ngjyra=None, qender=False):
 
 # ─── Fletorja ──────────────────────────────────────────────────────────────────
 
-def vlera_e_vitit(r, j, viti, kategorite):
-    """Çka shkruhet në qelizën e vitit: kategoria 1–4 kur ka pagesë të regjistruar, ✓ kur dihet vetëm se
-    ka paguar, bosh kur ka borxh, – kur nuk ishte anëtar, G kur është i liruar."""
-    if r['gratis']:
-        return 'G'
-    s = r['statuset'][j]
-    if s == PAGUAR:
-        return str(kategorite.get(r['shtepia'].id, {}).get(viti, '✓'))
-    if s == JO_ANETAR:
-        return '–'
-    return ''
-
-
 def fletorja_word(vitet, rreshtat, data, filtri=''):
-    kategorite = kategorite_e_pagesave()
+    plotëso_qelizat(vitet, rreshtat)
     landscape = len(vitet) > 4
     doc = _dokumenti(landscape)
     gjeresia_faqes = 27.3 if landscape else 18.6
 
     p = doc.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    run = p.add_run('LISTA E ANËTARËVE DHE EVIDENCA E PAGESAVE')
+    run = p.add_run('FLETORJA E SHTËPIVE — ANTARËSIA')
     run.bold, run.font.size, run.font.color.rgb = True, Pt(13), BLU
     p = doc.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
     pershkrimi = {'borxh': ' me borxh', 'paguar': ' pa borxh'}.get(filtri, '')
-    run = p.add_run(f'Gjendja më {data.strftime("%d.%m.%Y")} · {len(rreshtat)} kryefamiljarë{pershkrimi}   ·   '
-                    f'1–4 = kategoria e pagesës · ✓ = paguar · bosh = pa paguar · – = s\'ishte anëtar · G = i liruar')
+    run = p.add_run(f'Gjendja më {data.strftime("%d.%m.%Y")} · {len(rreshtat)} kryefamiljarë{pershkrimi}   ·   {SHPJEGIMI}')
     run.font.size, run.font.color.rgb = Pt(7.5), GRI
     p.paragraph_format.space_after = Pt(6)
 
@@ -123,18 +109,16 @@ def fletorja_word(vitet, rreshtat, data, filtri=''):
 
     for r in rreshtat:
         sh = r['shtepia']
-        vlerat = [r['nr'], sh.emri_kryefamiljarit, sh.emri_prindit, sh.mbiemri_kryefamiljarit,
-                  'G' if r['gratis'] else '', r['nr_viteve_te_vjetra'] or '']
-        vlerat += [vlera_e_vitit(r, j, v, kategorite) for j, v in enumerate(vitet)]
+        vlerat = [r['nr'], sh.emri_kryefamiljarit, sh.emri_prindit, sh.mbiemri_kryefamiljarit, r['kat'], r['borxh']]
+        vlerat += r['vlerat']
         rreshti = tabela.add_row()
         _mos_ndaj(rreshti)
         for i, (q, v) in enumerate(zip(rreshti.cells, vlerat)):
             q.width = gjeresite[i]
-            if i == 5 and v:
-                _shkruaj(q, v, 9, bold=True, ngjyra=RGBColor(0xCC, 0x00, 0x00), qender=True)
-            elif i >= 6 and v == '✓':
-                _shkruaj(q, v, 7, ngjyra=GRI, qender=True)
-            elif i >= 6:
+            if i == 5:
+                _shkruaj(q, v, 9, bold=v not in ('/', 'G'), qender=True,
+                         ngjyra=GRI if v in ('/', 'G') else RGBColor(0xCC, 0x00, 0x00))
+            elif i == 4 or i >= 6:
                 _shkruaj(q, v, 9, bold=True, qender=True)
             else:
                 _shkruaj(q, v, 9, qender=i in (0, 4))

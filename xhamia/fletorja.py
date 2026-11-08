@@ -13,11 +13,32 @@ from django.db import transaction
 from django.utils import timezone
 
 from .gjendja import gjendja_e_shtepive, kategorite_gratis, vitet_tekst
-from .kategorite import kategorite_e_pagesave  # noqa: F401 (përdoret te word.py)
 from .models import PagesaAntaresia, Shtepia
 
 PAGUAR, BORXH = 'Paguar', 'Borxh'
 JO_ANETAR = '-'   # vit para fillimit të antarësisë (që leximi i PDF-së të mos i ngatërrojë vitet)
+
+
+# Alfabeti shqip — për renditjen A, B, C, Ç, D, DH, E, Ë … SH, T, TH, U, V, X, XH, Y, Z, ZH
+_ALFABETI = ['a', 'b', 'c', 'ç', 'd', 'dh', 'e', 'ë', 'f', 'g', 'gj', 'h', 'i', 'j', 'k', 'l', 'll', 'm', 'n',
+             'nj', 'o', 'p', 'q', 'r', 'rr', 's', 'sh', 't', 'th', 'u', 'v', 'x', 'xh', 'y', 'z', 'zh']
+_RENDI = {s: i for i, s in enumerate(_ALFABETI)}
+
+
+def celesi_shqip(teksti):
+    """Çelësi i renditjes sipas alfabetit shqip: "Shaban" pas "Sylejman", "Xhemajl" pas "Xhevat" e para "Ymer"."""
+    t, i, celesi = (teksti or '').lower(), 0, []
+    while i < len(t):
+        dy = t[i:i + 2]
+        if dy in _RENDI:
+            celesi.append(_RENDI[dy] + 1); i += 2
+        elif t[i] in _RENDI:
+            celesi.append(_RENDI[t[i]] + 1); i += 1
+        elif t[i].isspace():
+            celesi.append(0); i += 1          # "Ali Beqiri" para "Alim …"
+        else:
+            celesi.append(100 + ord(t[i])); i += 1
+    return celesi
 
 
 def vitet_e_fletores(viti_aktual=None):
@@ -44,7 +65,7 @@ def rreshtat_e_fletores(shtepite=None, filtri='', vitet=None):
     vitet = vitet or vitet_e_fletores(viti_aktual)
     if shtepite is None:
         shtepite = Shtepia.objects.filter(është_aktiv=True).select_related('kategoria')
-    shtepite = sorted(shtepite, key=lambda s: (s.emri_i_plote.lower(), s.nr_shtepise))
+    shtepite = sorted(shtepite, key=lambda s: (celesi_shqip(s.emri_i_plote), s.nr_shtepise))
     gjendja = gjendja_e_shtepive(shtepite)
     mbuluara = _vitet_e_mbuluara()
     gratis = kategorite_gratis()
@@ -81,6 +102,101 @@ def rreshtat_e_fletores(shtepite=None, filtri='', vitet=None):
     for i, r in enumerate(rreshtat, 1):
         r['nr'] = i
     return vitet, rreshtat
+
+
+def plotëso_qelizat(vitet, rreshtat):
+    """Vlerat si në fletoren e shtëpive (në letër), për Word / PDF / Excel:
+    - 'kat': kategoria e shtëpisë (1–4, G), bosh kur s'ka;
+    - 'borxh': sa vite borxh para vitit të parë (p.sh. paguar deri 2021, viti i parë 2025 → 3), '/' kur s'ka;
+    - 'vlerat': për çdo vit — kategoria e pagesës (nga shuma e regjistruar), ose kategoria e shtëpisë kur shuma
+      nuk dihet, ose '+' kur s'ka kategori; bosh = pa paguar; '–' = s'ishte ende anëtar; 'G' = i liruar."""
+    from .kategorite import kategorite_e_pagesave, numrat_e_kategorive
+    numrat = numrat_e_kategorive()
+    kategorite = kategorite_e_pagesave()
+    for r in rreshtat:
+        sh = r['shtepia']
+        kat = numrat.get(sh.kategoria_id, '')
+        r['kat'] = kat
+        r['borxh'] = 'G' if r['gratis'] else (str(r['nr_viteve_te_vjetra']) if r['nr_viteve_te_vjetra'] else '/')
+        vlerat = []
+        for viti, s in zip(vitet, r['statuset']):
+            if r['gratis']:
+                vlerat.append('G')
+            elif s == PAGUAR:
+                vlerat.append(str(kategorite.get(sh.id, {}).get(viti) or (kat if kat.isdigit() else '+')))
+            elif s == JO_ANETAR:
+                vlerat.append('–')
+            else:
+                vlerat.append('')
+        r['vlerat'] = vlerat
+    return rreshtat
+
+
+SHPJEGIMI = ('Kat. = kategoria e shtëpisë · Borxh = vite pa paguar para vitit të parë (/ = pa borxh) · '
+             'në vit: 1–4 = kategoria e pagesës · + = paguar, pa kategori · bosh = pa paguar · '
+             '– = s\'ishte anëtar · G = i liruar')
+
+
+def fletorja_shtepive_pdf(vitet, rreshtat, data, filtri=''):
+    """Fletorja e shtëpive për printim: Nr · Emri Prindi Mbiemri · Kat. · Borxh · vitet (si në letër)."""
+    from io import BytesIO
+
+    from reportlab.lib import colors
+    from reportlab.lib.enums import TA_CENTER
+    from reportlab.lib.pagesizes import A4, landscape
+    from reportlab.lib.styles import ParagraphStyle
+    from reportlab.lib.units import cm
+    from reportlab.platypus import LongTable, Paragraph, SimpleDocTemplate, Spacer, TableStyle
+
+    plotëso_qelizat(vitet, rreshtat)
+    blu, kuq = colors.HexColor('#1F4E79'), colors.HexColor('#CC0000')
+    titulli = ParagraphStyle('t', fontName='Helvetica-Bold', fontSize=14, textColor=blu, alignment=TA_CENTER)
+    nen = ParagraphStyle('n', fontName='Helvetica', fontSize=7.5, textColor=colors.HexColor('#6E6E73'), alignment=TA_CENTER)
+
+    faqja = landscape(A4) if len(vitet) > 5 else A4
+    koka = ['Nr.', 'Emri  Prindi  Mbiemri', 'Kat.', 'Borxh'] + [str(v) for v in vitet]
+    te_dhenat = [koka] + [[r['nr'], r['shtepia'].emri_i_plote, r['kat'], r['borxh']] + r['vlerat'] for r in rreshtat]
+    fikse = [1.1 * cm, 0, 1.2 * cm, 1.4 * cm]
+    viti_gj = 1.5 * cm
+    fikse[1] = faqja[0] - 2.4 * cm - (fikse[0] + fikse[2] + fikse[3]) - viti_gj * len(vitet)
+    stili = [
+        ('FONT', (0, 0), (-1, -1), 'Helvetica', 9),
+        ('FONT', (0, 0), (-1, 0), 'Helvetica-Bold', 9),
+        ('BACKGROUND', (0, 0), (-1, 0), blu),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('ALIGN', (1, 1), (1, -1), 'LEFT'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('FONT', (2, 1), (-1, -1), 'Helvetica-Bold', 10),
+        ('TEXTCOLOR', (3, 1), (3, -1), kuq),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#8EA3BF')),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F3F6FA')]),
+        ('TOPPADDING', (0, 0), (-1, -1), 3), ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+    ]
+    for i, r in enumerate(rreshtat, 1):
+        if r['borxh'] in ('/', 'G'):
+            stili.append(('TEXTCOLOR', (3, i), (3, i), colors.HexColor('#6E6E73')))
+    tabela = LongTable(te_dhenat, colWidths=fikse + [viti_gj] * len(vitet), repeatRows=1)
+    tabela.setStyle(TableStyle(stili))
+
+    def fundi(canvas, doc):
+        canvas.saveState()
+        canvas.setFont('Helvetica', 7.5)
+        canvas.setFillColor(colors.HexColor('#6E6E73'))
+        canvas.drawRightString(doc.pagesize[0] - 1.2 * cm, 0.7 * cm,
+                               f'Xhamia Pirok — Fletorja e shtëpive, {data.strftime("%d.%m.%Y")} — faqja {doc.page}')
+        canvas.restoreState()
+
+    pershkrimi = {'borxh': ' me borxh', 'paguar': ' pa borxh'}.get(filtri, '')
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=faqja, leftMargin=1.2 * cm, rightMargin=1.2 * cm,
+                            topMargin=1.1 * cm, bottomMargin=1.3 * cm, title='Fletorja e shtëpive', author='Xhamia Pirok')
+    doc.build([
+        Paragraph('FLETORJA E SHTËPIVE — ANTARËSIA', titulli), Spacer(1, 3),
+        Paragraph(f'Gjendja më {data.strftime("%d.%m.%Y")} · {len(rreshtat)} kryefamiljarë{pershkrimi} · {SHPJEGIMI}', nen),
+        Spacer(1, 7), tabela,
+    ], onFirstPage=fundi, onLaterPages=fundi)
+    return buffer.getvalue()
 
 
 # ─── Leximi i fletores PDF ─────────────────────────────────────────────────────

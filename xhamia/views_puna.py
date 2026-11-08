@@ -272,7 +272,7 @@ def puna_fletorja(request):
     return render(request, 'puna/fletorja.html', {
         'raporti': raporti, 'eshte_admin': është_admin(request.user),
         'vitet': fletorja.vitet_e_fletores(), 'te_gjitha_vitet': list(range(2015, viti + 6)),
-        'nga': viti - 1, 'deri': viti, 'faqja_aktive': 'puna_fletorja',
+        'nga': viti - 1, 'deri': viti + 1, 'faqja_aktive': 'puna_fletorja',
     })
 
 
@@ -315,7 +315,11 @@ def fletorja_shkarko(request, formati):
         resp = HttpResponse(word.fletorja_word(vitet, rreshtat, data, filtri), content_type=WORD)
         resp['Content-Disposition'] = f'attachment; filename="{emri}.docx"'
         return resp
-    resp = HttpResponse(fletorja.fletorja_pdf(vitet, rreshtat, data, filtri), content_type='application/pdf')
+    if formati == 'krahasim':   # formati i vjetër Paguar/Borxh — e lexon "Krahaso një fletore me aplikacionin"
+        resp = HttpResponse(fletorja.fletorja_pdf(vitet, rreshtat, data, filtri), content_type='application/pdf')
+        resp['Content-Disposition'] = f'attachment; filename="{emri}_krahasim.pdf"'
+        return resp
+    resp = HttpResponse(fletorja.fletorja_shtepive_pdf(vitet, rreshtat, data, filtri), content_type='application/pdf')
     resp['Content-Disposition'] = f'attachment; filename="{emri}.pdf"'
     return resp
 
@@ -327,27 +331,30 @@ def _fletorja_excel(emri, vitet, rreshtat, data):
     wb = Workbook()
     ws = wb.active
     ws.title = 'Fletorja'
-    ws.append([f'LISTA E ANËTARËVE DHE EVIDENCA E PAGESAVE — {data.strftime("%d.%m.%Y")}'])
+    fletorja.plotëso_qelizat(vitet, rreshtat)
+    ws.append([f'FLETORJA E SHTËPIVE — ANTARËSIA — {data.strftime("%d.%m.%Y")}'])
     ws['A1'].font = Font(bold=True, size=14, color='1F4E79')
-    koka = ['Nr.', 'Nr. Sh.', 'Kryefamiljari', 'Kategoria', f'Borxh të vjetra ({vitet[0] - 1}, {vitet[0] - 2}...)'] \
-        + [str(v) for v in vitet] + ['Shënime']
+    koka = ['Nr.', 'Nr. Sh.', 'Emri', 'Prindi', 'Mbiemri', 'Kat.', 'Borxh'] + [str(v) for v in vitet] \
+        + ['Vitet e borxhit të vjetër', 'Shënime']
     ws.append(koka)
     for c in ws[2]:
         c.font = Font(bold=True, color='FFFFFF')
         c.fill = PatternFill('solid', fgColor='1F4E79')
         c.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
-    ngjyrat = {fletorja.PAGUAR: Font(bold=True, color='38761D'), fletorja.BORXH: Font(color='CC5500')}
+    qender, bold, kuq = Alignment(horizontal='center'), Font(bold=True), Font(bold=True, color='CC0000')
     for r in rreshtat:
         sh = r['shtepia']
-        ws.append([r['nr'], sh.nr_shtepise, sh.emri_i_plote, r['kategoria'], r['borxh_te_vjetra']]
-                  + r['statuset'] + [r['shenime']])
-        for j, s in enumerate(r['statuset']):
-            if s in ngjyrat:
-                c = ws.cell(row=ws.max_row, column=6 + j)
-                c.font = ngjyrat[s]
-                c.alignment = Alignment(horizontal='center')
-    for kol, gjeresia in zip('ABCDE', (6, 8, 34, 12, 16)):
+        ws.append([r['nr'], sh.nr_shtepise, sh.emri_kryefamiljarit, sh.emri_prindit, sh.mbiemri_kryefamiljarit,
+                   r['kat'], r['borxh']] + r['vlerat'] + [r['borxh_te_vjetra'], r['shenime']])
+        rr = ws.max_row
+        for kol in range(6, 8 + len(vitet)):
+            ws.cell(row=rr, column=kol).alignment = qender
+            ws.cell(row=rr, column=kol).font = bold
+        if r['borxh'] not in ('/', 'G'):
+            ws.cell(row=rr, column=7).font = kuq
+    for kol, gjeresia in zip('ABCDEFG', (6, 8, 16, 14, 18, 6, 7)):
         ws.column_dimensions[kol].width = gjeresia
+    ws.column_dimensions[ws.cell(row=2, column=len(koka) - 1).column_letter].width = 20
     ws.column_dimensions[ws.cell(row=2, column=len(koka)).column_letter].width = 26
     ws.freeze_panes = 'C3'
     ws.print_title_rows = '2:2'

@@ -32,14 +32,16 @@
       <button type="submit" class="btn-kryesor" formaction="{% url 'fletorja_shkarko' 'word' %}">📝 Word për printim (A4)</button>
       <button type="submit" class="btn-dytësor" formaction="{% url 'fletorja_shkarko' 'pdf' %}">📄 PDF</button>
       <button type="submit" class="btn-dytësor" formaction="{% url 'fletorja_shkarko' 'excel' %}">📊 Excel</button>
+      {% if eshte_admin %}<button type="submit" class="btn-dytësor" formaction="{% url 'fletorja_shkarko' 'krahasim' %}" title="Formati Paguar/Borxh që lexohet te Krahasimi">PDF për krahasim</button>{% endif %}
     </form>
     <div class="ndihma" style="margin-top:10px; line-height:1.7;">
       Fletorja ndërtohet çdo herë nga e para, prandaj përfshin çdo pagesë dhe korrigjim deri në këtë moment.<br>
-      <strong>Në Word:</strong> kolonat Nr. · Emri · Emri i prindit · Mbiemri · Kat. · Borxh (sa vite borxh para vitit të parë) · vitet.
-      Në qelizën e vitit: <strong>1–4</strong> = kategoria sipas shumës së regjistruar (1 = 120 € / 7000 den e më shumë, 2 = 100 € / 6000 den,
-      3 = 80 € / 5000 den, 4 = 70 € / 4000–4300 den) · <strong>✓</strong> = ka paguar, por shuma nuk është regjistruar
-      (kategorinë e shënoni ju me dorë) · <strong>bosh</strong> = pa paguar · <strong>–</strong> = s'ishte ende anëtar · <strong>G</strong> = i liruar (gratis).
-      Deri në 4 vite del A4 vertikale, me më shumë vite A4 horizontale.
+      Renditja: sipas alfabetit shqip (A, B, C, Ç, D, DH … SH … XH, Y, Z, ZH). Kolonat (Word, PDF, Excel):
+      Nr. · Emri · Prindi · Mbiemri · <strong>Kat.</strong> (kategoria e shtëpisë, bosh kur s'ka) ·
+      <strong>Borxh</strong> (sa vite pa paguar para vitit të parë, p.sh. paguar deri 2021 → 3; <strong>/</strong> = pa borxh) · vitet.<br>
+      Në qelizën e vitit: <strong>1–4</strong> = kategoria e pagesës (nga shuma e regjistruar; kur shuma nuk dihet, kategoria e shtëpisë) ·
+      <strong>+</strong> = ka paguar, por shtëpia s'ka kategori · <strong>bosh</strong> = pa paguar · <strong>–</strong> = s'ishte ende anëtar ·
+      <strong>G</strong> = i liruar (gratis).
     </div>
   </div>
 </div>

@@ -130,7 +130,6 @@ class ProfilStafi(models.Model):
     pozita = models.CharField(max_length=100, blank=True, verbose_name='Pozita në Xhami')
     rol = models.CharField(max_length=10, choices=ROL_CHOICES, default='STAF')
     mund_regjistrojë_pagesa = models.BooleanField(default=False, verbose_name='Mund të regjistrojë pagesa')
-    merr_email_pagese = models.BooleanField(default=True, verbose_name='Merr email për çdo pagesë')
     është_aktiv = models.BooleanField(default=True)
     shtuar_nga = models.ForeignKey(
         User, on_delete=models.SET_NULL, null=True, blank=True,

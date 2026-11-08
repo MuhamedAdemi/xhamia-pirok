@@ -655,13 +655,13 @@ class MonitoruesEmailStafiTest(TestCase):
         self.client.force_login(self.admin)
         # pa email te paguesi: s'ka buton email
         self.assertNotContains(self.client.get(reverse('detaje_pagesa_antaresia', args=[self.p.pk])), 'Dërgo Email')
-        # regjistrimi i pagesës → email automatik te stafi (zyrtarët + stafi me "Merr email për çdo pagesë")
+        # regjistrimi i pagesës → email automatik vetëm te emailat zyrtarë (jo te emaili personal i stafit)
         r = self.client.post(reverse('shto_pagese_antaresia'), {
             'blloku': '1100', 'nr_fatures': '046387', 'shtepia': self.sh.pk, 'viti': 2027, 'viti_deri': 2027,
             'data_pageses': date.today().isoformat(), 'shuma_hyrese': '70', 'monedha': 'EUR'}, follow=True)
         self.assertContains(r, 'stafi u njoftua me email')
         self.assertEqual(len(mail.outbox), 1)
-        self.assertEqual(sorted(mail.outbox[0].to), sorted(list(settings.EMAILET_ZYRTARE) + ['arketari@example.com']))
+        self.assertEqual(sorted(mail.outbox[0].to), sorted(settings.EMAILET_ZYRTARE))
         self.assertEqual(mail.outbox[0].subject, 'Muhamed Mesud Ademi — Bl 1100 Nr 046387 — Antarësia 2027 — Xhamia Pirok')
         # butoni i dërgon vetëm paguesit
         self.sh.email = 'familja@example.com'
@@ -1127,7 +1127,11 @@ class FletorjaEAntaresiseTest(TestCase):
         from io import BytesIO
         from . import fletorja
         self.assertContains(self.client.get(reverse('puna_fletorja')), 'Word për printim')
+        # PDF-ja e re për printim (Nr · Emri · Kat. · Borxh · vitet)
         r = self.client.get(reverse('fletorja_shkarko', args=['pdf']))
+        self.assertEqual(r['Content-Type'], 'application/pdf')
+        # PDF-ja "për krahasim" (Paguar/Borxh) lexohet përsëri pa ndryshime
+        r = self.client.get(reverse('fletorja_shkarko', args=['krahasim']))
         self.assertEqual(r['Content-Type'], 'application/pdf')
         viti_i_pare, rreshtat = fletorja.lexo_fletoren(BytesIO(r.content))
         self.assertEqual((viti_i_pare, len(rreshtat)), (self.V - 1, 5))
@@ -1143,8 +1147,9 @@ class FletorjaEAntaresiseTest(TestCase):
         from openpyxl import load_workbook
         ws = load_workbook(BytesIO(r.content)).active
         emrat = [ws.cell(row=i, column=3).value for i in range(3, ws.max_row + 1)]
-        self.assertEqual(emrat, ['Agim Baba Gashi', 'Driton Baba Gashi', 'Ermal Baba Gashi', 'Fatos Baba Gashi'])
-        self.assertEqual(ws.cell(row=6, column=6).value, '-')    # Fatos s'ishte antar vitin e kaluar
+        self.assertEqual(emrat, ['Agim', 'Driton', 'Ermal', 'Fatos'])
+        self.assertEqual([c.value for c in ws[2]][:8], ['Nr.', 'Nr. Sh.', 'Emri', 'Prindi', 'Mbiemri', 'Kat.', 'Borxh', str(self.V - 1)])
+        self.assertEqual(ws.cell(row=6, column=8).value, '–')    # Fatos s'ishte antar vitin e kaluar
 
     def test_stafi_jo_admin_shkarkon_por_nuk_korrigjon(self):
         staf = User.objects.create_user('staf', password='x')
@@ -1172,9 +1177,24 @@ class FletorjaEAntaresiseTest(TestCase):
         r = self.client.get(reverse('fletorja_shkarko', args=['word']), {'nga': V - 1, 'deri': V + 1})
         tabela = Document(BytesIO(r.content)).tables[0]
         rreshtat = {row.cells[1].text: [c.text for c in row.cells] for row in tabela.rows[1:]}
-        self.assertEqual(rreshtat['Agim'][4:], ['', '', '✓', '4', ''])      # V-1 historik ✓, V me 4300 den
-        self.assertEqual(rreshtat['Besim'][6:], ['✓', '✓', '1'])
-        self.assertEqual(rreshtat['Driton'][4:], ['G', '', 'G', 'G', 'G'])  # i liruar: pa borxh
+        self.assertEqual(rreshtat['Agim'][4:], ['', '/', '+', '4', ''])     # pa kategori: V-1 historik +, V me 4300 den
+        self.assertEqual(rreshtat['Besim'][6:], ['+', '+', '1'])
+        self.assertEqual(rreshtat['Driton'][4:], ['G', 'G', 'G', 'G', 'G'])  # i liruar: pa borxh
+        # me kategori të shtëpisë: viti i paguar pa shumë merr kategorinë e shtëpisë; borxhi i vjetër si numër
+        k2 = Kategoria.objects.create(emri='Mesatare', shuma_vjetore=100, shuma_vjetore_mkd=6000)
+        Kategoria.objects.create(emri='E Larta', shuma_vjetore=120, shuma_vjetore_mkd=7000)
+        self.vetem_viti.kategoria = k2
+        self.vetem_viti.save()
+        Shtepia.objects.create(nr_shtepise='0006', emri_kryefamiljarit='Gëzim', mbiemri_kryefamiljarit='Gashi',
+                               viti_fillimit_antaresise=V - 8, paguar_deri_viti=V - 5)
+        r = self.client.get(reverse('fletorja_shkarko', args=['word']), {'nga': V - 1, 'deri': V + 1})
+        tabela = Document(BytesIO(r.content)).tables[0]
+        rreshtat = {row.cells[1].text: [c.text for c in row.cells] for row in tabela.rows[1:]}
+        self.assertEqual(rreshtat['Agim'][4:], ['2', '/', '2', '2', ''])   # me 2 kategori, 4300 den = më e ulëta (2)
+        self.assertEqual(rreshtat['Gëzim'][5], '3')    # paguar deri V-5 → borxh V-4, V-3, V-2 = 3 vite
+        Shtepia.objects.filter(nr_shtepise='0006').delete()
+        self.vetem_viti.kategoria = None
+        self.vetem_viti.save()
         self.assertEqual(rreshtat['Fatos'][6:], ['–', '', ''])
 
         grupet, totali = evidenca.evidenca([V])
@@ -1370,3 +1390,11 @@ class KategoriteDheShumatSipasViteveTest(TestCase):
         self.assertNotContains(r, 'class="ev-kat"')   # forma pa shenjën "Me kategoritë"
         r = self.client.get(reverse('evidenca_antaresise'), {'vitet': [self.V - 1, self.V], 'kategorite': '1', 'shkarko': 'pdf'})
         self.assertEqual(r['Content-Type'], 'application/pdf')
+
+
+class RenditjaShqipTest(TestCase):
+    def test_alfabeti_shqip(self):
+        from .fletorja import celesi_shqip
+        emrat = ['Zenel', 'Shaban', 'Sylejman', 'Xhevat', 'Xhemajl', 'Ymer', 'Çerkin', 'Dhurata', 'Driton', 'Ali Beqiri', 'Alim']
+        self.assertEqual(sorted(emrat, key=celesi_shqip),
+                         ['Ali Beqiri', 'Alim', 'Çerkin', 'Driton', 'Dhurata', 'Sylejman', 'Shaban', 'Xhemajl', 'Xhevat', 'Ymer', 'Zenel'])
