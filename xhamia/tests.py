@@ -295,7 +295,7 @@ class BllokuMonedhatRegjistriTest(TestCase):
         rreshtat, gjithsej = raporti.ndertoj_regjistrin('antaresia', 2026, 'vit')
         tipet = [r['tip'] for r in rreshtat]
         self.assertEqual(tipet, ['titull', 'pagese', 'pagese', 'bllok', 'muaj', 'titull', 'pagese', 'bllok', 'muaj',
-                                 'tremujor', 'gjashtemujor', 'gjithsej'])
+                                 'tremujor', 'gjithsej'])
         self.assertEqual(rreshtat[3]['totali'].shumat['MKD'], Decimal('10000'))
         self.assertEqual(rreshtat[3]['totali'].shumat['EUR'], Decimal('70'))
         self.assertEqual((gjithsej.nr, gjithsej.vite), (3, 4))
@@ -304,6 +304,36 @@ class BllokuMonedhatRegjistriTest(TestCase):
         self.assertContains(r, 'Bllok 1262')
         r = self.client.get(reverse('regjistri') + '?lloji=fondi&viti=2026&eksporto=excel')
         self.assertEqual(r.status_code, 200)
+
+    def test_regjistri_3_6_9_muaj_statistika_dhe_pdf(self):
+        from io import BytesIO
+        from openpyxl import load_workbook
+        from . import raporti
+        self._paguaj(nr_fatures='000001', data_pageses='2026-02-10', viti=2024, viti_deri=2024)                       # 10000 den
+        self._paguaj(nr_fatures='000002', data_pageses='2026-05-10', viti=2025, viti_deri=2025, monedha='EUR', shuma_hyrese='70')
+        self._paguaj(nr_fatures='000003', data_pageses='2026-08-10', viti=2026, viti_deri=2026, monedha='EUR', shuma_hyrese='100')
+        self._paguaj(nr_fatures='000004', data_pageses='2026-11-10', viti=2027, viti_deri=2027, monedha='EUR', shuma_hyrese='120')
+        rreshtat, gjithsej = raporti.ndertoj_regjistrin('antaresia', 2026, 'vit')
+        kum = [(r['etiketa'], r['totali'].nr, r['totali'].shumat['EUR']) for r in rreshtat if r['tip'] == 'kumulativ']
+        self.assertEqual(kum, [('GJITHSEJ — 3 muajt e parë (Jan–Mar)', 1, Decimal('0')),
+                               ('GJITHSEJ — 6 muajt e parë (Jan–Qer)', 2, Decimal('70')),
+                               ('GJITHSEJ — 9 muajt e parë (Jan–Sht)', 3, Decimal('170'))])
+        self.assertEqual([r['tip'] for r in rreshtat][-4:], ['bllok', 'muaj', 'tremujor', 'gjithsej'])
+        stat = {r['etiketa']: r['totali'] for r in raporti.statistika_vjetore('antaresia', 2026)}
+        self.assertEqual(stat['Shkurt'].shumat['MKD'], Decimal('10000'))
+        self.assertEqual(stat['Tremujori II (Pri–Qer)'].shumat['EUR'], Decimal('70'))
+        self.assertEqual(stat['Gjithsej 9 muajt e parë (Jan–Sht)'].nr, 3)
+        self.assertEqual((stat['GJITHSEJ VITI 2026'].nr, stat['GJITHSEJ VITI 2026'].shumat['EUR']), (4, Decimal('290')))
+        r = self.client.get(reverse('regjistri') + '?lloji=antaresia&viti=2026&periudha=vit')
+        self.assertContains(r, 'Statistika 2026')
+        self.assertContains(r, 'GJITHSEJ — 6 muajt e parë')
+        r = self.client.get(reverse('regjistri') + '?lloji=antaresia&viti=2026&periudha=vit&eksporto=pdf')
+        self.assertEqual(r['Content-Type'], 'application/pdf')
+        r = self.client.get(reverse('regjistri') + '?lloji=fondi&viti=2026&periudha=vit&eksporto=pdf')
+        self.assertEqual(r['Content-Type'], 'application/pdf')
+        wb = load_workbook(BytesIO(raporti.regjistri_excel('antaresia', 2026, 'vit')))
+        self.assertEqual(wb.sheetnames[1], 'Statistika')
+        self.assertEqual(wb['Statistika'].cell(row=4, column=1).value, 'Janar')
 
     def test_csv_borxhlinjte(self):
         from io import BytesIO

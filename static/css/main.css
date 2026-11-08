@@ -633,7 +633,7 @@ a:hover { text-decoration: underline; }
 .tabela-regjistri .total-bllok td { background: var(--krem-errët); border-bottom: 2px solid var(--tekst-kryesor); }
 .tabela-regjistri .total-muaj td { background: #D9EAD3; }
 .tabela-regjistri .total-tremujor td { background: #C9DAF8; }
-.tabela-regjistri .total-gjashtemujor td { background: #B4C7E7; }
+.tabela-regjistri .total-kumulativ td { background: #B4C7E7; }
 .tabela-regjistri .total-gjithsej td { background: #F6B26B; font-size: 15px; }
 
 /* ─── Butoni 👁️ te fjalëkalimi ─────────────────────────────────────────── */

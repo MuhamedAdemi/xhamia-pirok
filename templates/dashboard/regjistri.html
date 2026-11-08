@@ -6,7 +6,7 @@
 <div class="page-header">
   <div>
     <h2>📒 Regjistri i Pagesave</h2>
-    <p>Si fletorja: sipas radhës, me total për çdo bllok, muaj, tremujor, gjashtëmujor dhe vit</p>
+    <p>Si fletorja: sipas radhës, me total për çdo bllok, muaj, tremujor, gjithsej 3 / 6 / 9 muajt e parë dhe vit — për Antarësinë, Fondin dhe Varrezat</p>
   </div>
 </div>
 
@@ -22,7 +22,8 @@
       {% for k, emri in periudhat %}<option value="{{ k }}" {% if k == periudha %}selected{% endif %}>{{ emri }}</option>{% endfor %}
     </select>
     <button type="submit" class="btn-kryesor btn-sm">Shfaq</button>
-    <button type="submit" name="eksporto" value="excel" class="btn-dytësor btn-sm">⬇️ Shkarko Excel</button>
+    <button type="submit" name="eksporto" value="excel" class="btn-dytësor btn-sm">📊 Excel</button>
+    <button type="submit" name="eksporto" value="pdf" class="btn-dytësor btn-sm">📄 PDF</button>
     <button type="button" class="btn-dytësor btn-sm" onclick="window.print()">🖨️ Printo</button>
   </form>
 </div>
@@ -49,6 +50,31 @@
     <div class="stat-nën">gjithçka e konvertuar</div>
   </div>
 </div>
+
+{% if statistika %}
+<div class="card" style="margin-bottom:20px;">
+  <div class="card-header"><h5>📊 Statistika {{ viti }} — muaj për muaj, tremujorët dhe gjithsej 3 / 6 / 9 / 12 muaj</h5></div>
+  <div style="overflow-x:auto;">
+    <table class="tabela-xhami tabela-regjistri">
+      <thead><tr><th>Periudha</th><th class="djathtas">Pagesa</th><th class="djathtas">Denarë</th><th class="djathtas">Euro</th>
+        <th class="djathtas">Franga</th><th class="djathtas">Dollar</th><th class="djathtas">Gjithsej në €</th></tr></thead>
+      <tbody>
+        {% for r in statistika %}
+        <tr class="{% if r.tip != 'muaj' %}rresht-total total-{{ r.tip }}{% endif %}">
+          <td>{{ r.etiketa }}</td>
+          <td class="djathtas">{{ r.totali.nr|default:"" }}</td>
+          <td class="djathtas">{{ r.totali.shumat.MKD|shuma:"MKD" }}</td>
+          <td class="djathtas">{{ r.totali.shumat.EUR|shuma:"EUR" }}</td>
+          <td class="djathtas">{{ r.totali.shumat.CHF|shuma:"CHF" }}</td>
+          <td class="djathtas">{{ r.totali.shumat.USD|shuma:"USD" }}</td>
+          <td class="djathtas">{{ r.totali.eur|shuma:"EUR" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
 
 <div class="card">
   <div style="overflow-x:auto;">

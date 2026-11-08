@@ -469,6 +469,10 @@ def regjistri(request):
         )
         resp['Content-Disposition'] = f'attachment; filename="regjistri_{lloji}_{viti}_{periudha}.xlsx"'
         return resp
+    if request.GET.get('eksporto') == 'pdf':
+        resp = HttpResponse(raporti.regjistri_pdf(lloji, viti, periudha), content_type='application/pdf')
+        resp['Content-Disposition'] = f'attachment; filename="regjistri_{lloji}_{viti}_{periudha}.pdf"'
+        return resp
 
     rreshtat, gjithsej = raporti.ndertoj_regjistrin(lloji, viti, periudha)
     return render(request, 'dashboard/regjistri.html', {
@@ -477,6 +481,7 @@ def regjistri(request):
         'periudha': periudha, 'periudhat': raporti.PERIUDHAT,
         'viti': viti, 'vitit_lista': list(range(2020, timezone.now().year + 2)),
         'me_vite': lloji != 'fondi',
+        'statistika': raporti.statistika_vjetore(lloji, viti) if periudha == 'vit' else None,
         'faqja_aktive': 'regjistri',
     })
 

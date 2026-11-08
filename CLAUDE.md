@@ -78,8 +78,9 @@ and open a new Bash console). Free tier: requests must be fast — avoid heavy w
   shown as "Bllok 1100 nr 046386"; unique together; `sugjero_faturen` suggests the next one.
 - **Money**: payments in MKD/EUR/CHF/USD (`MonedhaMixin`), always also stored in € (`FUSHA_EUR`);
   display with `formato_shumen` ("75.000 den", "69,92 €").
-- Every new payment automatically emails the invoice to the official addresses (`EMAILET_ZYRTARE`)
-  + staff with "Merr email për çdo pagesë"; the payer gets email/SMS only via buttons on the payment page.
+- Every new payment automatically emails the invoice ONLY to the official addresses (`EMAILET_ZYRTARE`:
+  xhamia, kryetari i këshillit, imami) — staff personal emails never receive it (field removed); the payer
+  gets email/SMS only via buttons on the payment page.
 - **SMS** via SMSGate ("SMS Gateway for Android", api.sms-gate.app — on PythonAnywhere's whitelist),
   sent from the mosque's phone. Credentials, SIM choice and the Gmail app password are entered in the
   app page "⚙️ SMS & Email" (`KonfigurimiSistemit`), not in files. For SMS failures, read the gateway's
@@ -95,6 +96,12 @@ and open a new Bash console). Free tier: requests must be fast — avoid heavy w
   "U regjistrua … Hap pagesën" banner. Forms opened with `next` load only that house in the select
   (`_vetem_shtepia_e_zgjedhur`); GZipMiddleware shrinks the 1 MB list to ~50 KB. Kategoria column) and "Paguar deri"
   column, Pagesat hyrëse/dalëse, Llojet e pagesave (`LlojiPageses`), Fletorja, Evidenca.
+- House ledger downloads (Word print / PDF / Excel, `fletorja.plotëso_qelizat`): Albanian alphabet order
+  (`celesi_shqip`), columns Nr · Emri · Prindi · Mbiemri · Kat. · Borxh (unpaid years before the first column, '/' none)
+  · years (payment category, else house category, else '+'; blank unpaid). The old Paguar/Borxh PDF is kept as
+  `fletorja/krahasim/` because `lexo_fletoren` reads that format.
+- `xhamia/raporti.py` — register (Antarësia/Fondi/Varrezat): block, month, quarter, cumulative 3/6/9 months, year;
+  `statistika_vjetore` month-by-month table; Excel (+ "Statistika" sheet) and PDF.
 - `xhamia/fletorja.py` — membership ledger: build rows, read a ledger PDF, compare with the app
   (`krahaso`: corrections / conflicts with old debt / name suggestions), apply chosen fixes.
 - `xhamia/word.py` — Word documents: ledger (A4) and "Informim" debt letters (2 per A4 page).
