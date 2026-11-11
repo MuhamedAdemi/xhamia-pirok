@@ -423,21 +423,25 @@ def _numri(nr):
         return None
 
 
-def blloqet():
-    """Blloqet e përdorura (më i fundit i pari): [(blloku, nr_pagesave)]."""
+# Blloqet e faturave dorëzohen në Myftini sipas llojit: antarësia veç, varrezat veç (fondi ndiqet muaj për muaj).
+LLOJET_E_BLLOQEVE = [('antaresia', 'Antarësia'), ('varrezat', 'Varrezat')]
+
+
+def blloqet(lloji='antaresia'):
+    """Blloqet e një lloji (më i fundit i pari): [(blloku, nr_pagesave)]."""
     numri, i_fundit = {}, {}
-    for _, model in LLOJET.values():
+    for _, model in [LLOJET[lloji]]:
         for blloku, regjistruar in model.objects.exclude(blloku='').values_list('blloku', 'data_regjistrimit'):
             numri[blloku] = numri.get(blloku, 0) + 1
             i_fundit[blloku] = max(i_fundit.get(blloku, regjistruar), regjistruar)
     return [(b, numri[b]) for b in sorted(numri, key=lambda b: i_fundit[b], reverse=True)]
 
 
-def fletorja_e_bllokut(blloku):
-    """Të gjitha pagesat e një blloku (Antarësia, Fondi, Varrezat), sipas numrit të faturës — si fletorja në letër.
+def fletorja_e_bllokut(blloku, lloji='antaresia'):
+    """Të gjitha pagesat e një blloku të një lloji, sipas numrit të faturës — si fletorja në letër.
     Kthen (rreshtat, totali, numrat_qe_mungojne)."""
     rreshtat, totali = [], Totali()
-    for lloji, (emri_llojit, model) in LLOJET.items():
+    for lloji, (emri_llojit, model) in [(lloji, LLOJET[lloji])]:
         pagesat = model.objects.filter(blloku=blloku)
         if lloji != 'fondi':
             pagesat = pagesat.select_related('shtepia')
@@ -446,7 +450,7 @@ def fletorja_e_bllokut(blloku):
                 emri = p.shtepia.emri_i_plote if p.shtepia_id else f'{p.emri_donatorit} {p.mbiemri_donatorit}'
                 vitet = p.lloji
             else:
-                emri, vitet = p.shtepia.emri_i_plote, f'{emri_llojit} {p.vitet_tekst}'
+                emri, vitet = p.shtepia.emri_i_plote, p.vitet_tekst
             rreshtat.append({
                 'pagese': p, 'emri': emri, 'nr_fatures': p.nr_fatures, 'data': p.data_pageses,
                 'shumat': {m: p.shumat_sipas_monedhes().get(m) for m in MONEDHAT}, 'eur': p.shuma_eur,
@@ -465,12 +469,13 @@ def fletorja_e_bllokut(blloku):
 KOKA_BLLOKU = ['Nr.', 'Emri  Prindi  Mbiemri', 'Nr. faturës', 'Data', 'Denarë', 'Euro', 'Franga', 'Dollar', 'Për (vitet)']
 
 
-def blloku_excel(blloku):
-    rreshtat, totali, mungojne = fletorja_e_bllokut(blloku)
+def blloku_excel(blloku, lloji='antaresia'):
+    rreshtat, totali, mungojne = fletorja_e_bllokut(blloku, lloji)
+    emri_llojit = LLOJET[lloji][0]
     wb = Workbook()
     ws = wb.active
     ws.title = f'Blloku {blloku}'[:31]
-    ws.append([f'Fletorja e bllokut {blloku} — Xhamia Pirok'])
+    ws.append([f'{emri_llojit} — Fletorja e bllokut {blloku} — Xhamia Pirok'])
     ws['A1'].font = Font(bold=True, size=14)
     ws.append([])
     ws.append(KOKA_BLLOKU)
@@ -505,7 +510,7 @@ def blloku_excel(blloku):
     return buffer.getvalue()
 
 
-def blloku_pdf(blloku):
+def blloku_pdf(blloku, lloji='antaresia'):
     """Fletorja e bllokut për printim (A4 vertikale): pagesat sipas numrit të faturës dhe totali në fund."""
     from reportlab.lib import colors
     from reportlab.lib.enums import TA_CENTER
@@ -514,7 +519,8 @@ def blloku_pdf(blloku):
     from reportlab.lib.units import cm
     from reportlab.platypus import LongTable, Paragraph, SimpleDocTemplate, Spacer, TableStyle
 
-    rreshtat, totali, mungojne = fletorja_e_bllokut(blloku)
+    rreshtat, totali, mungojne = fletorja_e_bllokut(blloku, lloji)
+    emri_llojit = LLOJET[lloji][0]
     # kolonat Franga / Dollar vetëm kur ka pagesa në to
     monedhat = [m for m in MONEDHAT if m in ('MKD', 'EUR') or totali.shumat[m]]
     emrat_monedhave = {'MKD': 'Denarë', 'EUR': 'Euro', 'CHF': 'Franga', 'USD': 'Dollar'}
@@ -547,7 +553,7 @@ def blloku_pdf(blloku):
     titulli = ParagraphStyle('t', fontName='Helvetica-Bold', fontSize=15, alignment=TA_CENTER)
     nen = ParagraphStyle('n', fontName='Helvetica', fontSize=9, alignment=TA_CENTER, textColor=colors.HexColor('#555555'))
     vargu = f'nr {rreshtat[0]["nr_fatures"]} – {rreshtat[-1]["nr_fatures"]}' if rreshtat else 'pa pagesa'
-    pjeset = [Paragraph(f'BLLOKU {blloku}', titulli), Spacer(1, 3),
+    pjeset = [Paragraph(f'{emri_llojit.upper()} — BLLOKU {blloku}', titulli), Spacer(1, 3),
               Paragraph(f'Xhamia Pirok · {vargu} · {totali.nr} pagesa', nen), Spacer(1, 8), tabela]
     if mungojne:
         pjeset += [Spacer(1, 8), Paragraph('Numrat që mungojnë (anuluar / pa regjistruar): ' + ', '.join(mungojne),

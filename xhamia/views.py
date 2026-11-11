@@ -487,21 +487,53 @@ def regjistri(request):
 
 
 @login_required
+def fletorja_fondit(request):
+    """Fondi muaj për muaj: gjendja në fillim, hyrat, daljet, bilanci dhe gjendja në fund (ose gjithë viti)."""
+    from . import fondi
+    sot = timezone.localdate()
+    try:
+        viti = int(request.GET.get('viti', sot.year))
+        muaji = int(request.GET.get('muaji', sot.month))
+    except ValueError:
+        viti, muaji = sot.year, sot.month
+    muaji = muaji if 1 <= muaji <= 12 else 0     # 0 = gjithë viti
+    emri = f'fondi_{viti}' + (f'_{muaji:02d}' if muaji else '')
+    if request.GET.get('eksporto') == 'pdf':
+        resp = HttpResponse(fondi.pdf(viti, muaji or None), content_type='application/pdf')
+        resp['Content-Disposition'] = f'attachment; filename="{emri}.pdf"'
+        return resp
+    if request.GET.get('eksporto') == 'excel':
+        resp = HttpResponse(fondi.excel(viti, muaji or None),
+                            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        resp['Content-Disposition'] = f'attachment; filename="{emri}.xlsx"'
+        return resp
+    return render(request, 'dashboard/fondi_mujor.html', {
+        'd': fondi.muaji(viti, muaji) if muaji else fondi.viti_i_plote(viti),
+        'viti': viti, 'muaji': muaji, 'muajt': list(enumerate(raporti.MUAJT, 1)),
+        'vitit_lista': list(range(2020, sot.year + 2)), 'faqja_aktive': 'fondi_mujor',
+    })
+
+
+@login_required
 def fletorja_bllokut(request):
     """Fletorja e një blloku faturash: të gjitha pagesat nga fatura e parë te e fundit, me totalin në den dhe €."""
-    blloqet = raporti.blloqet()
-    blloku = request.GET.get('blloku') or (blloqet[0][0] if blloqet else '')
+    lloji = request.GET.get('lloji') if request.GET.get('lloji') in dict(raporti.LLOJET_E_BLLOQEVE) else 'antaresia'
+    blloqet = raporti.blloqet(lloji)
+    blloku = request.GET.get('blloku', '')
+    if blloku not in dict(blloqet):
+        blloku = blloqet[0][0] if blloqet else ''
     if request.GET.get('eksporto') in ('pdf', 'excel') and blloku:
         if request.GET['eksporto'] == 'pdf':
-            resp = HttpResponse(raporti.blloku_pdf(blloku), content_type='application/pdf')
-            resp['Content-Disposition'] = f'attachment; filename="blloku_{blloku}.pdf"'
+            resp = HttpResponse(raporti.blloku_pdf(blloku, lloji), content_type='application/pdf')
+            resp['Content-Disposition'] = f'attachment; filename="{lloji}_blloku_{blloku}.pdf"'
         else:
-            resp = HttpResponse(raporti.blloku_excel(blloku),
+            resp = HttpResponse(raporti.blloku_excel(blloku, lloji),
                                 content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-            resp['Content-Disposition'] = f'attachment; filename="blloku_{blloku}.xlsx"'
+            resp['Content-Disposition'] = f'attachment; filename="{lloji}_blloku_{blloku}.xlsx"'
         return resp
-    rreshtat, totali, mungojne = raporti.fletorja_e_bllokut(blloku) if blloku else ([], raporti.Totali(), [])
+    rreshtat, totali, mungojne = raporti.fletorja_e_bllokut(blloku, lloji) if blloku else ([], raporti.Totali(), [])
     return render(request, 'dashboard/blloku.html', {
+        'lloji': lloji, 'llojet': raporti.LLOJET_E_BLLOQEVE,
         'blloqet': blloqet, 'blloku': blloku, 'rreshtat': rreshtat, 'totali': totali, 'mungojne': mungojne,
         'faqja_aktive': 'blloku',
     })
@@ -1018,6 +1050,30 @@ def shto_pagese_antaresia(request):
         'form': form, 'titulli': 'Regjistro Pagesë Antarësia', 'faqja_aktive': 'pagesat_antaresia',
         'vlerat_shpejta': VLERAT_SHPEJTA_ANTARESIA, 'kthimi': _kthimi(request),
         'shtepia_e_zgjedhur': form.initial.get('shtepia') if not form.is_bound else None,
+    })
+
+
+@login_required
+def ndrysho_pagese_antaresia(request, pk):
+    """Korrigjim i një pagese (p.sh. "4300 den" që në të vërtetë ishte 50 € + 1300 den). Vetëm admini;
+    nuk dërgohet email i ri, kategoria e shtëpisë rillogaritet."""
+    if not është_admin(request.user):
+        messages.error(request, 'Vetëm administratori mund ta ndryshojë një pagesë.')
+        return redirect('detaje_pagesa_antaresia', pk=pk)
+    pagese = get_object_or_404(PagesaAntaresia, pk=pk)
+    para = f'{pagese.shuma_origjinale} ({pagese.vitet_tekst})'
+    form = PagesaAntaresiaForm.per_ndryshim(pagese, request.POST or None)
+    if request.method == 'POST' and form.is_valid():
+        pagese = form.apliko_shumen(form.save(commit=False))
+        shenimi = f'Ndryshuar më {timezone.localdate().strftime("%d.%m.%Y")} nga {request.user.get_full_name() or request.user.username}: ishte {para}.'
+        pagese.shenime = f'{pagese.shenime}\n{shenimi}'.strip()
+        pagese.save()
+        caktoje_nga_pagesa(pagese)
+        messages.success(request, f'Pagesa {pagese.fatura_tekst} u ndryshua: {pagese.shuma_origjinale} ({pagese.vitet_tekst}).')
+        return redirect('detaje_pagesa_antaresia', pk=pagese.pk)
+    return render(request, 'pagesat/antaresia/forma.html', {
+        'form': form, 'titulli': f'Ndrysho pagesën {pagese.fatura_tekst}', 'faqja_aktive': 'pagesat_antaresia',
+        'vlerat_shpejta': VLERAT_SHPEJTA_ANTARESIA, 'ndryshim': pagese,
     })
 
 

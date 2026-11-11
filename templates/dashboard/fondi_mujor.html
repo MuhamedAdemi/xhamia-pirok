@@ -1,0 +1,118 @@
+{% extends 'base.html' %}
+{% load shumat %}
+{% block titulli %}Fletorja e Fondit — Xhamia Pirok{% endblock %}
+
+{% block kontent %}
+<div class="page-header">
+  <div>
+    <h2>💰 Fletorja e Fondit — {% if muaji %}{{ d.emri }}{% else %}viti {{ viti }}{% endif %}</h2>
+    <p>Hyrat (donacionet e Fondit), daljet (harxhimet me buxhet "Fondi i Xhamisë"), bilanci dhe gjendja — muaj për muaj</p>
+  </div>
+</div>
+
+<div class="card" style="margin-bottom:20px;">
+  <form method="get" class="filtrat no-print">
+    <select name="viti" onchange="this.form.submit()">
+      {% for v in vitit_lista %}<option value="{{ v }}" {% if v == viti %}selected{% endif %}>{{ v }}</option>{% endfor %}
+    </select>
+    <select name="muaji" onchange="this.form.submit()">
+      <option value="0" {% if not muaji %}selected{% endif %}>Gjithë viti (përmbledhje)</option>
+      {% for nr, emri in muajt %}<option value="{{ nr }}" {% if nr == muaji %}selected{% endif %}>{{ emri }}</option>{% endfor %}
+    </select>
+    <button type="submit" name="eksporto" value="pdf" class="btn-kryesor btn-sm">📄 PDF për printim</button>
+    <button type="submit" name="eksporto" value="excel" class="btn-dytësor btn-sm">📊 Excel</button>
+    <button type="button" class="btn-dytësor btn-sm" onclick="window.print()">🖨️ Printo</button>
+  </form>
+</div>
+
+{% if muaji %}
+<div class="grid-4" style="margin-bottom:20px;">
+  <div class="stat-card kafe"><div class="stat-label">Gjendja në fillim</div><div class="stat-vlera kafe">{{ d.fillimi.eur|euro }}</div><div class="stat-nën">nga muajt e kaluar</div></div>
+  <div class="stat-card gjelbër"><div class="stat-label">Hyrat</div><div class="stat-vlera gjelbër">{{ d.t_hyra.eur|euro }}</div><div class="stat-nën">{{ d.t_hyra.nr }} pagesa</div></div>
+  <div class="stat-card portokalli"><div class="stat-label">Daljet</div><div class="stat-vlera" style="color:var(--gabim);">{{ d.t_dalje.eur|euro }}</div><div class="stat-nën">{{ d.t_dalje.nr }} harxhime</div></div>
+  <div class="stat-card blu"><div class="stat-label">Gjendja në fund</div><div class="stat-vlera" style="color:#007AFF;">{{ d.fundi.eur|euro }}</div><div class="stat-nën">bilanci i muajit {{ d.bilanci.eur|euro }}</div></div>
+</div>
+
+<div class="card" style="margin-bottom:20px;">
+  <div class="card-header"><h5>📥 Hyrat — donacionet e Fondit</h5></div>
+  <div style="overflow-x:auto;">
+    <table class="tabela-xhami tabela-regjistri">
+      <thead><tr><th>Nr.</th><th>Paguesi</th><th>Lloji / arsyeja</th><th>Fatura</th><th>Data</th>
+        {% for m in d.monedhat %}<th class="djathtas">{% if m == 'MKD' %}Denarë{% elif m == 'EUR' %}Euro{% elif m == 'CHF' %}Franga{% else %}Dollar{% endif %}</th>{% endfor %}</tr></thead>
+      <tbody>
+        {% for r in d.hyrat %}
+        <tr><td class="tekst-dytësor">{{ r.nr }}</td><td><a href="{{ r.pagese.get_absolute_url }}">{{ r.emri }}</a></td><td>{{ r.pershkrimi }}</td>
+          <td>{{ r.fatura }}</td><td>{{ r.data|date:"d.m.y" }}</td>
+          {% for m in d.monedhat %}<td class="djathtas">{% for k, v in r.shumat.items %}{% if k == m %}{{ v|shuma:m }}{% endif %}{% endfor %}</td>{% endfor %}</tr>
+        {% empty %}<tr><td colspan="9" class="tekst-dytësor" style="text-align:center; padding:20px;">Asnjë donacion këtë muaj.</td></tr>
+        {% endfor %}
+        <tr class="rresht-total total-muaj"><td></td><td colspan="4">Totali i hyrave · {{ d.t_hyra.nr }}</td>
+          {% for m in d.monedhat %}<td class="djathtas">{% for k, v in d.t_hyra.shumat.items %}{% if k == m %}{{ v|shuma:m }}{% endif %}{% endfor %}</td>{% endfor %}</tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card" style="margin-bottom:20px;">
+  <div class="card-header"><h5>📤 Daljet — harxhimet nga Fondi</h5></div>
+  <div style="overflow-x:auto;">
+    <table class="tabela-xhami tabela-regjistri">
+      <thead><tr><th>Nr.</th><th>Lloji</th><th>Përshkrimi</th><th>Fatura</th><th>Data</th>
+        {% for m in d.monedhat %}<th class="djathtas">{% if m == 'MKD' %}Denarë{% elif m == 'EUR' %}Euro{% elif m == 'CHF' %}Franga{% else %}Dollar{% endif %}</th>{% endfor %}</tr></thead>
+      <tbody>
+        {% for r in d.daljet %}
+        <tr><td class="tekst-dytësor">{{ r.nr }}</td><td><a href="{{ r.pagese.get_absolute_url }}">{{ r.emri }}</a></td><td>{{ r.pershkrimi }}</td>
+          <td>{{ r.fatura }}</td><td>{{ r.data|date:"d.m.y" }}</td>
+          {% for m in d.monedhat %}<td class="djathtas">{% for k, v in r.shumat.items %}{% if k == m %}{{ v|shuma:m }}{% endif %}{% endfor %}</td>{% endfor %}</tr>
+        {% empty %}<tr><td colspan="9" class="tekst-dytësor" style="text-align:center; padding:20px;">Asnjë harxhim nga Fondi këtë muaj.</td></tr>
+        {% endfor %}
+        <tr class="rresht-total total-tremujor"><td></td><td colspan="4">Totali i daljeve · {{ d.t_dalje.nr }}</td>
+          {% for m in d.monedhat %}<td class="djathtas">{% for k, v in d.t_dalje.shumat.items %}{% if k == m %}{{ v|shuma:m }}{% endif %}{% endfor %}</td>{% endfor %}</tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header"><h5>⚖️ Bilanci — {{ d.emri }}</h5></div>
+  <div style="overflow-x:auto;">
+    <table class="tabela-xhami tabela-regjistri fondi-bilanci">
+      <thead><tr><th></th>{% for m in d.monedhat %}<th class="djathtas">{% if m == 'MKD' %}Denarë{% elif m == 'EUR' %}Euro{% elif m == 'CHF' %}Franga{% else %}Dollar{% endif %}</th>{% endfor %}<th class="djathtas">Gjithsej në €</th></tr></thead>
+      <tbody>
+        {% for etiketa, g in d.rreshtat_bilanci %}
+        <tr class="{% if forloop.last %}rresht-total total-gjithsej{% elif forloop.counter == 4 %}rresht-total total-kumulativ{% endif %}"><td>{{ etiketa }}</td>
+          {% for m in d.monedhat %}<td class="djathtas">{% for k, v in g.shumat.items %}{% if k == m %}{{ v|shuma:m|default:"–" }}{% endif %}{% endfor %}</td>{% endfor %}
+          <td class="djathtas">{{ g.eur|shuma:"EUR"|default:"–" }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% else %}
+<div class="card">
+  <div class="card-header"><h5>📊 Përmbledhja e vitit {{ viti }} — kliko një muaj për hollësitë</h5></div>
+  <div style="overflow-x:auto;">
+    <table class="tabela-xhami tabela-regjistri fondi-bilanci">
+      <thead><tr><th>Muaji</th><th class="djathtas">Hyra den</th><th class="djathtas">Hyra €</th><th class="djathtas">Hyra gjithsej €</th>
+        <th class="djathtas">Dalje den</th><th class="djathtas">Dalje €</th><th class="djathtas">Dalje gjithsej €</th>
+        <th class="djathtas">Bilanci €</th><th class="djathtas">Gjendja në fund €</th></tr></thead>
+      <tbody>
+        <tr class="rresht-total total-bllok"><td colspan="8">Gjendja në fillim të vitit</td><td class="djathtas">{{ d.fillimi.eur|shuma:"EUR"|default:"0 €" }}</td></tr>
+        {% for m in d.muajt %}
+        <tr><td><a href="?viti={{ viti }}&muaji={{ m.muaji }}">{{ m.emri }}</a></td>
+          <td class="djathtas">{{ m.hyra.shumat.MKD|shuma:"MKD" }}</td><td class="djathtas">{{ m.hyra.shumat.EUR|shuma:"EUR" }}</td><td class="djathtas">{{ m.hyra.eur|shuma:"EUR" }}</td>
+          <td class="djathtas">{{ m.dalje.shumat.MKD|shuma:"MKD" }}</td><td class="djathtas">{{ m.dalje.shumat.EUR|shuma:"EUR" }}</td><td class="djathtas">{{ m.dalje.eur|shuma:"EUR" }}</td>
+          <td class="djathtas">{{ m.bilanci.eur|shuma:"EUR" }}</td><td class="djathtas">{{ m.fundi.eur|shuma:"EUR" }}</td></tr>
+        {% endfor %}
+        <tr class="rresht-total total-gjithsej"><td>GJITHSEJ {{ viti }}</td>
+          <td class="djathtas">{{ d.t_hyra.shumat.MKD|shuma:"MKD" }}</td><td class="djathtas">{{ d.t_hyra.shumat.EUR|shuma:"EUR" }}</td><td class="djathtas">{{ d.t_hyra.eur|shuma:"EUR" }}</td>
+          <td class="djathtas">{{ d.t_dalje.shumat.MKD|shuma:"MKD" }}</td><td class="djathtas">{{ d.t_dalje.shumat.EUR|shuma:"EUR" }}</td><td class="djathtas">{{ d.t_dalje.eur|shuma:"EUR" }}</td>
+          <td class="djathtas">{{ d.bilanci.eur|shuma:"EUR" }}</td><td class="djathtas">{{ d.fundi.eur|shuma:"EUR" }}</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+<p class="ndihma" style="margin-top:10px;">"Gjithsej €" përfshin edhe frangat/dollarët e kthyer në €. Shumat negative = më shumë dalje se hyrje.</p>
+{% endif %}
+{% endblock %}

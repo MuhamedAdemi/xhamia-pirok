@@ -91,6 +91,9 @@
     <a href="{% url 'fletorja_bllokut' %}" class="{% if faqja_aktive == 'blloku' %}aktive{% endif %}">
       <span class="ikona">🧾</span> Fletorja e bllokut
     </a>
+    <a href="{% url 'fletorja_fondit' %}" class="{% if faqja_aktive == 'fondi_mujor' %}aktive{% endif %}">
+      <span class="ikona">💰</span> Fletorja e Fondit (mujore)
+    </a>
 
     <div class="nav-section-label">Antarësia</div>
     <a href="{% url 'lista_shtepive' %}" class="{% if faqja_aktive == 'shtepite' %}aktive{% endif %}">

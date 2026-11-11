@@ -6,12 +6,17 @@
 <div class="page-header">
   <div>
     <h2>🧾 Fletorja e bllokut{% if blloku %} {{ blloku }}{% endif %}</h2>
-    <p>Të gjitha pagesat e bllokut sipas numrit të faturës, nga e para te e fundit, me totalin në denarë dhe euro</p>
+    <p>Për dorëzim në Myftini: të gjitha pagesat e bllokut sipas numrit të faturës, me totalin në denarë dhe euro —
+      Antarësia dhe Varrezat veç e veç. Fondi ndiqet muaj për muaj te <a href="{% url 'fletorja_fondit' %}">Fletorja e Fondit</a>.</p>
   </div>
 </div>
 
 <div class="card" style="margin-bottom:20px;">
   <form method="get" class="filtrat no-print">
+    <div class="puna-segment">
+      {% for k, emri in llojet %}<a href="?lloji={{ k }}" class="{% if k == lloji %}aktiv{% endif %}" style="padding:8px 16px; text-decoration:none; color:inherit; display:inline-block;">{{ emri }}</a>{% endfor %}
+    </div>
+    <input type="hidden" name="lloji" value="{{ lloji }}">
     <select name="blloku" onchange="this.form.submit()">
       {% for b, n in blloqet %}<option value="{{ b }}" {% if b == blloku %}selected{% endif %}>Blloku {{ b }} ({{ n }} pagesa)</option>{% empty %}<option value="">Asnjë bllok</option>{% endfor %}
     </select>

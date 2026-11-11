@@ -28,6 +28,7 @@
     {% endif %}
     {% endif %}
     {% if request.user.profili.është_admin %}
+    <a href="{% url 'ndrysho_pagese_antaresia' pagese.pk %}" class="btn-dytësor">✏️ Ndrysho shumën / vitet</a>
     <a href="{% url 'fshi_pagese_antaresia' pagese.pk %}" class="btn-rrezik">Fshi</a>
     {% endif %}
   </div>

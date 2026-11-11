@@ -47,6 +47,7 @@ urlpatterns = [
     path('regjistri/', views.regjistri, name='regjistri'),
     path('backup/', views.backup_faqja, name='backup'),
     path('regjistri/blloku/', views.fletorja_bllokut, name='fletorja_bllokut'),
+    path('regjistri/fondi/', views.fletorja_fondit, name='fletorja_fondit'),
     path('backup/fillo-nga-zero/', views.fillo_nga_zero, name='fillo_nga_zero'),
 
     # Shtepite
@@ -67,6 +68,7 @@ urlpatterns = [
     path('pagesat/antaresia/<int:pk>/', views.detaje_pagesa_antaresia, name='detaje_pagesa_antaresia'),
     path('pagesat/antaresia/<int:pk>/fatura/', views.fatura_antaresia_pdf, name='fatura_antaresia_pdf'),
     path('pagesat/antaresia/<int:pk>/fshi/', views.fshi_pagese_antaresia, name='fshi_pagese_antaresia'),
+    path('pagesat/antaresia/<int:pk>/ndrysho/', views.ndrysho_pagese_antaresia, name='ndrysho_pagese_antaresia'),
     path('pagesat/antaresia/<int:pk>/email/', views.dergo_email_antaresia, name='dergo_email_antaresia'),
     path('pagesat/antaresia/<int:pk>/sms/', views.dergo_sms_antaresia, name='dergo_sms_antaresia'),
 

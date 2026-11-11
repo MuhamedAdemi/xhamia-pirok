@@ -690,7 +690,11 @@ a:hover { text-decoration: underline; }
   cursor: pointer; font-weight: 600; font-size: 14px; font-family: inherit;
 }
 .puna-segment button:last-child { border-right: none; }
-.puna-segment button.aktiv { background: var(--gjelbër-shumë-i-çelur); color: var(--gjelbër); }
+.puna-segment button.aktiv, .puna-segment a.aktiv { background: var(--gjelbër-shumë-i-çelur); color: var(--gjelbër); font-weight: 600; }
+.puna-segment a { border-right: 1.5px solid var(--kufi); }
+.puna-segment a:last-child { border-right: none; }
+.fondi-bilanci td { font-weight: 600; }
+.fondi-bilanci .negativ { color: var(--gabim, #C0392B); }
 .puna-segment button.aktiv::before { content: '✓ '; }
 .puna-totali { font-size: 19px; margin: 4px 0 14px; }
 .puna-totali strong { font-size: 21px; }

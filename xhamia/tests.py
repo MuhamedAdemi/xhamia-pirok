@@ -349,11 +349,11 @@ class BllokuMonedhatRegjistriTest(TestCase):
                                    mbiemri_donatorit='I Jashtëm', shuma=Decimal('20'), monedha='EUR', shuma_monedhe=Decimal('20'),
                                    data_pageses=date(2026, 10, 25), arktar=self.admin)
         rreshtat, totali, mungojne = raporti.fletorja_e_bllokut('1394')
-        self.assertEqual([r['nr_fatures'] for r in rreshtat], ['046434', '046435', '046436', '046438', '046439'])
-        self.assertEqual((totali.nr, totali.shumat['EUR'], totali.shumat['MKD']), (5, Decimal('300'), Decimal('6000')))
+        self.assertEqual([r['nr_fatures'] for r in rreshtat], ['046434', '046435', '046436', '046438'])
+        self.assertEqual((totali.nr, totali.shumat['EUR'], totali.shumat['MKD']), (4, Decimal('280'), Decimal('6000')))
         self.assertEqual(mungojne, ['046437'])
-        self.assertEqual(rreshtat[-1]['emri'], 'Donator I Jashtëm')
-        self.assertEqual(raporti.blloqet()[0], ('1394', 5))
+        self.assertIn(('1394', 4), raporti.blloqet())
+        self.assertEqual(raporti.blloqet('varrezat'), [])                     # antarësia dhe varrezat veç e veç
         r = self.client.get(reverse('fletorja_bllokut'), {'blloku': '1394'})
         self.assertContains(r, 'TOTALI I BLLOKUT 1394')
         self.assertContains(r, '6.000 den')
@@ -363,8 +363,75 @@ class BllokuMonedhatRegjistriTest(TestCase):
         self.assertEqual(r['Content-Type'], 'application/pdf')
         r = self.client.get(reverse('fletorja_bllokut'), {'blloku': '1394', 'eksporto': 'excel'})
         ws = load_workbook(BytesIO(r.content)).active
-        self.assertEqual([ws.cell(row=i, column=3).value for i in range(4, 9)], ['046434', '046435', '046436', '046438', '046439'])
-        self.assertEqual((ws.cell(row=9, column=5).value, ws.cell(row=9, column=6).value), (6000, 300))
+        self.assertEqual([ws.cell(row=i, column=3).value for i in range(4, 8)], ['046434', '046435', '046436', '046438'])
+        self.assertEqual((ws.cell(row=8, column=5).value, ws.cell(row=8, column=6).value), (6000, 280))
+        r = self.client.get(reverse('fletorja_bllokut'), {'lloji': 'varrezat'})
+        self.assertContains(r, 'Asnjë pagesë me bllok')
+
+    def test_ndryshimi_i_pageses_ne_dy_monedha(self):
+        self._paguaj(blloku='1394', nr_fatures='046440', data_pageses='2026-10-23', viti=2026, viti_deri=2026, shuma_hyrese='4300')
+        p = PagesaAntaresia.objects.get()
+        self.assertEqual(p.shuma_origjinale, '4.300 den')
+        r = self.client.get(reverse('ndrysho_pagese_antaresia', args=[p.pk]))
+        self.assertContains(r, 'Po ndryshoni pagesën')
+        self.assertEqual(r.context['form'].initial['shuma_hyrese'], Decimal('4300'))
+        r = self.client.post(reverse('ndrysho_pagese_antaresia', args=[p.pk]), {
+            'blloku': '1394', 'nr_fatures': '046440', 'shtepia': self.sh.pk, 'viti': 2026, 'viti_deri': 2026,
+            'data_pageses': '2026-10-23', 'shuma_hyrese': '50', 'monedha': 'EUR', 'kursi': '61.5',
+            'shuma_2': '1300', 'monedha_2': 'MKD'})
+        self.assertRedirects(r, reverse('detaje_pagesa_antaresia', args=[p.pk]), fetch_redirect_response=False)
+        p.refresh_from_db()
+        self.assertEqual(PagesaAntaresia.objects.count(), 1)
+        self.assertEqual((p.shuma_origjinale, p.shuma_mkd), ('50 € + 1.300 den', Decimal('4375')))
+        self.assertIn('ishte 4.300 den (2026)', p.shenime)
+        from . import raporti
+        _, totali, _ = raporti.fletorja_e_bllokut('1394')
+        self.assertEqual((totali.shumat['EUR'], totali.shumat['MKD']), (Decimal('50'), Decimal('1300')))
+        # stafi jo-admin nuk mund ta ndryshojë
+        staf = User.objects.create_user('staf', password='x')
+        ProfilStafi.objects.create(user=staf, rol='STAF', mund_regjistrojë_pagesa=True)
+        self.client.force_login(staf)
+        self.client.post(reverse('ndrysho_pagese_antaresia', args=[p.pk]), {
+            'blloku': '1394', 'nr_fatures': '046440', 'shtepia': self.sh.pk, 'viti': 2026, 'viti_deri': 2026,
+            'data_pageses': '2026-10-23', 'shuma_hyrese': '1', 'monedha': 'EUR', 'kursi': '61.5'})
+        p.refresh_from_db()
+        self.assertEqual(p.shuma_origjinale, '50 € + 1.300 den')
+
+    def test_fletorja_e_fondit_mujore(self):
+        from datetime import date as d
+        from .models import Harxhimi
+        from . import fondi
+        def dhurate(nr, data, shuma, monedha='EUR'):
+            PagesaFondi.objects.create(blloku='1110', nr_fatures=nr, lloji='Fond Xhamie', emri_donatorit='Agim',
+                                       mbiemri_donatorit='Gashi', shuma=Decimal(shuma) if monedha == 'EUR' else Decimal(shuma) / Decimal('61.5'),
+                                       monedha=monedha, shuma_monedhe=Decimal(shuma), data_pageses=data, arktar=self.admin)
+        dhurate('1', d(2026, 9, 5), '100')                 # shtator: gjendja e mbartur
+        dhurate('2', d(2026, 10, 3), '200')
+        dhurate('3', d(2026, 10, 9), '6150', 'MKD')         # 100 €
+        Harxhimi.objects.create(nr_fatures='H1', lloji='Rrymë elektrike', burimi='FONDI', shuma_eur=Decimal('80'),
+                                monedha='EUR', shuma_monedhe=Decimal('80'), viti=2026, data_pageses=d(2026, 10, 20), arktar=self.admin)
+        Harxhimi.objects.create(nr_fatures='H2', lloji='Varrezat', burimi='VARREZAT', shuma_eur=Decimal('500'),
+                                monedha='EUR', shuma_monedhe=Decimal('500'), viti=2026, data_pageses=d(2026, 10, 21), arktar=self.admin)
+        m = fondi.muaji(2026, 10)
+        self.assertEqual(m['fillimi'].eur, Decimal('100'))
+        self.assertEqual((m['t_hyra'].nr, m['t_hyra'].shumat['EUR'], m['t_hyra'].shumat['MKD']), (2, Decimal('200'), Decimal('6150')))
+        self.assertEqual((m['t_dalje'].nr, m['t_dalje'].eur), (1, Decimal('80')))          # harxhimi i varrezave nuk hyn
+        self.assertEqual(m['bilanci'].shumat['EUR'], Decimal('120'))
+        self.assertEqual(m['fundi'].shumat['EUR'], Decimal('220'))
+        self.assertEqual(m['fundi'].shumat['MKD'], Decimal('6150'))
+        v = fondi.viti_i_plote(2026)
+        self.assertEqual(v['muajt'][8]['fundi'].eur, Decimal('100'))
+        self.assertEqual(v['fundi'].eur, Decimal('320'))
+        r = self.client.get(reverse('fletorja_fondit'), {'viti': 2026, 'muaji': 10})
+        self.assertContains(r, 'GJENDJA NË FUND TË MUAJIT')
+        self.assertContains(r, 'Rrymë elektrike')
+        self.assertNotContains(r, 'Varrezat</a>')
+        r = self.client.get(reverse('fletorja_fondit'), {'viti': 2026, 'muaji': 0})
+        self.assertContains(r, 'GJITHSEJ 2026')
+        for muaji in (10, 0):
+            for formati, lloji in (('pdf', 'application/pdf'), ('excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')):
+                r = self.client.get(reverse('fletorja_fondit'), {'viti': 2026, 'muaji': muaji, 'eksporto': formati})
+                self.assertEqual(r['Content-Type'], lloji, (muaji, formati))
 
     def test_csv_borxhlinjte(self):
         from io import BytesIO

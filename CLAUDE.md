@@ -102,6 +102,12 @@ and open a new Bash console). Free tier: requests must be fast — avoid heavy w
   `fletorja/krahasim/` because `lexo_fletoren` reads that format.
 - `xhamia/raporti.py` — register (Antarësia/Fondi/Varrezat): block, month, quarter, cumulative 3/6/9 months, year;
   `statistika_vjetore` month-by-month table; Excel (+ "Statistika" sheet) and PDF.
+- Block ledger (`regjistri/blloku/`, `raporti.fletorja_e_bllokut`): one invoice block of ONE type (Antarësia or
+  Varrezat — handed to the Muftiate block by block), sorted by invoice nr, totals den/€, missing numbers; PDF/Excel.
+- Fund ledger (`regjistri/fondi/`, `xhamia/fondi.py`): month by month — opening balance, income (PagesaFondi),
+  expenses (Harxhimi burimi=FONDI), balance, closing balance per currency + € total; year summary; PDF/Excel.
+- Admin can correct a membership payment (`ndrysho_pagese_antaresia`, e.g. 4300 den → 50 € + 1300 den): same form,
+  no new email, old amount noted in `shenime`, category recomputed.
 - `xhamia/fletorja.py` — membership ledger: build rows, read a ledger PDF, compare with the app
   (`krahaso`: corrections / conflicts with old debt / name suggestions), apply chosen fixes.
 - `xhamia/word.py` — Word documents: ledger (A4) and "Informim" debt letters (2 per A4 page).

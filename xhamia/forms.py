@@ -242,7 +242,20 @@ class PagesaAntaresiaForm(ShumaMonedhaMixin, VitetFormMixin, forms.ModelForm):
         self.kufijte_json = kufijte_json()
 
     def _vitet_e_paguara(self, shtepia, viti, viti_deri):
-        return _vitet_e_mbuluara(shtepia.pagesat, viti, viti_deri, shtepia.paguar_deri_viti)
+        pagesat = shtepia.pagesat.all()
+        if self.instance.pk:   # kur ndryshohet një pagesë, vitet e saj nuk llogariten si "të paguara më parë"
+            pagesat = pagesat.exclude(pk=self.instance.pk)
+        return _vitet_e_mbuluara(pagesat, viti, viti_deri, shtepia.paguar_deri_viti)
+
+    @classmethod
+    def per_ndryshim(cls, pagese, data=None):
+        """Forma e mbushur me pagesën ekzistuese (shuma, monedhat, kursi, ndarja sipas viteve)."""
+        initial = {
+            'shuma_hyrese': pagese.shuma_ne_monedhe, 'monedha': pagese.monedha, 'kursi': pagese.kursi_denar,
+            'shuma_2': pagese.shuma_monedhe_2, 'monedha_2': pagese.monedha_2 or 'MKD',
+            'vitet_shumat': json.dumps(pagese.vitet_shumat) if pagese.vitet_shumat else '',
+        }
+        return cls(data, instance=pagese, initial=initial)
 
     def clean(self):
         cd = super().clean()
