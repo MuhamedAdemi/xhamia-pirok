@@ -335,6 +335,37 @@ class BllokuMonedhatRegjistriTest(TestCase):
         self.assertEqual(wb.sheetnames[1], 'Statistika')
         self.assertEqual(wb['Statistika'].cell(row=4, column=1).value, 'Janar')
 
+    def test_fletorja_e_bllokut(self):
+        from io import BytesIO
+        from openpyxl import load_workbook
+        from . import raporti
+        # blloku 1394: 046434 (100 €), 046436 (6000 den), 046435 (100 €) — numri 046437 mungon, 046438 (80 €)
+        self._paguaj(blloku='1394', nr_fatures='046434', data_pageses='2026-10-23', viti=2026, viti_deri=2026, monedha='EUR', shuma_hyrese='100')
+        self._paguaj(blloku='1394', nr_fatures='046436', data_pageses='2026-10-23', viti=2025, viti_deri=2025, shuma_hyrese='6000')
+        self._paguaj(blloku='1394', nr_fatures='046435', data_pageses='2026-10-23', viti=2027, viti_deri=2027, monedha='EUR', shuma_hyrese='100')
+        self._paguaj(blloku='1394', nr_fatures='046438', data_pageses='2026-10-24', viti=2028, viti_deri=2028, monedha='EUR', shuma_hyrese='80')
+        self._paguaj(blloku='1100', nr_fatures='000001', data_pageses='2026-10-24', viti=2029, viti_deri=2029, monedha='EUR', shuma_hyrese='70')
+        PagesaFondi.objects.create(blloku='1394', nr_fatures='046439', lloji='Kurbana', emri_donatorit='Donator',
+                                   mbiemri_donatorit='I Jashtëm', shuma=Decimal('20'), monedha='EUR', shuma_monedhe=Decimal('20'),
+                                   data_pageses=date(2026, 10, 25), arktar=self.admin)
+        rreshtat, totali, mungojne = raporti.fletorja_e_bllokut('1394')
+        self.assertEqual([r['nr_fatures'] for r in rreshtat], ['046434', '046435', '046436', '046438', '046439'])
+        self.assertEqual((totali.nr, totali.shumat['EUR'], totali.shumat['MKD']), (5, Decimal('300'), Decimal('6000')))
+        self.assertEqual(mungojne, ['046437'])
+        self.assertEqual(rreshtat[-1]['emri'], 'Donator I Jashtëm')
+        self.assertEqual(raporti.blloqet()[0], ('1394', 5))
+        r = self.client.get(reverse('fletorja_bllokut'), {'blloku': '1394'})
+        self.assertContains(r, 'TOTALI I BLLOKUT 1394')
+        self.assertContains(r, '6.000 den')
+        self.assertContains(r, '046437')
+        self.assertNotIn('000001', [x['nr_fatures'] for x in r.context['rreshtat']])   # blloku tjetër nuk përzihet
+        r = self.client.get(reverse('fletorja_bllokut'), {'blloku': '1394', 'eksporto': 'pdf'})
+        self.assertEqual(r['Content-Type'], 'application/pdf')
+        r = self.client.get(reverse('fletorja_bllokut'), {'blloku': '1394', 'eksporto': 'excel'})
+        ws = load_workbook(BytesIO(r.content)).active
+        self.assertEqual([ws.cell(row=i, column=3).value for i in range(4, 9)], ['046434', '046435', '046436', '046438', '046439'])
+        self.assertEqual((ws.cell(row=9, column=5).value, ws.cell(row=9, column=6).value), (6000, 300))
+
     def test_csv_borxhlinjte(self):
         from io import BytesIO
         from .importi_pdf import lexo_borxhlinjte_csv, celesi

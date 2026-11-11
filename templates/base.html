@@ -88,6 +88,9 @@
     <a href="{% url 'regjistri' %}" class="{% if faqja_aktive == 'regjistri' %}aktive{% endif %}">
       <span class="ikona">📒</span> Regjistri (si fletorja)
     </a>
+    <a href="{% url 'fletorja_bllokut' %}" class="{% if faqja_aktive == 'blloku' %}aktive{% endif %}">
+      <span class="ikona">🧾</span> Fletorja e bllokut
+    </a>
 
     <div class="nav-section-label">Antarësia</div>
     <a href="{% url 'lista_shtepive' %}" class="{% if faqja_aktive == 'shtepite' %}aktive{% endif %}">

@@ -412,3 +412,156 @@ def _tabela_statistikes_pdf(lloji, viti):
     tabela = Table(te_dhenat, colWidths=[c * cm for c in (7.5, 2, 3.2, 3, 2.6, 2.6, 3.4)], repeatRows=1)
     tabela.setStyle(TableStyle(stili))
     return tabela
+
+
+# ─── Fletorja e bllokut ──────────────────────────────────────────────────────
+
+def _numri(nr):
+    try:
+        return int(nr)
+    except (TypeError, ValueError):
+        return None
+
+
+def blloqet():
+    """Blloqet e përdorura (më i fundit i pari): [(blloku, nr_pagesave)]."""
+    numri, i_fundit = {}, {}
+    for _, model in LLOJET.values():
+        for blloku, regjistruar in model.objects.exclude(blloku='').values_list('blloku', 'data_regjistrimit'):
+            numri[blloku] = numri.get(blloku, 0) + 1
+            i_fundit[blloku] = max(i_fundit.get(blloku, regjistruar), regjistruar)
+    return [(b, numri[b]) for b in sorted(numri, key=lambda b: i_fundit[b], reverse=True)]
+
+
+def fletorja_e_bllokut(blloku):
+    """Të gjitha pagesat e një blloku (Antarësia, Fondi, Varrezat), sipas numrit të faturës — si fletorja në letër.
+    Kthen (rreshtat, totali, numrat_qe_mungojne)."""
+    rreshtat, totali = [], Totali()
+    for lloji, (emri_llojit, model) in LLOJET.items():
+        pagesat = model.objects.filter(blloku=blloku)
+        if lloji != 'fondi':
+            pagesat = pagesat.select_related('shtepia')
+        for p in pagesat:
+            if lloji == 'fondi':
+                emri = p.shtepia.emri_i_plote if p.shtepia_id else f'{p.emri_donatorit} {p.mbiemri_donatorit}'
+                vitet = p.lloji
+            else:
+                emri, vitet = p.shtepia.emri_i_plote, f'{emri_llojit} {p.vitet_tekst}'
+            rreshtat.append({
+                'pagese': p, 'emri': emri, 'nr_fatures': p.nr_fatures, 'data': p.data_pageses,
+                'shumat': {m: p.shumat_sipas_monedhes().get(m) for m in MONEDHAT}, 'eur': p.shuma_eur,
+                'pershkrimi': vitet, 'lloji': emri_llojit,
+            })
+            totali.shto(p)
+    rreshtat.sort(key=lambda r: (_numri(r['nr_fatures']) is None, _numri(r['nr_fatures']) or 0, r['nr_fatures'], r['data']))
+    for i, r in enumerate(rreshtat, 1):
+        r['nr'] = i
+    numrat = sorted({n for n in (_numri(r['nr_fatures']) for r in rreshtat) if n is not None})
+    mungojne = [n for n in range(numrat[0], numrat[-1] + 1) if n not in set(numrat)] if numrat else []
+    gjatesia = max((len(r['nr_fatures']) for r in rreshtat), default=6)
+    return rreshtat, totali, [str(n).zfill(gjatesia) for n in mungojne]
+
+
+KOKA_BLLOKU = ['Nr.', 'Emri  Prindi  Mbiemri', 'Nr. faturës', 'Data', 'Denarë', 'Euro', 'Franga', 'Dollar', 'Për (vitet)']
+
+
+def blloku_excel(blloku):
+    rreshtat, totali, mungojne = fletorja_e_bllokut(blloku)
+    wb = Workbook()
+    ws = wb.active
+    ws.title = f'Blloku {blloku}'[:31]
+    ws.append([f'Fletorja e bllokut {blloku} — Xhamia Pirok'])
+    ws['A1'].font = Font(bold=True, size=14)
+    ws.append([])
+    ws.append(KOKA_BLLOKU)
+    for c in ws[3]:
+        c.font = Font(bold=True, color='FFFFFF')
+        c.fill = PatternFill('solid', fgColor='2D5A1B')
+        c.alignment = Alignment(horizontal='center')
+    for r in rreshtat:
+        ws.append([r['nr'], r['emri'], r['nr_fatures'], r['data']]
+                  + [float(r['shumat'][m]) if r['shumat'][m] is not None else None for m in MONEDHAT] + [r['pershkrimi']])
+        ws.cell(ws.max_row, 4).number_format = 'DD.MM.YYYY'
+    ws.append(['', f'TOTALI I BLLOKUT {blloku} · {totali.nr} pagesa', '', '']
+              + [float(totali.shumat[m]) or None for m in MONEDHAT] + [f'= {float(totali.eur):,.2f} € gjithsej'])
+    for c in ws[ws.max_row]:
+        c.font = Font(bold=True, color='C00000')
+        c.fill = PatternFill('solid', fgColor='F6B26B')
+    if mungojne:
+        ws.append([])
+        ws.append(['', 'Numrat që mungojnë (anuluar / pa regjistruar): ' + ', '.join(mungojne)])
+    for rr in ws.iter_rows(min_row=4, min_col=5, max_col=8):
+        for i, c in enumerate(rr):
+            c.number_format = '#,##0' if i == 0 else '#,##0.00'
+    for kol, gj in zip('ABCDEFGHI', (6, 34, 12, 12, 12, 11, 10, 10, 24)):
+        ws.column_dimensions[kol].width = gj
+    ws.freeze_panes = 'A4'
+    ws.print_title_rows = '3:3'
+    ws.page_setup.fitToWidth = 1
+    ws.page_setup.fitToHeight = 0
+    ws.sheet_properties.pageSetUpPr.fitToPage = True
+    buffer = BytesIO()
+    wb.save(buffer)
+    return buffer.getvalue()
+
+
+def blloku_pdf(blloku):
+    """Fletorja e bllokut për printim (A4 vertikale): pagesat sipas numrit të faturës dhe totali në fund."""
+    from reportlab.lib import colors
+    from reportlab.lib.enums import TA_CENTER
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.styles import ParagraphStyle
+    from reportlab.lib.units import cm
+    from reportlab.platypus import LongTable, Paragraph, SimpleDocTemplate, Spacer, TableStyle
+
+    rreshtat, totali, mungojne = fletorja_e_bllokut(blloku)
+    # kolonat Franga / Dollar vetëm kur ka pagesa në to
+    monedhat = [m for m in MONEDHAT if m in ('MKD', 'EUR') or totali.shumat[m]]
+    emrat_monedhave = {'MKD': 'Denarë', 'EUR': 'Euro', 'CHF': 'Franga', 'USD': 'Dollar'}
+    koka = ['Nr.', 'Emri  Prindi  Mbiemri', 'Nr. fat.', 'Data'] + [emrat_monedhave[m] for m in monedhat] + ['Për (vitet)']
+    te_dhenat = [koka]
+    for r in rreshtat:
+        te_dhenat.append([r['nr'], r['emri'][:34], r['nr_fatures'], r['data'].strftime('%d.%m.%y')]
+                         + [_shuma_pdf(r['shumat'][m], m) for m in monedhat] + [r['pershkrimi'][:24]])
+    te_dhenat.append(['', f'TOTALI · {totali.nr} pagesa', '', ''] + [_shuma_pdf(totali.shumat[m], m) for m in monedhat]
+                     + [_shuma_pdf(totali.eur, 'EUR') + ' gjithsej'])
+    kol_shuma = 4
+    gjeresite = [1.0, 6.2, 1.8, 1.8] + [2.1] * len(monedhat) + [3.6]
+    stili = [
+        ('FONT', (0, 0), (-1, -1), 'Helvetica', 9),
+        ('FONT', (0, 0), (-1, 0), 'Helvetica-Bold', 9),
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2D5A1B')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('ALIGN', (kol_shuma, 0), (kol_shuma + len(monedhat) - 1, -1), 'RIGHT'),
+        ('ALIGN', (0, 0), (0, -1), 'CENTER'),
+        ('GRID', (0, 0), (-1, -1), 0.4, colors.HexColor('#999999')),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -2), [colors.white, colors.HexColor('#F5F7F2')]),
+        ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#F6B26B')),
+        ('FONT', (0, -1), (-1, -1), 'Helvetica-Bold', 10),
+        ('TEXTCOLOR', (0, -1), (-1, -1), colors.HexColor('#9C0006')),
+        ('TOPPADDING', (0, 0), (-1, -1), 3), ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+    ]
+    tabela = LongTable(te_dhenat, colWidths=[g * cm for g in gjeresite], repeatRows=1)
+    tabela.setStyle(TableStyle(stili))
+
+    titulli = ParagraphStyle('t', fontName='Helvetica-Bold', fontSize=15, alignment=TA_CENTER)
+    nen = ParagraphStyle('n', fontName='Helvetica', fontSize=9, alignment=TA_CENTER, textColor=colors.HexColor('#555555'))
+    vargu = f'nr {rreshtat[0]["nr_fatures"]} – {rreshtat[-1]["nr_fatures"]}' if rreshtat else 'pa pagesa'
+    pjeset = [Paragraph(f'BLLOKU {blloku}', titulli), Spacer(1, 3),
+              Paragraph(f'Xhamia Pirok · {vargu} · {totali.nr} pagesa', nen), Spacer(1, 8), tabela]
+    if mungojne:
+        pjeset += [Spacer(1, 8), Paragraph('Numrat që mungojnë (anuluar / pa regjistruar): ' + ', '.join(mungojne),
+                                           ParagraphStyle('m', fontName='Helvetica', fontSize=8.5))]
+
+    def fundi(canvas, doc):
+        canvas.saveState()
+        canvas.setFont('Helvetica', 7.5)
+        canvas.setFillColor(colors.HexColor('#6E6E73'))
+        canvas.drawRightString(doc.pagesize[0] - 1.2 * cm, 0.7 * cm, f'Xhamia Pirok — Blloku {blloku} — faqja {doc.page}')
+        canvas.restoreState()
+
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4, leftMargin=1.0 * cm, rightMargin=1.0 * cm,
+                            topMargin=1.1 * cm, bottomMargin=1.3 * cm, title=f'Blloku {blloku}')
+    doc.build(pjeset, onFirstPage=fundi, onLaterPages=fundi)
+    return buffer.getvalue()

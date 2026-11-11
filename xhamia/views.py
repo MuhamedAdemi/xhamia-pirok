@@ -487,6 +487,27 @@ def regjistri(request):
 
 
 @login_required
+def fletorja_bllokut(request):
+    """Fletorja e një blloku faturash: të gjitha pagesat nga fatura e parë te e fundit, me totalin në den dhe €."""
+    blloqet = raporti.blloqet()
+    blloku = request.GET.get('blloku') or (blloqet[0][0] if blloqet else '')
+    if request.GET.get('eksporto') in ('pdf', 'excel') and blloku:
+        if request.GET['eksporto'] == 'pdf':
+            resp = HttpResponse(raporti.blloku_pdf(blloku), content_type='application/pdf')
+            resp['Content-Disposition'] = f'attachment; filename="blloku_{blloku}.pdf"'
+        else:
+            resp = HttpResponse(raporti.blloku_excel(blloku),
+                                content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+            resp['Content-Disposition'] = f'attachment; filename="blloku_{blloku}.xlsx"'
+        return resp
+    rreshtat, totali, mungojne = raporti.fletorja_e_bllokut(blloku) if blloku else ([], raporti.Totali(), [])
+    return render(request, 'dashboard/blloku.html', {
+        'blloqet': blloqet, 'blloku': blloku, 'rreshtat': rreshtat, 'totali': totali, 'mungojne': mungojne,
+        'faqja_aktive': 'blloku',
+    })
+
+
+@login_required
 def backup_faqja(request):
     if not është_admin(request.user):
         messages.error(request, 'Nuk keni leje.')

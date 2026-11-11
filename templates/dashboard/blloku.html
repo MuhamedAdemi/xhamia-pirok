@@ -1,0 +1,91 @@
+{% extends 'base.html' %}
+{% load shumat %}
+{% block titulli %}Blloku {{ blloku }} — Xhamia Pirok{% endblock %}
+
+{% block kontent %}
+<div class="page-header">
+  <div>
+    <h2>🧾 Fletorja e bllokut{% if blloku %} {{ blloku }}{% endif %}</h2>
+    <p>Të gjitha pagesat e bllokut sipas numrit të faturës, nga e para te e fundit, me totalin në denarë dhe euro</p>
+  </div>
+</div>
+
+<div class="card" style="margin-bottom:20px;">
+  <form method="get" class="filtrat no-print">
+    <select name="blloku" onchange="this.form.submit()">
+      {% for b, n in blloqet %}<option value="{{ b }}" {% if b == blloku %}selected{% endif %}>Blloku {{ b }} ({{ n }} pagesa)</option>{% empty %}<option value="">Asnjë bllok</option>{% endfor %}
+    </select>
+    <button type="submit" name="eksporto" value="pdf" class="btn-kryesor btn-sm">📄 PDF për printim</button>
+    <button type="submit" name="eksporto" value="excel" class="btn-dytësor btn-sm">📊 Excel</button>
+    <button type="button" class="btn-dytësor btn-sm" onclick="window.print()">🖨️ Printo</button>
+  </form>
+</div>
+
+{% if rreshtat %}
+<div class="grid-4" style="margin-bottom:20px;">
+  <div class="stat-card gjelbër">
+    <div class="stat-label">Pagesa</div>
+    <div class="stat-vlera gjelbër">{{ totali.nr }}</div>
+    <div class="stat-nën">nr {{ rreshtat.0.nr_fatures }} – {% with rreshtat|last as i_fundit %}{{ i_fundit.nr_fatures }}{% endwith %}</div>
+  </div>
+  <div class="stat-card kafe">
+    <div class="stat-label">Denarë</div>
+    <div class="stat-vlera kafe">{{ totali.shumat.MKD|shuma:"MKD"|default:"0 den" }}</div>
+    <div class="stat-nën">të marra në den</div>
+  </div>
+  <div class="stat-card blu">
+    <div class="stat-label">Euro{% if totali.shumat.CHF or totali.shumat.USD %} / Franga / Dollar{% endif %}</div>
+    <div class="stat-vlera" style="color:#007AFF;">{{ totali.shumat.EUR|shuma:"EUR"|default:"0 €" }}{% if totali.shumat.CHF %} · {{ totali.shumat.CHF|shuma:"CHF" }}{% endif %}{% if totali.shumat.USD %} · {{ totali.shumat.USD|shuma:"USD" }}{% endif %}</div>
+    <div class="stat-nën">të marra në valutë</div>
+  </div>
+  <div class="stat-card portokalli">
+    <div class="stat-label">Gjithsej në €</div>
+    <div class="stat-vlera" style="color:var(--paralajmërim);">{{ totali.eur|shuma:"EUR" }}</div>
+    <div class="stat-nën">gjithçka e konvertuar</div>
+  </div>
+</div>
+{% endif %}
+
+<div class="card">
+  <div style="overflow-x:auto;">
+    <table class="tabela-xhami tabela-regjistri">
+      <thead>
+        <tr><th>Nr.</th><th>Emri  Prindi  Mbiemri</th><th>Nr. faturës</th><th>Data</th>
+          <th class="djathtas">Denarë</th><th class="djathtas">Euro</th>
+          {% if totali.shumat.CHF %}<th class="djathtas">Franga</th>{% endif %}{% if totali.shumat.USD %}<th class="djathtas">Dollar</th>{% endif %}
+          <th>Për (vitet)</th></tr>
+      </thead>
+      <tbody>
+        {% for r in rreshtat %}
+        <tr>
+          <td class="tekst-dytësor">{{ r.nr }}</td>
+          <td><a href="{{ r.pagese.get_absolute_url }}">{{ r.emri }}</a></td>
+          <td>{{ r.nr_fatures }}</td>
+          <td>{{ r.data|date:"d.m.y" }}</td>
+          <td class="djathtas">{{ r.shumat.MKD|shuma:"MKD" }}</td>
+          <td class="djathtas">{{ r.shumat.EUR|shuma:"EUR" }}</td>
+          {% if totali.shumat.CHF %}<td class="djathtas">{{ r.shumat.CHF|shuma:"CHF" }}</td>{% endif %}
+          {% if totali.shumat.USD %}<td class="djathtas">{{ r.shumat.USD|shuma:"USD" }}</td>{% endif %}
+          <td>{{ r.pershkrimi }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="9" style="text-align:center; padding:40px; color:var(--tekst-dytësor);">Asnjë pagesë me bllok.</td></tr>
+        {% endfor %}
+        {% if rreshtat %}
+        <tr class="rresht-total total-gjithsej">
+          <td></td><td colspan="3">TOTALI I BLLOKUT {{ blloku }} · {{ totali.nr }} pagesa</td>
+          <td class="djathtas">{{ totali.shumat.MKD|shuma:"MKD" }}</td>
+          <td class="djathtas">{{ totali.shumat.EUR|shuma:"EUR" }}</td>
+          {% if totali.shumat.CHF %}<td class="djathtas">{{ totali.shumat.CHF|shuma:"CHF" }}</td>{% endif %}
+          {% if totali.shumat.USD %}<td class="djathtas">{{ totali.shumat.USD|shuma:"USD" }}</td>{% endif %}
+          <td>= {{ totali.eur|shuma:"EUR" }} gjithsej</td>
+        </tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% if mungojne %}
+<p class="ndihma" style="margin-top:10px;">⚠️ Numrat që mungojnë në bllok (anuluar ose pa regjistruar ende): <strong>{{ mungojne|join:", " }}</strong></p>
+{% endif %}
+{% endblock %}
