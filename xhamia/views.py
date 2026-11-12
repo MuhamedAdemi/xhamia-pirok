@@ -1617,9 +1617,8 @@ def shto_harxhim(request):
     if not është_admin(request.user):
         messages.error(request, 'Nuk keni leje.')
         return redirect('lista_harxhimeve')
-    blloku, nr = sugjero_faturen(Harxhimi)
     form = HarxhimiForm(request.POST or None, initial={
-        'blloku': blloku, 'nr_fatures': nr,
+        'nr_fatures': Harxhimi.nr_i_radhes(timezone.localdate().year), 'qyteti': 'Tetovë',
         'data_pageses': timezone.now().date(), 'burimi': request.GET.get('burimi', 'FONDI'),
     })
     if request.method == 'POST' and form.is_valid():
@@ -1633,6 +1632,39 @@ def shto_harxhim(request):
         'form': form, 'titulli': 'Regjistro Harxhim', 'llojet': _llojet_e_harxhimeve(),
         'faqja_aktive': 'harxhimet',
     })
+
+
+@login_required
+def ndrysho_harxhimin(request, pk):
+    if not është_admin(request.user):
+        messages.error(request, 'Nuk keni leje.')
+        return redirect('detaje_harxhimi', pk=pk)
+    harxhim = get_object_or_404(Harxhimi, pk=pk)
+    form = HarxhimiForm(request.POST or None, instance=harxhim, initial={
+        'shuma_hyrese': harxhim.shuma_ne_monedhe, 'monedha': harxhim.monedha, 'kursi': harxhim.kursi_denar,
+    })
+    if request.method == 'POST' and form.is_valid():
+        harxhim = form.apliko_shumen(form.save(commit=False))
+        harxhim.viti = harxhim.data_pageses.year
+        harxhim.save()
+        messages.success(request, f'Harxhimi {harxhim.fatura_tekst} u ndryshua.')
+        return redirect('detaje_harxhimi', pk=harxhim.pk)
+    return render(request, 'harxhimet/forma.html', {
+        'form': form, 'titulli': f'Ndrysho harxhimin {harxhim.fatura_tekst}', 'llojet': _llojet_e_harxhimeve(),
+        'faqja_aktive': 'harxhimet', 'ndryshim': harxhim,
+    })
+
+
+@login_required
+def fletepagesa_pdf(request, pk):
+    """Fletëpagesa A4 "Arka të paguajë" për një dalje — për nënshkrim, vulë dhe arkiv (me faturën fiskale)."""
+    if not mund_shikoje(request.user):
+        return redirect('dashboard')
+    from .fletepagesa import fletepagesa_pdf as ndertoje
+    harxhim = get_object_or_404(Harxhimi, pk=pk)
+    resp = HttpResponse(ndertoje(harxhim), content_type='application/pdf')
+    resp['Content-Disposition'] = f'inline; filename="fletepagesa_{harxhim.nr_fatures.replace("/", "-")}.pdf"'
+    return resp
 
 
 @login_required

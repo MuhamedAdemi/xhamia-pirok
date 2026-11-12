@@ -559,6 +559,10 @@ class Harxhimi(MonedhaMixin, models.Model):
         related_name='rrogat_e_marra', verbose_name='Stafi (rroge)'
     )
     pershkrimi = models.TextField(blank=True, verbose_name='Përshkrimi')
+    # Për fletëpagesën "Arka të paguajë": kujt i paguhet, nga cili vend dhe në cilën llogari (opsionale)
+    marresi = models.CharField(max_length=150, blank=True, verbose_name='Marrësi (firma / personi fizik)')
+    qyteti = models.CharField(max_length=80, blank=True, verbose_name='Nga qyteti / fshati')
+    llogaria = models.CharField(max_length=80, blank=True, verbose_name='Për llogari (opsionale)')
     shuma_eur = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='Shuma (€)')
     shuma_mkd = models.DecimalField(
         max_digits=12, decimal_places=2, null=True, blank=True,
@@ -597,6 +601,18 @@ class Harxhimi(MonedhaMixin, models.Model):
 
     def __str__(self):
         return f"{self.fatura_tekst} — {self.lloji} — {self.shuma_origjinale}"
+
+    @classmethod
+    def nr_i_radhes(cls, viti):
+        """Numri i radhës i fletëpagesës për vitin: 1/26, 2/26 … (rinis nga 1 çdo vit)."""
+        import re
+        yy = f'{viti % 100:02d}'
+        me_i_madhi = 0
+        for nr in cls.objects.filter(nr_fatures__endswith=f'/{yy}').values_list('nr_fatures', flat=True):
+            m = re.fullmatch(r'\s*(\d+)\s*/\s*' + yy + r'\s*', nr)
+            if m:
+                me_i_madhi = max(me_i_madhi, int(m.group(1)))
+        return f'{me_i_madhi + 1}/{yy}'
 
     @property
     def emri_muajit(self):

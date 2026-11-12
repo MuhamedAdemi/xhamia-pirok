@@ -1,12 +1,12 @@
 {% extends 'base.html' %}
 {% load widget_tweaks %}
-{% block titulli %}Regjistro Harxhim — Xhamia Pirok{% endblock %}
+{% block titulli %}{{ titulli }} — Xhamia Pirok{% endblock %}
 
 {% block kontent %}
 <div class="page-header">
   <div class="flex items-center gap-3">
-    <a href="{% url 'lista_harxhimeve' %}" class="btn-dytësor btn-sm">← Kthehu</a>
-    <h2>📤 Regjistro Harxhim</h2>
+    <a href="{% if ndryshim %}{% url 'detaje_harxhimi' ndryshim.pk %}{% else %}{% url 'lista_harxhimeve' %}{% endif %}" class="btn-dytësor btn-sm">← Kthehu</a>
+    <h2>📤 {{ titulli }}</h2>
   </div>
 </div>
 
@@ -14,21 +14,29 @@
   {% csrf_token %}
 
   <div class="card" style="margin-bottom:20px;">
-    <div class="card-header"><h5>🧾 Fatura</h5></div>
+    <div class="card-header"><h5>🧾 Fletëpagesa "Arka të paguajë"</h5></div>
     <div class="card-body">
       <div class="grid-2">
         <div class="forma-grup">
-          <label>{{ form.blloku.label }}</label>
-          {% render_field form.blloku placeholder="p.sh. 1100" inputmode="numeric" autocomplete="off" %}
-          {% if form.blloku.errors %}<p class="gabim-fusha">{{ form.blloku.errors.0 }}</p>{% endif %}
+          <label>{{ form.nr_fatures.label }}</label>
+          {% render_field form.nr_fatures autocomplete="off" %}
+          {% if form.nr_fatures.errors %}<p class="gabim-fusha">{{ form.nr_fatures.errors.0 }}</p>{% endif %}
+          <p class="ndihma">Numri i radhës sipas vitit: 1/26, 2/26 … — në 2027 rinis nga 1/27. Sugjerohet vetë.</p>
         </div>
         <div class="forma-grup">
-          <label>{{ form.nr_fatures.label }}</label>
-          {% render_field form.nr_fatures placeholder="p.sh. 046386" inputmode="numeric" autocomplete="off" %}
-          {% if form.nr_fatures.errors %}<p class="gabim-fusha">{{ form.nr_fatures.errors.0 }}</p>{% endif %}
+          <label>{{ form.marresi.label }}</label>
+          {% render_field form.marresi placeholder="p.sh. EVN Maqedoni, Setek SE Teknika, Izahir Bajrami" %}
+          {% if form.marresi.errors %}<p class="gabim-fusha">{{ form.marresi.errors.0 }}</p>{% endif %}
+        </div>
+        <div class="forma-grup">
+          <label>{{ form.qyteti.label }}</label>
+          {% render_field form.qyteti placeholder="p.sh. Tetovë, f. Pirok" %}
+        </div>
+        <div class="forma-grup">
+          <label>{{ form.llogaria.label }}</label>
+          {% render_field form.llogaria placeholder="nr. i llogarisë bankare, nëse paguhet në llogari" %}
         </div>
       </div>
-      <p class="ndihma" style="margin-top:-6px;">Nga blloku i faturave të harxhimeve. Sugjerohet blloku i fundit dhe numri pasues.</p>
       {% for e in form.non_field_errors %}<p class="gabim-fusha">{{ e }}</p>{% endfor %}
     </div>
   </div>
@@ -57,7 +65,8 @@
       </div>
       <div class="forma-grup">
         <label>{{ form.pershkrimi.label }}</label>
-        {% render_field form.pershkrimi placeholder="p.sh. Fatura e rrymës — Tetor 2026, riparimi i çatisë…" %}
+        {% render_field form.pershkrimi placeholder="p.sh. Vendosja e radiatorëve në sallën e madhe (6 copë) dhe puna e dorës…" %}
+        <p class="ndihma">Ky tekst del te fletëpagesa A4. Fatura fiskale / llogaria e ofruesit i bashkëngjitet fletëpagesës.</p>
       </div>
     </div>
   </div>
@@ -65,7 +74,7 @@
   {% include 'pagesat/_shuma_monedha.html' %}
 
   <div class="flex gap-3">
-    <button type="submit" class="btn-rrezik">📤 Regjistro Harxhimin</button>
+    <button type="submit" class="btn-rrezik">{% if ndryshim %}💾 Ruaj ndryshimin{% else %}📤 Regjistro Harxhimin{% endif %}</button>
     <a href="{% url 'lista_harxhimeve' %}" class="btn-dytësor">Anulo</a>
   </div>
 </form>

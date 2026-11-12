@@ -452,20 +452,36 @@ class HarxhimiForm(ShumaMonedhaMixin, forms.ModelForm):
 
     class Meta:
         model = Harxhimi
-        fields = ['blloku', 'nr_fatures', 'lloji', 'burimi', 'data_pageses', 'pershkrimi']
+        fields = ['nr_fatures', 'marresi', 'qyteti', 'llogaria', 'lloji', 'burimi', 'data_pageses', 'pershkrimi']
         widgets = {
             'lloji': forms.TextInput(attrs={'list': 'llojet', 'autocomplete': 'off',
                                             'placeholder': 'p.sh. Rrymë elektrike, Riparim i çatisë…'}),
-            'pershkrimi': forms.Textarea(attrs={'rows': 3}),
+            'pershkrimi': forms.Textarea(attrs={'rows': 5}),
             'data_pageses': forms.DateInput(attrs={'type': 'date'}),
         }
         labels = {
-            'blloku': 'Blloku (4 shifra)',
-            'nr_fatures': 'Nr. i Faturës (6 shifra)',
-            'lloji': 'Lloji i harxhimit',
+            'nr_fatures': 'Nr. i fletëpagesës (p.sh. 43/26)',
+            'marresi': 'Marrësi — firma / personi fizik',
+            'qyteti': 'Nga qyteti / fshati',
+            'llogaria': 'Për llogari (opsionale)',
+            'lloji': 'Për (lloji i harxhimit)',
             'data_pageses': 'Data',
-            'pershkrimi': 'Përshkrimi',
+            'pershkrimi': 'Përshkrimi i detajuar i punës / shërbimit',
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['marresi'].required = True
+
+    def clean_nr_fatures(self):
+        """Blloku nuk është më në formë, prandaj kontrolli i numrit të dyfishtë bëhet këtu (ndryshe: IntegrityError)."""
+        nr = (self.cleaned_data.get('nr_fatures') or '').strip()
+        te_njejta = Harxhimi.objects.filter(blloku=self.instance.blloku or '', nr_fatures=nr)
+        if self.instance.pk:
+            te_njejta = te_njejta.exclude(pk=self.instance.pk)
+        if te_njejta.exists():
+            raise forms.ValidationError(f'Fletëpagesa nr {nr} është regjistruar tashmë.')
+        return nr
 
 
 class KonfigurimiSistemitForm(forms.ModelForm):

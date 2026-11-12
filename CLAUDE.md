@@ -109,6 +109,10 @@ and open a new Bash console). Free tier: requests must be fast — avoid heavy w
   Varrezat — handed to the Muftiate block by block), sorted by invoice nr, totals den/€, missing numbers; PDF/Excel.
 - Fund ledger (`regjistri/fondi/`, `xhamia/fondi.py`): month by month — opening balance, income (PagesaFondi),
   expenses (Harxhimi burimi=FONDI), balance, closing balance per currency + € total; year summary; PDF/Excel.
+- **Expenses (daljet)**: `Harxhimi.nr_fatures` is the yearly voucher number "43/26" (`Harxhimi.nr_i_radhes(viti)`,
+  restarts at 1/27; blloku no longer used), `marresi` (firm / person, required), `qyteti`, `llogaria`; A4 voucher
+  "ARKA TË PAGUAJË" (`xhamia/fletepagesa.py`, amount in words via `xhamia/fjalet.py`), with signatures and stamp
+  place; the supplier's fiscal invoice is stapled to it. Fund ledger year view has cumulative 3/6/9-month rows.
 - Admin can correct a membership payment (`ndrysho_pagese_antaresia`, e.g. 4300 den → 50 € + 1300 den): same form,
   no new email, old amount noted in `shenime`, category recomputed.
 - `xhamia/fletorja.py` — membership ledger: build rows, read a ledger PDF, compare with the app

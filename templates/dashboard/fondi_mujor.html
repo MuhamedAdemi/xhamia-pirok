@@ -54,17 +54,18 @@
 </div>
 
 <div class="card" style="margin-bottom:20px;">
-  <div class="card-header"><h5>📤 Daljet — harxhimet nga Fondi</h5></div>
+  <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;"><h5>📤 Daljet — harxhimet nga Fondi (kliko për fletëpagesën)</h5>
+    <a href="{% url 'shto_harxhim' %}?burimi=FONDI" class="btn-dytësor btn-sm no-print">+ Regjistro dalje</a></div>
   <div style="overflow-x:auto;">
     <table class="tabela-xhami tabela-regjistri">
-      <thead><tr><th>Nr.</th><th>Lloji</th><th>Përshkrimi</th><th>Fatura</th><th>Data</th>
+      <thead><tr><th>Nr.</th><th>Firma / personi fizik</th><th>Për çka</th><th>Nr.</th><th>Data</th>
         {% for m in d.monedhat %}<th class="djathtas">{% if m == 'MKD' %}Denarë{% elif m == 'EUR' %}Euro{% elif m == 'CHF' %}Franga{% else %}Dollar{% endif %}</th>{% endfor %}</tr></thead>
       <tbody>
         {% for r in d.daljet %}
         <tr><td class="tekst-dytësor">{{ r.nr }}</td><td><a href="{{ r.pagese.get_absolute_url }}">{{ r.emri }}</a></td><td>{{ r.pershkrimi }}</td>
           <td>{{ r.fatura }}</td><td>{{ r.data|date:"d.m.y" }}</td>
           {% for m in d.monedhat %}<td class="djathtas">{% for k, v in r.shumat.items %}{% if k == m %}{{ v|shuma:m }}{% endif %}{% endfor %}</td>{% endfor %}</tr>
-        {% empty %}<tr><td colspan="9" class="tekst-dytësor" style="text-align:center; padding:20px;">Asnjë harxhim nga Fondi këtë muaj.</td></tr>
+        {% empty %}<tr><td colspan="9" class="tekst-dytësor" style="text-align:center; padding:20px;">Asnjë harxhim nga Fondi këtë muaj. <a href="{% url 'shto_harxhim' %}?burimi=FONDI">+ Regjistro dalje</a></td></tr>
         {% endfor %}
         <tr class="rresht-total total-tremujor"><td></td><td colspan="4">Totali i daljeve · {{ d.t_dalje.nr }}</td>
           {% for m in d.monedhat %}<td class="djathtas">{% for k, v in d.t_dalje.shumat.items %}{% if k == m %}{{ v|shuma:m }}{% endif %}{% endfor %}</td>{% endfor %}</tr>
@@ -100,7 +101,7 @@
       <tbody>
         <tr class="rresht-total total-bllok"><td colspan="8">Gjendja në fillim të vitit</td><td class="djathtas">{{ d.fillimi.eur|shuma:"EUR"|default:"0 €" }}</td></tr>
         {% for m in d.muajt %}
-        <tr><td><a href="?viti={{ viti }}&muaji={{ m.muaji }}">{{ m.emri }}</a></td>
+        <tr{% if m.kumulativ %} class="rresht-total total-kumulativ"{% endif %}><td>{% if m.kumulativ %}{{ m.emri }}{% else %}<a href="?viti={{ viti }}&muaji={{ m.muaji }}">{{ m.emri }}</a>{% endif %}</td>
           <td class="djathtas">{{ m.hyra.shumat.MKD|shuma:"MKD" }}</td><td class="djathtas">{{ m.hyra.shumat.EUR|shuma:"EUR" }}</td><td class="djathtas">{{ m.hyra.eur|shuma:"EUR" }}</td>
           <td class="djathtas">{{ m.dalje.shumat.MKD|shuma:"MKD" }}</td><td class="djathtas">{{ m.dalje.shumat.EUR|shuma:"EUR" }}</td><td class="djathtas">{{ m.dalje.eur|shuma:"EUR" }}</td>
           <td class="djathtas">{{ m.bilanci.eur|shuma:"EUR" }}</td><td class="djathtas">{{ m.fundi.eur|shuma:"EUR" }}</td></tr>

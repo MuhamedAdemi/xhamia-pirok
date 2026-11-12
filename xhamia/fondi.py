@@ -50,8 +50,9 @@ def gjendja_para(data):
 
 
 def _rreshti(p, i, dalje=False):
-    if dalje:
-        emri, pershkrimi = p.lloji, p.pershkrimi
+    if dalje:   # si në fletore: Firma / personi fizik · për çka
+        emri = p.marresi or p.lloji
+        pershkrimi = ' — '.join(x for x in ((p.lloji if p.marresi else ''), p.pershkrimi) if x)
     else:
         emri = p.shtepia.emri_i_plote if p.shtepia_id else f'{p.emri_donatorit} {p.mbiemri_donatorit}'
         pershkrimi = ' — '.join(x for x in (p.lloji, p.arsyeja) if x)
@@ -91,10 +92,17 @@ def viti_i_plote(viti):
         dalje[h.data_pageses.month - 1].shto(h)
     fillimi = gjendja_para(date(viti, 1, 1))
     gjendja, muajt = fillimi, []
+    k_hyra, k_dalje = Totali(), Totali()
     for i in range(12):
         gjendja = Gjendja.nga(hyra[i], dalje[i], gjendja)
         muajt.append({'muaji': i + 1, 'emri': MUAJT[i], 'hyra': hyra[i], 'dalje': dalje[i],
                       'bilanci': Gjendja.nga(hyra[i], dalje[i]), 'fundi': gjendja})
+        k_hyra.bashko(hyra[i])
+        k_dalje.bashko(dalje[i])
+        if i in (2, 5, 8):   # pas marsit, qershorit, shtatorit: gjithsej 3 / 6 / 9 muajt e parë
+            muajt.append({'kumulativ': True, 'emri': f'Gjithsej {i + 1} muajt e parë (Jan–{MUAJT[i][:3]})',
+                          'hyra': k_hyra.kopje(), 'dalje': k_dalje.kopje(),
+                          'bilanci': Gjendja.nga(k_hyra, k_dalje), 'fundi': gjendja})
     t_hyra, t_dalje = Totali(), Totali()
     for i in range(12):
         t_hyra.bashko(hyra[i])
@@ -161,7 +169,7 @@ def excel(viti, muaji_nr=None):
         ws.append([])
         ws.append(['DALJET (harxhimet nga Fondi)'])
         ws.cell(ws.max_row, 1).font = Font(bold=True, color='C00000', size=12)
-        koka(['Nr.', 'Lloji', 'Përshkrimi', 'Fatura', 'Data'] + emrat)
+        koka(['Nr.', 'Firma / personi fizik', 'Për çka', 'Nr.', 'Data'] + emrat)
         for r in d['daljet']:
             ws.append([r['nr'], r['emri'], r['pershkrimi'], r['fatura'], r['data']]
                       + [float(r['shumat'].get(m) or 0) or None for m in MONEDHAT] + [float(r['eur'])])
@@ -185,6 +193,8 @@ def excel(viti, muaji_nr=None):
         for m in d['muajt']:
             ws.append([m['emri']] + numrat(m['hyra'].shumat, m['hyra'].eur) + numrat(m['dalje'].shumat, m['dalje'].eur)
                       + [float(m['bilanci'].eur), float(m['fundi'].eur)])
+            if m.get('kumulativ'):
+                ngjyros('B4C7E7')
         ws.append([f'GJITHSEJ {viti}'] + numrat(d['t_hyra'].shumat, d['t_hyra'].eur)
                   + numrat(d['t_dalje'].shumat, d['t_dalje'].eur) + [float(d['bilanci'].eur), float(d['fundi'].eur)])
         ngjyros('F6B26B')
@@ -250,7 +260,8 @@ def pdf(viti, muaji_nr=None):
         pjeset += [Paragraph(f'FLETORJA E FONDIT — {d["emri"].upper()}', titulli), Spacer(1, 8)]
         for emri_seksionit, rreshtat, t, ngjyra in (('Hyrat — donacionet e Fondit', d['hyrat'], d['t_hyra'], '#D9EAD3'),
                                                    ('Daljet — harxhimet nga Fondi', d['daljet'], d['t_dalje'], '#F4CCCC')):
-            te_dhenat = [['Nr.', 'Paguesi' if 'Hyrat' in emri_seksionit else 'Lloji', 'Përshkrimi', 'Fatura', 'Data'] + emrat]
+            te_dhenat = [['Nr.', 'Paguesi' if 'Hyrat' in emri_seksionit else 'Firma / personi fizik',
+                          'Përshkrimi' if 'Hyrat' in emri_seksionit else 'Për çka', 'Nr.', 'Data'] + emrat]
             for r in rreshtat:
                 te_dhenat.append([r['nr'], r['emri'][:32], r['pershkrimi'][:40], r['fatura'], r['data'].strftime('%d.%m.%y')]
                                  + shumat(r['shumat'], r['eur']))
@@ -271,7 +282,10 @@ def pdf(viti, muaji_nr=None):
         koka = ['Muaji', 'Hyra den', 'Hyra €', 'Hyra gjithsej €', 'Dalje den', 'Dalje €', 'Dalje gjithsej €',
                 'Bilanci €', 'Gjendja në fund €']
         te_dhenat = [koka, ['Gjendja në fillim të vitit', '', '', '', '', '', '', '', shuma(d['fillimi'].eur, 'EUR')]]
+        ngjyrat_kum = []
         for m in d['muajt']:
+            if m.get('kumulativ'):
+                ngjyrat_kum.append((len(te_dhenat), '#B4C7E7'))
             te_dhenat.append([m['emri'], shuma(m['hyra'].shumat['MKD'], 'MKD'), shuma(m['hyra'].shumat['EUR'], 'EUR'),
                               shuma(m['hyra'].eur, 'EUR'), shuma(m['dalje'].shumat['MKD'], 'MKD'),
                               shuma(m['dalje'].shumat['EUR'], 'EUR'), shuma(m['dalje'].eur, 'EUR'),
@@ -281,7 +295,7 @@ def pdf(viti, muaji_nr=None):
                           shuma(d['t_dalje'].shumat['EUR'], 'EUR'), shuma(d['t_dalje'].eur, 'EUR'),
                           shuma(d['bilanci'].eur, 'EUR'), shuma(d['fundi'].eur, 'EUR')])
         pjeset += [Paragraph(f'FLETORJA E FONDIT — VITI {viti}', titulli), Spacer(1, 10),
-                   tabela(te_dhenat, [4.6] + [2.7] * 8, 1, [(1, '#EDE7DC'), (len(te_dhenat) - 1, '#F6B26B')])]
+                   tabela(te_dhenat, [5.4] + [2.6] * 8, 1, [(1, '#EDE7DC'), (len(te_dhenat) - 1, '#F6B26B')] + ngjyrat_kum)]
         faqja = landscape(A4)
 
     def fundi(canvas, doc):

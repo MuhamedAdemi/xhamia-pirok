@@ -439,7 +439,10 @@ class BllokuMonedhatRegjistriTest(TestCase):
         self.assertEqual(m['fundi'].shumat['EUR'], Decimal('220'))
         self.assertEqual(m['fundi'].shumat['MKD'], Decimal('6150'))
         v = fondi.viti_i_plote(2026)
-        self.assertEqual(v['muajt'][8]['fundi'].eur, Decimal('100'))
+        muajt = {m['emri']: m for m in v['muajt']}
+        self.assertEqual(muajt['Shtator']['fundi'].eur, Decimal('100'))
+        self.assertEqual(muajt['Gjithsej 9 muajt e parë (Jan–Sht)']['hyra'].eur, Decimal('100'))
+        self.assertEqual(muajt['Gjithsej 6 muajt e parë (Jan–Qer)']['hyra'].nr, 0)
         self.assertEqual(v['fundi'].eur, Decimal('320'))
         r = self.client.get(reverse('fletorja_fondit'), {'viti': 2026, 'muaji': 10})
         self.assertContains(r, 'GJENDJA NË FUND TË MUAJIT')
@@ -958,8 +961,9 @@ class HarxhimetMonedhaTest(TestCase):
         forma = self.client.get(reverse('shto_harxhim'))
         self.assertContains(forma, '<datalist id="llojet">')
         self.assertNotContains(forma, 'Antarësia (e vjetër)')    # antarësia nuk ka harxhime
+        yy = timezone.localdate().year % 100
         r = self.client.post(reverse('shto_harxhim'), {
-            'blloku': '2001', 'nr_fatures': '000101',
+            'nr_fatures': f'1/{yy}', 'marresi': 'Mjeshtri', 'qyteti': 'Tetovë',
             'lloji': 'Riparimi i çatisë', 'burimi': 'FONDI', 'data_pageses': '2026-10-28',
             'pershkrimi': 'Mjeshtri', 'shuma_hyrese': '12300', 'monedha': 'MKD', 'kursi': '61.5',
         })
@@ -967,16 +971,16 @@ class HarxhimetMonedhaTest(TestCase):
         h = Harxhimi.objects.get()
         self.assertEqual((h.lloji, h.monedha, h.shuma_origjinale, h.shuma_eur, h.viti),
                          ('Riparimi i çatisë', 'MKD', '12.300 den', Decimal('200.00'), 2026))
-        self.assertEqual(h.fatura_tekst, 'Bllok 2001 nr 000101')
-        self.assertContains(self.client.get(reverse('detaje_harxhimi', args=[h.pk])), 'Bllok 2001 nr 000101')
-        self.assertEqual(self.client.get(reverse('shto_harxhim')).context['form'].initial['nr_fatures'], '000102')
+        self.assertEqual(h.fatura_tekst, f'1/{yy}')
+        self.assertContains(self.client.get(reverse('detaje_harxhimi', args=[h.pk])), f'1/{yy}')
+        self.assertEqual(self.client.get(reverse('shto_harxhim')).context['form'].initial['nr_fatures'], f'2/{yy}')
         dyfish = self.client.post(reverse('shto_harxhim'), {
-            'blloku': '2001', 'nr_fatures': '000101', 'lloji': 'X', 'burimi': 'FONDI',
+            'nr_fatures': f'1/{yy}', 'marresi': 'X', 'lloji': 'X', 'burimi': 'FONDI',
             'data_pageses': '2026-10-28', 'shuma_hyrese': '1', 'monedha': 'EUR', 'kursi': '61.5',
         })
         self.assertContains(dyfish, 'regjistruar tashmë')
         self.client.post(reverse('shto_harxhim'), {
-            'blloku': '2001', 'nr_fatures': '000102',
+            'nr_fatures': f'2/{yy}', 'marresi': 'EVN Maqedoni',
             'lloji': 'Rrymë elektrike', 'burimi': 'VARREZAT', 'data_pageses': '2026-10-28',
             'shuma_hyrese': '50', 'monedha': 'CHF', 'kursi': '66',
         })
@@ -1545,3 +1549,66 @@ class RenditjaShqipTest(TestCase):
         emrat = ['Zenel', 'Shaban', 'Sylejman', 'Xhevat', 'Xhemajl', 'Ymer', 'Çerkin', 'Dhurata', 'Driton', 'Ali Beqiri', 'Alim']
         self.assertEqual(sorted(emrat, key=celesi_shqip),
                          ['Ali Beqiri', 'Alim', 'Çerkin', 'Driton', 'Dhurata', 'Sylejman', 'Shaban', 'Xhemajl', 'Xhevat', 'Ymer', 'Zenel'])
+
+
+class DaljetFletepagesaTest(TestCase):
+    """Daljet e Fondit: fletëpagesa A4 "Arka të paguajë", numri i radhës sipas vitit, shuma me fjalë."""
+
+    def setUp(self):
+        self.admin = User.objects.create_user('admin', password='x', first_name='Muhamed', last_name='Ademi')
+        ProfilStafi.objects.create(user=self.admin, rol='ADMIN')
+        self.client.force_login(self.admin)
+        KonfigurimiSistemit.objects.create(pk=1, kursi_eur=Decimal('61'))
+
+    def test_shuma_me_fjale(self):
+        from .fjalet import shuma_me_fjale
+        self.assertEqual(shuma_me_fjale(5960, 'MKD'), 'pesë mijë e nëntëqind e gjashtëdhjetë denarë')
+        self.assertEqual(shuma_me_fjale(7929, 'MKD'), 'shtatë mijë e nëntëqind e njëzet e nëntë denarë')
+        self.assertEqual(shuma_me_fjale(246350, 'MKD'), 'dyqind e dyzet e gjashtë mijë e treqind e pesëdhjetë denarë')
+        self.assertEqual(shuma_me_fjale(200, 'EUR'), 'dyqind euro')
+        self.assertEqual(shuma_me_fjale(20000, 'MKD'), 'njëzet mijë denarë')
+        self.assertEqual(shuma_me_fjale(1, 'MKD'), 'një denar')
+        self.assertEqual(shuma_me_fjale(Decimal('12.50'), 'EUR'), 'dymbëdhjetë euro e 50 cent')
+        self.assertEqual(shuma_me_fjale(1000000, 'MKD'), 'një milion denarë')
+
+    def _dalje(self, **te_dhenat):
+        data = {'nr_fatures': '', 'marresi': 'Setek SE Teknika', 'qyteti': 'Tetovë', 'lloji': 'Vendosja e radiatorëve',
+                'burimi': 'FONDI', 'data_pageses': '2026-11-12', 'pershkrimi': 'Radiatorët në sallë dhe puna e dorës',
+                'shuma_hyrese': '770', 'monedha': 'EUR', 'kursi': '61'}
+        data.update(te_dhenat)
+        return self.client.post(reverse('shto_harxhim'), data)
+
+    def test_numri_i_radhes_fletepagesa_dhe_ndryshimi(self):
+        from .models import Harxhimi
+        r = self.client.get(reverse('shto_harxhim'))
+        yy = timezone.localdate().year % 100
+        self.assertEqual(r.context['form'].initial['nr_fatures'], f'1/{yy}')
+        self._dalje(nr_fatures='43/26')
+        self._dalje(nr_fatures='44/26', shuma_hyrese='1880', monedha='MKD', marresi='Market', lloji='Qese')
+        self._dalje(nr_fatures='3/27', data_pageses='2027-01-05', shuma_hyrese='2500', monedha='MKD')
+        self.assertEqual(Harxhimi.nr_i_radhes(2026), '45/26')
+        self.assertEqual(Harxhimi.nr_i_radhes(2027), '4/27')
+        self.assertEqual(Harxhimi.nr_i_radhes(2028), '1/28')
+        # marrësi është i detyrueshëm
+        r = self._dalje(nr_fatures='45/26', marresi='')
+        self.assertEqual(Harxhimi.objects.count(), 3)
+        h = Harxhimi.objects.get(nr_fatures='43/26')
+        r = self.client.get(reverse('detaje_harxhimi', args=[h.pk]))
+        self.assertContains(r, 'Fletëpagesa A4')
+        self.assertContains(r, 'Setek SE Teknika')
+        r = self.client.get(reverse('fletepagesa_pdf', args=[h.pk]))
+        self.assertEqual(r['Content-Type'], 'application/pdf')
+        self.assertTrue(r.content.startswith(b'%PDF'))
+        # ndryshimi
+        r = self.client.post(reverse('ndrysho_harxhimin', args=[h.pk]), {
+            'nr_fatures': '43/26', 'marresi': 'Setek SE Teknika', 'qyteti': 'Tetovë', 'lloji': 'Vendosja e radiatorëve',
+            'burimi': 'FONDI', 'data_pageses': '2026-11-12', 'pershkrimi': '6 radiatorë', 'shuma_hyrese': '780',
+            'monedha': 'EUR', 'kursi': '61'})
+        self.assertRedirects(r, reverse('detaje_harxhimi', args=[h.pk]), fetch_redirect_response=False)
+        h.refresh_from_db()
+        self.assertEqual((h.shuma_eur, h.pershkrimi), (Decimal('780'), '6 radiatorë'))
+        # në Fletoren e Fondit (nëntor 2026): marrësi si "Firma / personi fizik"
+        from . import fondi
+        m = fondi.muaji(2026, 11)
+        self.assertEqual([r['emri'] for r in m['daljet']], ['Setek SE Teknika', 'Market'])
+        self.assertEqual((m['t_dalje'].shumat['EUR'], m['t_dalje'].shumat['MKD']), (Decimal('780'), Decimal('1880')))

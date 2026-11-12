@@ -102,6 +102,8 @@ urlpatterns = [
     path('harxhimet/shto/', views.shto_harxhim, name='shto_harxhim'),
     path('harxhimet/<int:pk>/', views.detaje_harxhimi, name='detaje_harxhimi'),
     path('harxhimet/<int:pk>/fshi/', views.fshi_harxhimin, name='fshi_harxhimin'),
+    path('harxhimet/<int:pk>/ndrysho/', views.ndrysho_harxhimin, name='ndrysho_harxhimin'),
+    path('harxhimet/<int:pk>/fletepagesa/', views.fletepagesa_pdf, name='fletepagesa_pdf'),
 
     # Stafi
     path('stafi/', views.lista_stafit, name='lista_stafit'),
