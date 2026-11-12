@@ -70,8 +70,8 @@ and open a new Bash console). Free tier: requests must be fast — avoid heavy w
   Antarësia list (Kategoria column, admin only). One-off fill: `python manage.py vendos_kategorite [--provo]`.
 - **Membership payments** can be in two currencies — in the form it is the 5th choice "Euro + Denar"
   (`EURO_DENAR='EUR_MKD'` → saved as `monedha='EUR'` + `monedha_2='MKD'`/`shuma_monedhe_2`, e.g. 150 € + 3.700 den;
-  the Muftiate accepts only € and den; CHF/$ are exchanged and recorded in den)
-    `shuma_mkd`/`shuma_paguar` hold the total) and can store an amount per year in `vitet_shumat`
+  the Muftiate accepts only € and den; CHF/$ are exchanged and recorded in den;
+  `shuma_mkd`/`shuma_paguar` hold the total) and can store an amount per year in `vitet_shumat`
   (`{"2024": {"EUR": "50", "MKD": "1233"}}`, totals must match; empty = equal split) — see
   `PagesaAntaresia.shumat_e_viteve()`, UI in `static/js/vitet_shumat.js`
   (years pre-filled with the tariffs, the user edits; the totals above are filled from the years).
