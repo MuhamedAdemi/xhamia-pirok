@@ -222,12 +222,15 @@ def kufijte_json():
     })
 
 
+EURO_DENAR = 'EUR_MKD'
+
+
 class PagesaAntaresiaForm(ShumaMonedhaMixin, VitetFormMixin, forms.ModelForm):
     FUSHA_EUR = 'shuma_paguar'
     shtepia = FushaShtepise(label='Shtëpia')
     shuma_2 = forms.DecimalField(
-        label='Shuma e dytë', max_digits=12, decimal_places=2, min_value=Decimal('0.01'), required=False,
-        help_text='Kur paguhet me dy monedha, p.sh. 150 € + 3.700 den.',
+        label='Denarë', max_digits=12, decimal_places=2, min_value=Decimal('0.01'), required=False,
+        help_text='Pjesa në denarë kur paguhet "Euro + Denar", p.sh. 150 € + 3.700 den.',
     )
     monedha_2 = forms.ChoiceField(label='Monedha e dytë', choices=MONEDHA_CHOICES, initial='MKD', required=False)
     vitet_shumat = forms.CharField(required=False, widget=forms.HiddenInput)
@@ -240,6 +243,8 @@ class PagesaAntaresiaForm(ShumaMonedhaMixin, VitetFormMixin, forms.ModelForm):
             'viti': timezone.now().year, 'kursi_eur': str(k.kursi_eur),
         })
         self.kufijte_json = kufijte_json()
+        # Opsioni i 5-të: pagesa me euro dhe denarë njëherësh (p.sh. 50 € + 1.300 den) — Myftinia pranon vetëm € dhe den
+        self.fields['monedha'].choices = list(MONEDHA_CHOICES) + [(EURO_DENAR, 'Euro + Denar')]
 
     def _vitet_e_paguara(self, shtepia, viti, viti_deri):
         pagesat = shtepia.pagesat.all()
@@ -250,8 +255,10 @@ class PagesaAntaresiaForm(ShumaMonedhaMixin, VitetFormMixin, forms.ModelForm):
     @classmethod
     def per_ndryshim(cls, pagese, data=None):
         """Forma e mbushur me pagesën ekzistuese (shuma, monedhat, kursi, ndarja sipas viteve)."""
+        euro_denar = pagese.monedha == 'EUR' and pagese.monedha_2 == 'MKD' and pagese.shuma_monedhe_2
         initial = {
-            'shuma_hyrese': pagese.shuma_ne_monedhe, 'monedha': pagese.monedha, 'kursi': pagese.kursi_denar,
+            'shuma_hyrese': pagese.shuma_ne_monedhe, 'monedha': EURO_DENAR if euro_denar else pagese.monedha,
+            'kursi': pagese.kursi_denar,
             'shuma_2': pagese.shuma_monedhe_2, 'monedha_2': pagese.monedha_2 or 'MKD',
             'vitet_shumat': json.dumps(pagese.vitet_shumat) if pagese.vitet_shumat else '',
         }
@@ -259,11 +266,15 @@ class PagesaAntaresiaForm(ShumaMonedhaMixin, VitetFormMixin, forms.ModelForm):
 
     def clean(self):
         cd = super().clean()
+        if cd.get('monedha') == EURO_DENAR:
+            cd['monedha'], cd['monedha_2'] = 'EUR', 'MKD'
+            if not cd.get('shuma_2'):
+                self.add_error('shuma_2', 'Shkruani edhe denarët (ose zgjidhni vetëm "Euro").')
         monedha, shuma_2 = cd.get('monedha'), cd.get('shuma_2')
         if shuma_2:
             cd['monedha_2'] = cd.get('monedha_2') or 'MKD'
             if cd['monedha_2'] == monedha:
-                self.add_error('monedha_2', 'Monedha e dytë duhet të jetë tjetër nga e para (ose shkruajeni totalin te shuma e parë).')
+                self.add_error(None, 'Monedha e dytë duhet të jetë tjetër nga e para — për euro dhe denarë zgjidhni "Euro + Denar".')
         else:
             cd['monedha_2'] = ''
         cd['vitet_shumat'] = self._ndarja(cd)
@@ -471,7 +482,11 @@ class KonfigurimiSistemitForm(forms.ModelForm):
         model = KonfigurimiSistemit
         fields = ['sms_username', 'sms_password', 'sms_sim_numri', 'gmail_app_password',
                   'kursi_eur', 'kursi_chf', 'kursi_usd', 'tarifa_vitet_kaluara', 'tarifa_viti_aktual']
-        labels = {'sms_username': 'Username'}
+        labels = {
+            'sms_username': 'Username',
+            'kursi_eur': 'Kursi blerës: 1 € = ? den', 'kursi_chf': 'Kursi blerës: 1 CHF = ? den',
+            'kursi_usd': 'Kursi blerës: 1 $ = ? den',
+        }
 
     def clean_sms_password(self):
         return self.cleaned_data.get('sms_password') or self.instance.sms_password

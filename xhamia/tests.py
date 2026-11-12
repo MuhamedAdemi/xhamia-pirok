@@ -397,6 +397,25 @@ class BllokuMonedhatRegjistriTest(TestCase):
         p.refresh_from_db()
         self.assertEqual(p.shuma_origjinale, '50 € + 1.300 den')
 
+    def test_euro_plus_denar_si_opsion_i_peste(self):
+        r = self.client.get(reverse('shto_pagese_antaresia'))
+        self.assertContains(r, 'value="EUR_MKD"')
+        self.assertContains(r, 'Kursi blerës')
+        # 3700 den + 150 € për 3 vite, me opsionin "Euro + Denar"
+        r = self._paguaj(blloku='1395', nr_fatures='046467', viti=2024, viti_deri=2026, data_pageses='2026-11-12',
+                         monedha='EUR_MKD', shuma_hyrese='150', shuma_2='3700', monedha_2='MKD', kursi='61')
+        p = PagesaAntaresia.objects.get()
+        self.assertEqual(r.status_code, 302)
+        self.assertEqual((p.monedha, p.monedha_2, p.shuma_origjinale), ('EUR', 'MKD', '150 € + 3.700 den'))
+        self.assertEqual(p.shuma_mkd, Decimal('12850'))    # 150 × 61 (kursi blerës) + 3700
+        # forma e ndryshimit e hap me "Euro + Denar" të zgjedhur
+        r = self.client.get(reverse('ndrysho_pagese_antaresia', args=[p.pk]))
+        self.assertEqual(r.context['form'].initial['monedha'], 'EUR_MKD')
+        # "Euro + Denar" pa denarë → gabim
+        r = self._paguaj(blloku='1395', nr_fatures='046468', viti=2027, viti_deri=2027, monedha='EUR_MKD', shuma_hyrese='50')
+        self.assertContains(r, 'Shkruani edhe denarët')
+        self.assertEqual(PagesaAntaresia.objects.count(), 1)
+
     def test_fletorja_e_fondit_mujore(self):
         from datetime import date as d
         from .models import Harxhimi

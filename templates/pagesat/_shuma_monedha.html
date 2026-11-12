@@ -1,5 +1,5 @@
 {% load shumat %}{% load widget_tweaks %}
-{# Shuma e pagesës në € ose den. Konteksti: form, vlerat_shpejta (opsionale: [(shuma, 'EUR'|'MKD'), ...]) #}
+{# Shuma e pagesës në € ose den (te antarësia edhe "Euro + Denar"). Konteksti: form, vlerat_shpejta (opsionale) #}
 <div class="card" style="margin-bottom:20px;">
   <div class="card-header"><h5>💶 Shuma e Paguar</h5></div>
   <div class="card-body">
@@ -28,11 +28,19 @@
         {% render_field form.shuma_hyrese placeholder="0" inputmode="decimal" %}
         {% if form.shuma_hyrese.errors %}<p class="gabim-fusha">{{ form.shuma_hyrese.errors.0 }}</p>{% endif %}
       </div>
+      {% if form.shuma_2 %}
+      <div class="forma-grup" id="kutiaDenare" hidden>
+        <label>+ Denarë</label>
+        {% render_field form.shuma_2 placeholder="p.sh. 1300" inputmode="decimal" %}
+        <input type="hidden" name="monedha_2" value="MKD">
+        {% if form.shuma_2.errors %}<p class="gabim-fusha">{{ form.shuma_2.errors.0 }}</p>{% endif %}
+      </div>
+      {% endif %}
       <div class="forma-grup">
         <label id="kursiEtiketa">{{ form.kursi.label }}</label>
         {% render_field form.kursi inputmode="decimal" %}
         {% if form.kursi.errors %}<p class="gabim-fusha">{{ form.kursi.errors.0 }}</p>{% endif %}
-        <p class="ndihma" id="kursiNdihme">Ndryshoje vetëm nëse u pagua me kurs tjetër.</p>
+        <p class="ndihma" id="kursiNdihme">Kursi blerës (si në këmbimore) nga faqja ⚙️ SMS &amp; Email. Ndryshoje vetëm për këtë pagesë, nëse duhet.</p>
       </div>
     </div>
     <div class="konvertimi" id="konvertimi" data-kurset='{{ form.kurset_json }}'>Shkruani shumën…</div>
@@ -48,9 +56,13 @@
   const kursiEtiketa = document.getElementById('kursiEtiketa');
   const konvertimi = document.getElementById('konvertimi');
   const kurset = JSON.parse(konvertimi.dataset.kurset);
-  const SIMBOLI = { MKD: 'den', EUR: '€', CHF: 'CHF', USD: '$' };
+  const SIMBOLI = { MKD: 'den', EUR: '€', CHF: 'CHF', USD: '$', EUR_MKD: '€' };
+  const denare = document.querySelector('[name="shuma_2"]');
+  const kutiaDenare = document.getElementById('kutiaDenare');
 
-  const monedha = () => (document.querySelector('[name="monedha"]:checked') || {}).value || 'MKD';
+  // "Euro + Denar" (EUR_MKD): shuma kryesore në €, plus kutia e denarëve
+  const zgjedhja = () => (document.querySelector('[name="monedha"]:checked') || {}).value || 'MKD';
+  const monedha = () => (zgjedhja() === 'EUR_MKD' ? 'EUR' : zgjedhja());
   const nr = e => parseFloat((e.value || '').replace(',', '.'));
   const fmt = (n, d) => n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d });
 
@@ -60,6 +72,10 @@
   function ndryshoMonedhen() {
     const m = monedhaKursit(monedha());
     kursi.value = kurset[m];
+    if (kutiaDenare) {
+      kutiaDenare.hidden = zgjedhja() !== 'EUR_MKD';
+      if (kutiaDenare.hidden && denare.value) { denare.value = ''; denare.dispatchEvent(new Event('input', { bubbles: true })); }
+    }
     perditeso();
   }
 
@@ -68,6 +84,14 @@
     etiketa.textContent = SIMBOLI[m];
     kursiEtiketa.textContent = `Kursi: 1 ${SIMBOLI[monedhaKursit(m)]} = ? den`;
     const v = nr(shuma), k = nr(kursi);
+    if (zgjedhja() === 'EUR_MKD') {
+      const d = denare ? nr(denare) : 0;
+      if (!(v > 0) || !(k > 0)) { konvertimi.textContent = 'Shkruani euro dhe denarët…'; return; }
+      const totDen = v * k + (d || 0);
+      konvertimi.innerHTML = `${fmt(v, Math.round(v) === v ? 0 : 2)} € + ${fmt(d || 0, 0)} den = <strong>${fmt(Math.round(totDen), 0)} den</strong>`
+        + ` = <strong>${fmt(totDen / k, 2)} €</strong>`;
+      return;
+    }
     if (!(v > 0) || !(k > 0)) { konvertimi.textContent = 'Shkruani shumën…'; return; }
     const kEur = (m === 'MKD' || m === 'EUR') ? k : parseFloat(kurset.EUR);
     const den = m === 'MKD' ? v : v * k;
@@ -83,7 +107,8 @@
     shuma.value = b.dataset.shuma;
     ndryshoMonedhen();
   }));
-  [shuma, kursi].forEach(e => e.addEventListener('input', perditeso));
+  [shuma, kursi, denare].filter(Boolean).forEach(e => e.addEventListener('input', perditeso));
+  if (kutiaDenare) kutiaDenare.hidden = zgjedhja() !== 'EUR_MKD';
   radiot.forEach(r => r.addEventListener('change', ndryshoMonedhen));
   if (!kursi.value) ndryshoMonedhen(); else perditeso();
 })();

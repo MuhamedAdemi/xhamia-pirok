@@ -68,15 +68,18 @@ and open a new Bash console). Free tier: requests must be fast — avoid heavy w
   house's category (also from "E Liruar") only if the payment covers its latest paid year (old-debt payments
   don't lower it). Houses known only from history (`paguar_deri_viti`, no amount) are set by hand in the
   Antarësia list (Kategoria column, admin only). One-off fill: `python manage.py vendos_kategorite [--provo]`.
-- **Membership payments** can be in two currencies (`monedha_2`/`shuma_monedhe_2`, e.g. 150 € + 3.700 den;
-  `shuma_mkd`/`shuma_paguar` hold the total) and can store an amount per year in `vitet_shumat`
+- **Membership payments** can be in two currencies — in the form it is the 5th choice "Euro + Denar"
+  (`EURO_DENAR='EUR_MKD'` → saved as `monedha='EUR'` + `monedha_2='MKD'`/`shuma_monedhe_2`, e.g. 150 € + 3.700 den;
+  the Muftiate accepts only € and den; CHF/$ are exchanged and recorded in den)
+    `shuma_mkd`/`shuma_paguar` hold the total) and can store an amount per year in `vitet_shumat`
   (`{"2024": {"EUR": "50", "MKD": "1233"}}`, totals must match; empty = equal split) — see
   `PagesaAntaresia.shumat_e_viteve()`, UI in `static/js/vitet_shumat.js`
   (years pre-filled with the tariffs, the user edits; the totals above are filled from the years).
 - Cemetery fee is obligatory only from **2027** (`viti_fillimit_varrezave` default 2027).
 - **Invoices**: paper receipt books from the Muftiate — `blloku` (4 digits) + `nr_fatures` (6 digits),
   shown as "Bllok 1100 nr 046386"; unique together; `sugjero_faturen` suggests the next one.
-- **Money**: payments in MKD/EUR/CHF/USD (`MonedhaMixin`), always also stored in € (`FUSHA_EUR`);
+- **Money**: payments in MKD/EUR/CHF/USD (`MonedhaMixin`), always also stored in € (`FUSHA_EUR`); every conversion
+  uses the rates in `KonfigurimiSistemit` (page "⚙️ SMS & Email"), which are the exchange-office BUYING rates;
   display with `formato_shumen` ("75.000 den", "69,92 €").
 - Every new payment automatically emails the invoice ONLY to the official addresses (`EMAILET_ZYRTARE`:
   xhamia, kryetari i këshillit, imami) — staff personal emails never receive it (field removed); the payer

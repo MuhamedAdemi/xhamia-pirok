@@ -1,21 +1,8 @@
 {% load static widget_tweaks %}
 {# Antarësia: shuma në monedhë të dytë dhe shumat sipas viteve. Konteksti: form (PagesaAntaresiaForm) #}
 <div class="card" style="margin-bottom:20px;" data-vs data-kategorite='{{ form.kufijte_json }}' data-tarifat='{{ form.tarifat_json }}'>
-  <div class="card-header"><h5>🧮 Dy monedha · Shuma për çdo vit</h5></div>
+  <div class="card-header"><h5>🧮 Shuma për çdo vit</h5></div>
   <div class="card-body">
-    <div class="grid-2">
-      <div class="forma-grup">
-        <label>+ Shuma në monedhë tjetër (opsionale)</label>
-        {% render_field form.shuma_2 placeholder="p.sh. 3700" inputmode="decimal" %}
-        {% if form.shuma_2.errors %}<p class="gabim-fusha">{{ form.shuma_2.errors.0 }}</p>{% endif %}
-      </div>
-      <div class="forma-grup">
-        <label>{{ form.monedha_2.label }}</label>
-        {% render_field form.monedha_2 %}
-        {% if form.monedha_2.errors %}<p class="gabim-fusha">{{ form.monedha_2.errors.0 }}</p>{% endif %}
-      </div>
-    </div>
-    <p class="ndihma" style="margin-top:-6px;">P.sh. pagoi <strong>150 € + 3.700 den</strong>: shkruani 150 te shuma (në €) dhe 3700 këtu (në den).</p>
     <label class="vs-ndarje"><input type="checkbox" data-vs-ndarje> Shuma ndryshon sipas viteve</label>
     <p class="ndihma">Vitet mbushen vetë me tarifën (vitet e kaluara / viti aktual); ndryshoni vetëm ato që duhen —
       p.sh. 2020–2025 nga 50 €, ndërsa te 2026 fshini € dhe shkruani 5000 te den. Shuma lart plotësohet vetë.</p>

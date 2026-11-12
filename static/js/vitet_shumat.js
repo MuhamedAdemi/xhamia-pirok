@@ -57,15 +57,16 @@ window.VitetShumat = function (forma) {
     return l;
   }
   // Kolonat e tabelës: monedha "e fortë" (€, ose CHF/$ kur pagesa është në to) dhe denarët.
+  // "Euro + Denar" (EUR_MKD) = euro si monedhë kryesore + denarët te kutia shuma_2
+  function monedhaKryesore() { var m = vlera('monedha') || 'MKD'; return m === 'EUR_MKD' ? 'EUR' : m; }
   function kolonat() {
-    var m1 = vlera('monedha') || 'MKD', m2 = vlera('monedha_2') || 'MKD';
-    var forte = m1 !== 'MKD' ? m1 : (m2 !== 'MKD' && nr(vlera('shuma_2')) > 0 ? m2 : 'EUR');
-    return [forte, 'MKD'];
+    var m1 = monedhaKryesore();
+    return [m1 !== 'MKD' ? m1 : 'EUR', 'MKD'];
   }
   function totaletEFormes() {   // {monedha: shuma} siç janë shkruar lart
-    var t = {}, m1 = vlera('monedha') || 'MKD', m2 = vlera('monedha_2') || 'MKD';
+    var t = {}, m1 = monedhaKryesore();
     if (nr(vlera('shuma_hyrese')) > 0) t[m1] = (t[m1] || 0) + nr(vlera('shuma_hyrese'));
-    if (nr(vlera('shuma_2')) > 0) t[m2] = (t[m2] || 0) + nr(vlera('shuma_2'));
+    if (vlera('monedha') === 'EUR_MKD' && nr(vlera('shuma_2')) > 0) t.MKD = (t.MKD || 0) + nr(vlera('shuma_2'));
     return t;
   }
 
@@ -118,11 +119,14 @@ window.VitetShumat = function (forma) {
     forte = Math.round(forte * 100) / 100;
     den = Math.round(den);
     duke_sinkronizuar = true;
-    if (forte > 0) {
+    if (forte > 0 && den > 0 && kk[0] === 'EUR') {
+      vendos('monedha', 'EUR_MKD');
+      vendos('shuma_hyrese', tekst(forte).replace(',', '.'));
+      vendos('shuma_2', String(den));
+    } else if (forte > 0) {
       vendos('monedha', kk[0]);
       vendos('shuma_hyrese', tekst(forte).replace(',', '.'));
-      vendos('monedha_2', 'MKD');
-      vendos('shuma_2', den > 0 ? String(den) : '');
+      vendos('shuma_2', '');
     } else {
       vendos('monedha', 'MKD');
       vendos('shuma_hyrese', den > 0 ? String(den) : '');
