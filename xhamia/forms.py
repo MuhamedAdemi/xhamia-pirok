@@ -382,7 +382,7 @@ class PagesaFondiForm(ShumaMonedhaMixin, forms.ModelForm):
     class Meta:
         model = PagesaFondi
         fields = [
-            'blloku', 'nr_fatures', 'shtepia', 'lloji', 'emri_donatorit', 'mbiemri_donatorit',
+            'blloku', 'nr_fatures', 'shtepia', 'lloji', 'eshte_zekat', 'emri_donatorit', 'mbiemri_donatorit',
             'email_donatorit', 'nr_telefoni', 'data_pageses', 'arsyeja', 'shenime',
         ]
         widgets = {
@@ -452,7 +452,7 @@ class HarxhimiForm(ShumaMonedhaMixin, forms.ModelForm):
 
     class Meta:
         model = Harxhimi
-        fields = ['nr_fatures', 'marresi', 'qyteti', 'llogaria', 'lloji', 'burimi', 'data_pageses', 'pershkrimi']
+        fields = ['nr_fatures', 'marresi', 'qyteti', 'llogaria', 'lloji', 'burimi', 'nga_zekati', 'data_pageses', 'pershkrimi']
         widgets = {
             'lloji': forms.TextInput(attrs={'list': 'llojet', 'autocomplete': 'off',
                                             'placeholder': 'p.sh. Rrymë elektrike, Riparim i çatisë…'}),
@@ -482,6 +482,12 @@ class HarxhimiForm(ShumaMonedhaMixin, forms.ModelForm):
         if te_njejta.exists():
             raise forms.ValidationError(f'Fletëpagesa nr {nr} është regjistruar tashmë.')
         return nr
+
+    def clean(self):
+        cd = super().clean()
+        if cd.get('nga_zekati') and cd.get('burimi') != 'FONDI':
+            cd['nga_zekati'] = False   # zekati është pjesë e Fondit të Xhamisë
+        return cd
 
 
 class KonfigurimiSistemitForm(forms.ModelForm):

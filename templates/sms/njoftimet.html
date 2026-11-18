@@ -1,0 +1,80 @@
+{% extends 'base.html' %}
+{% block titulli %}Njoftime & Urime — Xhamia Pirok{% endblock %}
+
+{% block kontent %}
+<div class="page-header">
+  <div>
+    <h2>📣 Njoftime & Urime për xhematin</h2>
+    <p>Një mesazh për të gjithë: urime për Bajram, iftari i përbashkët, njoftime të xhamisë…</p>
+  </div>
+</div>
+
+<div class="njoftime-kanalet">
+  <a href="?kanali=SMS" class="{% if kanali == 'SMS' %}aktiv{% endif %}">📱 SMS për të gjithë<br><small>{{ nr_sms }} numra telefoni</small></a>
+  <a href="?kanali=EMAIL" class="{% if kanali == 'EMAIL' %}aktiv{% endif %}">📧 Email për të gjithë<br><small>{{ nr_email }} adresa email</small></a>
+</div>
+
+<form method="post" enctype="multipart/form-data" class="card" style="max-width:720px; margin-bottom:24px;">
+  {% csrf_token %}
+  <input type="hidden" name="kanali" value="{{ kanali }}">
+  <div class="card-body">
+    {% if kanali == 'EMAIL' %}
+    <div class="forma-grup">
+      <label>Titulli (subjekti i email-it)</label>
+      <input type="text" name="titulli" value="{{ titulli }}" maxlength="200" placeholder="p.sh. Urime Fitër Bajrami!" required>
+    </div>
+    {% endif %}
+    <div class="forma-grup">
+      <label>Teksti</label>
+      <textarea name="teksti" id="tekstiNjoftimit" rows="7" required placeholder="p.sh. Xhamia Pirok i uron gjithë xhematit Fitër Bajramin! Zoti jua pranoftë agjërimin dhe ibadetet. Bajrami mubarek!">{{ teksti }}</textarea>
+      {% if kanali == 'SMS' %}<p class="ndihma" id="numeruesi"></p>{% endif %}
+    </div>
+    {% if kanali == 'EMAIL' %}
+    <div class="forma-grup">
+      <label>Foto (opsionale — p.sh. kartolina e urimit)</label>
+      <input type="file" name="foto" accept="image/*">
+      <p class="ndihma">JPG ose PNG deri në 3 MB. Del brenda email-it, mbi tekstin.</p>
+    </div>
+    {% else %}
+    {% if not gateway_gati %}<p class="gabim-fusha">⚠️ SMS Gateway nuk është konfiguruar — plotësoni faqen "SMS & Email".</p>{% endif %}
+    <p class="ndihma">Shkronjat ë/ç dërgohen si e/c (që SMS-i të mos ndahet në shumë pjesë). Telefoni i xhamisë i dërgon një nga një —
+      për shumë numra mund të zgjasë disa orë dhe kushton sipas paketës së SIM-it.</p>
+    {% endif %}
+    <button type="submit" class="btn-kryesor">Vazhdo → provë dhe dërgim</button>
+    <p class="ndihma" style="margin-top:8px;">Asgjë nuk dërgohet ende: në hapin tjetër mund ta provoni te vetja, pastaj e dërgoni te të gjithë.</p>
+  </div>
+</form>
+
+{% if historiku %}
+<div class="card">
+  <div class="card-header"><h5>🕘 Njoftimet e mëparshme</h5></div>
+  <div style="overflow-x:auto;">
+    <table class="tabela-xhami">
+      <thead><tr><th>Data</th><th>Kanali</th><th>Titulli</th><th>Dërguar</th><th>Nga</th></tr></thead>
+      <tbody>
+        {% for n in historiku %}
+        <tr><td>{{ n.krijuar_me|date:"d.m.Y H:i" }}</td><td>{% if n.kanali == 'SMS' %}📱 SMS{% else %}📧 Email{% endif %}</td>
+          <td><a href="{% url 'njoftimi' n.pk %}">{{ n.titulli }}</a></td><td>{{ n.derguar|length }}</td>
+          <td>{{ n.krijuar_nga.get_full_name|default:n.krijuar_nga.username }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block skripte %}
+<script>
+(function () {
+  var t = document.getElementById('tekstiNjoftimit'), n = document.getElementById('numeruesi');
+  if (!t || !n) return;
+  function numero() {
+    var gjatesia = t.value.length, pjeset = gjatesia <= 160 ? 1 : Math.ceil(gjatesia / 153);
+    n.textContent = gjatesia + ' shkronja = ' + pjeset + ' SMS për çdo numër' + (pjeset > 1 ? ' — shkurtojeni nëse mundeni' : '');
+  }
+  t.addEventListener('input', numero);
+  numero();
+})();
+</script>
+{% endblock %}

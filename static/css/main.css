@@ -694,6 +694,13 @@ a:hover { text-decoration: underline; }
 .puna-segment a { border-right: 1.5px solid var(--kufi); }
 .puna-segment a:last-child { border-right: none; }
 .fondi-bilanci td { font-weight: 600; }
+.njoftime-kanalet { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; max-width: 720px; margin-bottom: 16px; }
+.njoftime-kanalet a { display: block; text-align: center; padding: 18px; border: 2px solid var(--kufi); border-radius: 14px;
+  text-decoration: none; color: inherit; font-size: 17px; font-weight: 700; background: var(--e-bardhë); }
+.njoftime-kanalet a small { font-weight: 400; color: var(--tekst-dytësor); }
+.njoftime-kanalet a.aktiv { border-color: var(--gjelbër); background: var(--gjelbër-shumë-i-çelur); }
+.njoftim-progresi { height: 12px; background: var(--krem-errët); border-radius: 6px; overflow: hidden; }
+.njoftim-progresi div { height: 100%; background: var(--gjelbër); }
 .fondi-bilanci .negativ { color: var(--gabim, #C0392B); }
 .puna-segment button.aktiv::before { content: '✓ '; }
 .puna-totali { font-size: 19px; margin: 4px 0 14px; }

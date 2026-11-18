@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+{% block titulli %}{{ n.titulli }} — Njoftime{% endblock %}
+
+{% block kontent %}
+<div class="page-header">
+  <div class="flex items-center gap-3">
+    <a href="{% url 'njoftimet' %}?kanali={{ n.kanali }}" class="btn-dytësor btn-sm">← Njoftimet</a>
+    <div>
+      <h2>{% if n.kanali == 'SMS' %}📱{% else %}📧{% endif %} {{ n.titulli }}</h2>
+      <p>Krijuar më {{ n.krijuar_me|date:"d.m.Y H:i" }} nga {{ n.krijuar_nga.get_full_name|default:n.krijuar_nga.username }}</p>
+    </div>
+  </div>
+</div>
+
+<div class="grid-2" style="align-items:start;">
+  <div class="card">
+    <div class="card-header"><h5>👁️ Mesazhi</h5></div>
+    <div class="card-body">
+      {% if n.foto %}<p style="text-align:center;"><img src="?foto=1" style="max-width:100%; border-radius:8px;"></p>{% endif %}
+      <div style="white-space:pre-wrap; line-height:1.5;">{{ n.teksti }}</div>
+    </div>
+  </div>
+
+  <div>
+    <div class="card" style="margin-bottom:16px;">
+      <div class="card-header"><h5>🧪 1. Provë te vetja</h5></div>
+      <div class="card-body">
+        <form method="post" class="flex gap-3" style="flex-wrap:wrap;">
+          {% csrf_token %}<input type="hidden" name="veprimi" value="prove">
+          <input type="text" name="marresi" value="{{ prove_parazgjedhur }}" style="flex:1; min-width:200px;"
+                 placeholder="{% if n.kanali == 'SMS' %}numri juaj, p.sh. 070 123 456{% else %}email-i juaj{% endif %}" required>
+          <button type="submit" class="btn-dytësor">Dërgo provën</button>
+        </form>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><h5>📣 2. Dërgo te të gjithë</h5></div>
+      <div class="card-body">
+        <p style="font-size:15px;"><strong>{{ derguar }}</strong> nga <strong>{{ gjithsej }}</strong> {% if n.kanali == 'SMS' %}numra{% else %}adresa{% endif %} · mbeten <strong>{{ mbetur }}</strong></p>
+        <div class="njoftim-progresi"><div style="width:{{ perqindja }}%;"></div></div>
+        {% if mbetur %}
+        <form method="post" onsubmit="this.querySelector('button').disabled=true; this.querySelector('button').textContent='Po dërgohet… prisni';">
+          {% csrf_token %}<input type="hidden" name="veprimi" value="dergo">
+          <button type="submit" class="btn-kryesor" style="margin-top:12px;">
+            {% if derguar %}▶️ Vazhdo dërgimin{% else %}📣 Dërgo te të gjithë{% endif %} (deri {{ vala }} tani)</button>
+        </form>
+        <p class="ndihma" style="margin-top:8px;">Dërgohet me valë nga {{ vala }}. Askush nuk e merr dy herë.
+          {% if n.kanali == 'EMAIL' %}Gmail lejon rreth 450 email në ditë — nëse ndalet, vazhdoni nesër.{% endif %}</p>
+        {% else %}
+        <p style="color:var(--gjelbër); font-weight:600; margin-top:10px;">✅ U dërgua te të gjithë.</p>
+        {% endif %}
+        {% if n.deshtuar %}
+        <details style="margin-top:12px;"><summary>⚠️ {{ n.deshtuar|length }} nuk shkuan (provohen sërish me "Vazhdo")</summary>
+          <ul style="font-size:13px;">{% for m, g in n.deshtuar.items %}<li>{{ m }} — {{ g }}</li>{% endfor %}</ul></details>
+        {% endif %}
+        {% if n.kanali == 'SMS' %}<p class="ndihma">Gjendjen e çdo SMS-je (dërguar / dorëzuar / dështuar) e shihni te <a href="{% url 'historiku_sms' %}">Historiku SMS</a>.</p>{% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

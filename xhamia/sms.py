@@ -60,7 +60,8 @@ def _auth():
 
 
 def _trupi(teksti, numri, ttl=None, prioriteti=0):
-    trupi = {'textMessage': {'text': teksti}, 'phoneNumbers': [numri], 'priority': prioriteti}
+    numrat = numri if isinstance(numri, list) else [numri]
+    trupi = {'textMessage': {'text': teksti}, 'phoneNumbers': numrat, 'priority': prioriteti}
     if ttl:
         trupi['ttl'] = ttl
     sim = KonfigurimiSistemit.merr().sms_sim_numri
@@ -119,6 +120,38 @@ def dergo_sms(nr_telefoni, teksti, lloji, dërguar_nga, shtepia=None, ttl=None, 
     return mesazh
 
 
+def dergo_sms_shumeve(marresit, teksti, lloji, dërguar_nga, ttl=None, prioriteti=-10):
+    """Një SMS i njëjtë për shumë numra me një kërkesë te SMSGate (njoftime/urime për xhematin).
+    marresit: [(numri_i_normalizuar, shtepia)]. Ruan një MesazhSMS për çdo numër (me të njëjtin id_gateway)
+    dhe kthen listën e tyre."""
+    teksti = pastro_tekstin(teksti)
+    mesazhet = [MesazhSMS(nr_telefoni=n, teksti=teksti, lloji=lloji, shtepia=sh, dërguar_nga=dërguar_nga)
+                for n, sh in marresit]
+    if not mesazhet:
+        return []
+    statusi, gabimi, id_gateway = 'NE_PRITJE', '', ''
+    if not eshte_konfiguruar():
+        statusi, gabimi = 'DESHTOI', 'SMS Gateway nuk është konfiguruar — plotësoni faqen "SMS & Email".'
+    else:
+        try:
+            r = requests.post(settings.SMS_GATEWAY_URL, json=_trupi(teksti, [n for n, _ in marresit], ttl, prioriteti),
+                              auth=_auth(), timeout=TIMEOUT)
+            if r.status_code == 401:
+                raise requests.RequestException('Username ose Password i gabuar — kontrolloni faqen "SMS & Email".')
+            if r.status_code >= 400:
+                raise requests.RequestException(_arsyeja_e_refuzimit(r, f'{len(marresit)} numra'))
+            te_dhenat = r.json()
+            id_gateway, statusi = te_dhenat.get('id', ''), _statusi_nga_gateway(te_dhenat.get('state'))
+        except requests.RequestException as e:
+            statusi, gabimi = 'DESHTOI', str(e)[:500]
+        except ValueError:
+            pass
+    for m in mesazhet:
+        m.statusi, m.gabimi, m.id_gateway = statusi, gabimi, id_gateway
+    MesazhSMS.objects.bulk_create(mesazhet)
+    return mesazhet
+
+
 def _arsyeja_e_refuzimit(r, numri):
     """Arsyeja që e kthen SMSGate kur e refuzon kërkesën (p.sh. numër i pavlefshëm) — jo vetëm "400"."""
     try:
@@ -144,9 +177,17 @@ def perditeso_statusin(mesazh):
     except (requests.RequestException, ValueError):
         return mesazh
 
+    marresit = të_dhënat.get('recipients') or []
+    imi = [m for m in marresit if normalizo_numrin(m.get('phoneNumber')) == mesazh.nr_telefoni]
+    if len(marresit) > 1 and imi:   # SMS te shumë numra: statusi i këtij numri
+        mesazh.statusi = _statusi_nga_gateway(imi[0].get('state'))
+        if mesazh.statusi == 'DESHTOI':
+            mesazh.gabimi = (imi[0].get('error') or 'Dështoi në telefon.')[:500]
+        mesazh.save(update_fields=['statusi', 'gabimi'])
+        return mesazh
     mesazh.statusi = _statusi_nga_gateway(të_dhënat.get('state'))
     if mesazh.statusi == 'DESHTOI':
-        arsyet = [m.get('error') for m in të_dhënat.get('recipients', []) if m.get('error')]
+        arsyet = [m.get('error') for m in marresit if m.get('error')]
         mesazh.gabimi = (', '.join(arsyet) or të_dhënat.get('reason') or 'Dështoi në telefon.')[:500]
     mesazh.save(update_fields=['statusi', 'gabimi'])
     return mesazh

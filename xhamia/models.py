@@ -405,6 +405,8 @@ class PagesaFondi(MonedhaMixin, models.Model):
     shuma = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='Shuma (€)')
     data_pageses = models.DateField(verbose_name='Data e Pagesës')
     arsyeja = models.CharField(max_length=300, blank=True, verbose_name='Arsyeja / Qëllimi')
+    # Zekati: para të dedikuara (mekteb, Kur'ane për nxënësit…) — nuk janë fond i lirë për çdo harxhim
+    eshte_zekat = models.BooleanField(default=False, verbose_name='Është zekat (i dedikuar për mektebin)')
     arktar = models.ForeignKey(
         User, on_delete=models.PROTECT, related_name='pagesat_fondit',
         verbose_name='Arktar'
@@ -563,6 +565,7 @@ class Harxhimi(MonedhaMixin, models.Model):
     marresi = models.CharField(max_length=150, blank=True, verbose_name='Marrësi (firma / personi fizik)')
     qyteti = models.CharField(max_length=80, blank=True, verbose_name='Nga qyteti / fshati')
     llogaria = models.CharField(max_length=80, blank=True, verbose_name='Për llogari (opsionale)')
+    nga_zekati = models.BooleanField(default=False, verbose_name="Paguar nga zekati (mekteb, Kur'ane…)")
     shuma_eur = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='Shuma (€)')
     shuma_mkd = models.DecimalField(
         max_digits=12, decimal_places=2, null=True, blank=True,
@@ -623,6 +626,7 @@ class MesazhSMS(models.Model):
     LLOJI_CHOICES = [
         ('KONFIRMIM', 'Konfirmim Pagese'),
         ('KUJTESE', 'Kujtesë Borxhi'),
+        ('NJOFTIM', 'Njoftim / Urim'),
     ]
     STATUSI_CHOICES = [
         ('NE_PRITJE', 'Në pritje'),
@@ -695,3 +699,29 @@ class KonfigurimiSistemit(models.Model):
     def kursi(self, monedha):
         """Sa denarë vlen 1 njësi e monedhës."""
         return {'MKD': Decimal('1'), 'EUR': self.kursi_eur, 'CHF': self.kursi_chf, 'USD': self.kursi_usd}[monedha]
+
+
+class Njoftim(models.Model):
+    """Njoftim ose urim për gjithë xhematin (p.sh. urimi i Bajramit, iftari i përbashkët) — me SMS te të gjithë
+    që kanë telefon ose me email te të gjithë që kanë email. Dërgohet me valë (Gmail lejon ~500 marrës në ditë);
+    `derguar` mban mend kujt i shkoi, që vala tjetër të vazhdojë nga aty."""
+    KANALI_CHOICES = [('SMS', 'SMS'), ('EMAIL', 'Email')]
+
+    kanali = models.CharField(max_length=5, choices=KANALI_CHOICES)
+    titulli = models.CharField(max_length=200, verbose_name='Titulli (subjekti i email-it)')
+    teksti = models.TextField(verbose_name='Teksti')
+    foto = models.BinaryField(null=True, blank=True)
+    foto_lloji = models.CharField(max_length=50, blank=True)
+    foto_emri = models.CharField(max_length=150, blank=True)
+    derguar = models.JSONField(default=list, blank=True)     # numrat / email-et ku shkoi
+    deshtuar = models.JSONField(default=dict, blank=True)    # {marrësi: arsyeja}
+    krijuar_me = models.DateTimeField(auto_now_add=True)
+    krijuar_nga = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='njoftimet')
+
+    class Meta:
+        ordering = ['-krijuar_me']
+        verbose_name = 'Njoftim'
+        verbose_name_plural = 'Njoftimet'
+
+    def __str__(self):
+        return f'{self.get_kanali_display()} — {self.titulli}'

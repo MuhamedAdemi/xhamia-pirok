@@ -48,6 +48,9 @@
         {% if form.lloji.errors %}<p class="gabim-fusha">{{ form.lloji.errors.0 }}</p>{% endif %}
         <p class="ndihma">"Aktivitet" përdoret për raste si ekskursione, iftare, etj. — shëno emrin e aktivitetit te "Arsyeja / Qëllimi" më poshtë.</p>
       </div>
+      <label class="vs-ndarje" style="margin-top:12px;">{% render_field form.eshte_zekat id="id_eshte_zekat" %} 🌙 Është <strong>zekat</strong></label>
+      <p class="ndihma">Zekati mbahet i ndarë: përdoret vetëm për qëllime të caktuara (mekteb, Kur'ane për nxënësit…), jo si fond i lirë.
+        Te Fletorja e Fondit del gjendja e zekatit veç.</p>
     </div>
   </div>
 
@@ -161,6 +164,10 @@ function updateLlojiFondi() {
   }
 }
 llojiFondSelect.addEventListener('change', updateLlojiFondi);
+// lloji "Zeqati / Zekati" → shenja "Është zekat" vendoset vetë
+llojiFondSelect.addEventListener('change', function () {
+  if (/ze[qk]at/i.test(llojiFondSelect.value)) document.getElementById('id_eshte_zekat').checked = true;
+});
 updateLlojiFondi();
 
 </script>

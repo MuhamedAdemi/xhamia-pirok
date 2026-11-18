@@ -41,7 +41,7 @@
         {% for m in d.monedhat %}<th class="djathtas">{% if m == 'MKD' %}Denarë{% elif m == 'EUR' %}Euro{% elif m == 'CHF' %}Franga{% else %}Dollar{% endif %}</th>{% endfor %}</tr></thead>
       <tbody>
         {% for r in d.hyrat %}
-        <tr><td class="tekst-dytësor">{{ r.nr }}</td><td><a href="{{ r.pagese.get_absolute_url }}">{{ r.emri }}</a></td><td>{{ r.pershkrimi }}</td>
+        <tr><td class="tekst-dytësor">{{ r.nr }}</td><td><a href="{{ r.pagese.get_absolute_url }}">{{ r.emri }}</a></td><td>{% if r.zekat %}🌙 {% endif %}{{ r.pershkrimi }}</td>
           <td>{{ r.fatura }}</td><td>{{ r.data|date:"d.m.y" }}</td>
           {% for m in d.monedhat %}<td class="djathtas">{% for k, v in r.shumat.items %}{% if k == m %}{{ v|shuma:m }}{% endif %}{% endfor %}</td>{% endfor %}</tr>
         {% empty %}<tr><td colspan="9" class="tekst-dytësor" style="text-align:center; padding:20px;">Asnjë donacion këtë muaj.</td></tr>
@@ -62,7 +62,7 @@
         {% for m in d.monedhat %}<th class="djathtas">{% if m == 'MKD' %}Denarë{% elif m == 'EUR' %}Euro{% elif m == 'CHF' %}Franga{% else %}Dollar{% endif %}</th>{% endfor %}</tr></thead>
       <tbody>
         {% for r in d.daljet %}
-        <tr><td class="tekst-dytësor">{{ r.nr }}</td><td><a href="{{ r.pagese.get_absolute_url }}">{{ r.emri }}</a></td><td>{{ r.pershkrimi }}</td>
+        <tr><td class="tekst-dytësor">{{ r.nr }}</td><td><a href="{{ r.pagese.get_absolute_url }}">{{ r.emri }}</a></td><td>{% if r.zekat %}🌙 {% endif %}{{ r.pershkrimi }}</td>
           <td>{{ r.fatura }}</td><td>{{ r.data|date:"d.m.y" }}</td>
           {% for m in d.monedhat %}<td class="djathtas">{% for k, v in r.shumat.items %}{% if k == m %}{{ v|shuma:m }}{% endif %}{% endfor %}</td>{% endfor %}</tr>
         {% empty %}<tr><td colspan="9" class="tekst-dytësor" style="text-align:center; padding:20px;">Asnjë harxhim nga Fondi këtë muaj. <a href="{% url 'shto_harxhim' %}?burimi=FONDI">+ Regjistro dalje</a></td></tr>
@@ -90,6 +90,22 @@
   </div>
 </div>
 
+
+<div class="card" style="margin-top:20px; border:2px solid #E6C35C;">
+  <div class="card-header" style="background:#FFF7DD;"><h5>🌙 Zekati — i dedikuar për mektebin (Kur'ane, nxënës…), jo fond i lirë</h5></div>
+  <div style="overflow-x:auto;">
+    <table class="tabela-xhami tabela-regjistri fondi-bilanci">
+      <thead><tr><th></th><th class="djathtas">Gjendja në fillim</th><th class="djathtas">+ Hyra</th><th class="djathtas">− Dalje</th><th class="djathtas">= Gjendja në fund</th></tr></thead>
+      <tbody>
+        <tr><td>🌙 Zekati</td><td class="djathtas">{{ d.zekati.fillimi.eur|shuma:"EUR"|default:"0 €" }}</td>
+          <td class="djathtas">{{ d.zekati.hyra.eur|shuma:"EUR"|default:"–" }}</td><td class="djathtas">{{ d.zekati.dalje.eur|shuma:"EUR"|default:"–" }}</td>
+          <td class="djathtas"><strong>{{ d.zekati.fundi.eur|shuma:"EUR"|default:"0 €" }}</strong></td></tr>
+        <tr class="rresht-total total-muaj"><td>💰 Fondi i lirë (gjendja − zekati)</td><td></td><td></td><td></td>
+          <td class="djathtas">{{ d.i_lire.eur|shuma:"EUR"|default:"0 €" }}</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
 {% else %}
 <div class="card">
   <div class="card-header"><h5>📊 Përmbledhja e vitit {{ viti }} — kliko një muaj për hollësitë</h5></div>
@@ -110,6 +126,22 @@
           <td class="djathtas">{{ d.t_hyra.shumat.MKD|shuma:"MKD" }}</td><td class="djathtas">{{ d.t_hyra.shumat.EUR|shuma:"EUR" }}</td><td class="djathtas">{{ d.t_hyra.eur|shuma:"EUR" }}</td>
           <td class="djathtas">{{ d.t_dalje.shumat.MKD|shuma:"MKD" }}</td><td class="djathtas">{{ d.t_dalje.shumat.EUR|shuma:"EUR" }}</td><td class="djathtas">{{ d.t_dalje.eur|shuma:"EUR" }}</td>
           <td class="djathtas">{{ d.bilanci.eur|shuma:"EUR" }}</td><td class="djathtas">{{ d.fundi.eur|shuma:"EUR" }}</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card" style="margin-top:20px; border:2px solid #E6C35C;">
+  <div class="card-header" style="background:#FFF7DD;"><h5>🌙 Zekati — i dedikuar për mektebin (Kur'ane, nxënës…), jo fond i lirë</h5></div>
+  <div style="overflow-x:auto;">
+    <table class="tabela-xhami tabela-regjistri fondi-bilanci">
+      <thead><tr><th></th><th class="djathtas">Gjendja në fillim</th><th class="djathtas">+ Hyra</th><th class="djathtas">− Dalje</th><th class="djathtas">= Gjendja në fund</th></tr></thead>
+      <tbody>
+        <tr><td>🌙 Zekati</td><td class="djathtas">{{ d.zekati.fillimi.eur|shuma:"EUR"|default:"0 €" }}</td>
+          <td class="djathtas">{{ d.zekati.hyra.eur|shuma:"EUR"|default:"–" }}</td><td class="djathtas">{{ d.zekati.dalje.eur|shuma:"EUR"|default:"–" }}</td>
+          <td class="djathtas"><strong>{{ d.zekati.fundi.eur|shuma:"EUR"|default:"0 €" }}</strong></td></tr>
+        <tr class="rresht-total total-muaj"><td>💰 Fondi i lirë (gjendja − zekati)</td><td></td><td></td><td></td>
+          <td class="djathtas">{{ d.i_lire.eur|shuma:"EUR"|default:"0 €" }}</td></tr>
       </tbody>
     </table>
   </div>

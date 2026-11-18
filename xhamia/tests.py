@@ -1612,3 +1612,126 @@ class DaljetFletepagesaTest(TestCase):
         m = fondi.muaji(2026, 11)
         self.assertEqual([r['emri'] for r in m['daljet']], ['Setek SE Teknika', 'Market'])
         self.assertEqual((m['t_dalje'].shumat['EUR'], m['t_dalje'].shumat['MKD']), (Decimal('780'), Decimal('1880')))
+
+
+class ZekatiTest(TestCase):
+    """Zekati: donacione të dedikuara (mekteb, Kur'ane…) — mbahen veç nga fondi i lirë."""
+
+    def setUp(self):
+        self.admin = User.objects.create_user('admin', password='x', first_name='A', last_name='B')
+        ProfilStafi.objects.create(user=self.admin, rol='ADMIN')
+        self.client.force_login(self.admin)
+
+    def test_zekati_ndahet_nga_fondi_i_lire(self):
+        from datetime import date as d
+        from .models import Harxhimi
+        from . import fondi
+        r = self.client.get(reverse('shto_pagese_fondi'))
+        self.assertContains(r, 'name="eshte_zekat"')
+        r = self.client.post(reverse('shto_pagese_fondi'), {
+            'blloku': '1110', 'nr_fatures': '000001', 'lloji': 'Fond Xhamie', 'eshte_zekat': 'on',
+            'emri_donatorit': 'Agim', 'mbiemri_donatorit': 'Gashi', 'data_pageses': '2026-11-02',
+            'shuma_hyrese': '300', 'monedha': 'EUR', 'kursi': '61'})
+        self.assertEqual(r.status_code, 302)
+        self.assertTrue(PagesaFondi.objects.get().eshte_zekat)
+        PagesaFondi.objects.create(nr_fatures='2', lloji='Fond Xhamie', emri_donatorit='B', mbiemri_donatorit='C',
+                                   shuma=Decimal('500'), monedha='EUR', shuma_monedhe=Decimal('500'),
+                                   data_pageses=d(2026, 11, 3), arktar=self.admin)
+        Harxhimi.objects.create(nr_fatures='1/26', marresi='Libraria', lloji="Kur'ane për mektebin", burimi='FONDI',
+                                nga_zekati=True, shuma_eur=Decimal('120'), monedha='EUR', shuma_monedhe=Decimal('120'),
+                                viti=2026, data_pageses=d(2026, 11, 10), arktar=self.admin)
+        Harxhimi.objects.create(nr_fatures='2/26', marresi='EVN', lloji='Rrymë', burimi='FONDI',
+                                shuma_eur=Decimal('50'), monedha='EUR', shuma_monedhe=Decimal('50'),
+                                viti=2026, data_pageses=d(2026, 11, 11), arktar=self.admin)
+        m = fondi.muaji(2026, 11)
+        self.assertEqual(m['fundi'].eur, Decimal('630'))                 # 300 + 500 − 120 − 50
+        self.assertEqual(m['zekati']['fundi'].eur, Decimal('180'))       # 300 − 120
+        self.assertEqual(m['i_lire'].eur, Decimal('450'))                # 630 − 180
+        self.assertTrue(m['hyrat'][0]['zekat'])
+        r = self.client.get(reverse('fletorja_fondit'), {'viti': 2026, 'muaji': 11})
+        self.assertContains(r, 'Fondi i lirë')
+        self.assertContains(r, '🌙 ZEKAT')
+        v = fondi.viti_i_plote(2026)
+        self.assertEqual((v['zekati']['fundi'].eur, v['i_lire'].eur), (Decimal('180'), Decimal('450')))
+        for muaji in (11, 0):
+            for formati in ('pdf', 'excel'):
+                r = self.client.get(reverse('fletorja_fondit'), {'viti': 2026, 'muaji': muaji, 'eksporto': formati})
+                self.assertEqual(r.status_code, 200)
+
+
+@override_settings(SMS_GATEWAY_USER='u', SMS_GATEWAY_PASSWORD='p', SMS_PRIT_SEKONDA=0)
+class NjoftimetTest(TestCase):
+    """Njoftime / urime për gjithë xhematin me SMS ose email (me valë, pa përsëritje)."""
+
+    def setUp(self):
+        self.admin = User.objects.create_user('admin', password='x', first_name='A', last_name='B',
+                                              email='admin@example.com')
+        ProfilStafi.objects.create(user=self.admin, rol='ADMIN')
+        self.client.force_login(self.admin)
+        for i, (tel, email) in enumerate([('070 111 111', 'a@example.com'), ('070111111', 'A@example.com'),
+                                          ('071 222 333', ''), ('', 'b@example.com'), ('abc', 'jo-email')], 1):
+            Shtepia.objects.create(nr_shtepise=f'{i:04d}', emri_kryefamiljarit=f'E{i}', mbiemri_kryefamiljarit='M',
+                                   nr_telefoni_kryesor=tel, email=email)
+        Shtepia.objects.create(nr_shtepise='0099', emri_kryefamiljarit='Joaktiv', mbiemri_kryefamiljarit='M',
+                               nr_telefoni_kryesor='072 999 999', email='c@example.com', është_aktiv=False)
+
+    def test_marresit_pa_perseritje(self):
+        from . import njoftimet
+        self.assertEqual([m for m, _ in njoftimet.marresit('SMS')], ['+38970111111', '+38971222333'])
+        self.assertEqual([m for m, _ in njoftimet.marresit('EMAIL')], ['a@example.com', 'b@example.com'])
+        r = self.client.get(reverse('njoftimet'))
+        self.assertContains(r, '2 numra telefoni')
+        self.assertContains(r, '2 adresa email')
+
+    def test_sms_te_te_gjithe(self):
+        from .models import MesazhSMS, Njoftim
+        r = self.client.post(reverse('njoftimet'), {'kanali': 'SMS', 'teksti': 'Xhamia Pirok ju uron Bajramin!'})
+        n = Njoftim.objects.get()
+        self.assertRedirects(r, reverse('njoftimi', args=[n.pk]))
+        with mock.patch('xhamia.sms.requests.post', return_value=_pergjigje({'id': 'g1', 'state': 'Pending'})) as post:
+            self.client.post(reverse('njoftimi', args=[n.pk]), {'veprimi': 'dergo'})
+            self.assertEqual(post.call_count, 1)                                     # një kërkesë për të dy numrat
+            self.assertEqual(post.call_args.kwargs['json']['phoneNumbers'], ['+38970111111', '+38971222333'])
+            self.client.post(reverse('njoftimi', args=[n.pk]), {'veprimi': 'dergo'})   # asgjë më — askush dy herë
+            self.assertEqual(post.call_count, 1)
+        n.refresh_from_db()
+        self.assertEqual(len(n.derguar), 2)
+        self.assertEqual(MesazhSMS.objects.filter(lloji='NJOFTIM').count(), 2)
+        self.assertContains(self.client.get(reverse('njoftimi', args=[n.pk])), 'U dërgua te të gjithë')
+        # statusi i secilit numër lexohet nga lista e marrësve
+        from . import sms as sms_mod
+        m = MesazhSMS.objects.get(nr_telefoni='+38971222333')
+        pergjigja = _pergjigje({'state': 'Pending', 'recipients': [
+            {'phoneNumber': '+38970111111', 'state': 'Delivered'},
+            {'phoneNumber': '+38971222333', 'state': 'Failed', 'error': 'RESULT_ERROR_GENERIC_FAILURE'}]})
+        with mock.patch('xhamia.sms.requests.get', return_value=pergjigja):
+            sms_mod.perditeso_statusin(m)
+        self.assertEqual((m.statusi, m.gabimi), ('DESHTOI', 'RESULT_ERROR_GENERIC_FAILURE'))
+
+    def test_email_me_foto_dhe_prove(self):
+        from django.core import mail
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from .models import Njoftim
+        foto = SimpleUploadedFile('bajrami.png', b'\x89PNG\r\n\x1a\n' + b'0' * 100, content_type='image/png')
+        self.client.post(reverse('njoftimet'), {'kanali': 'EMAIL', 'titulli': 'Urime Bajrami', 'teksti': 'Bajrami mubarek!',
+                                                'foto': foto})
+        n = Njoftim.objects.get()
+        self.assertEqual(n.foto_lloji, 'image/png')
+        self.client.post(reverse('njoftimi', args=[n.pk]), {'veprimi': 'prove', 'marresi': 'admin@example.com'})
+        self.assertEqual(mail.outbox[0].bcc, ['admin@example.com'])
+        self.assertEqual(n.derguar, [])
+        self.client.post(reverse('njoftimi', args=[n.pk]), {'veprimi': 'dergo'})
+        self.assertEqual(len(mail.outbox), 2)
+        self.assertEqual(sorted(mail.outbox[1].bcc), ['a@example.com', 'b@example.com'])   # marrësit nuk e shohin njëri-tjetrin
+        self.assertEqual(mail.outbox[1].subject, 'Urime Bajrami')
+        self.assertIn('cid:foto', mail.outbox[1].alternatives[0][0])
+        self.assertEqual(self.client.get(reverse('njoftimi', args=[n.pk]), {'foto': 1})['Content-Type'], 'image/png')
+
+    def test_vetem_admini(self):
+        staf = User.objects.create_user('staf', password='x')
+        ProfilStafi.objects.create(user=staf, rol='STAF', mund_regjistrojë_pagesa=True)
+        self.client.force_login(staf)
+        self.assertEqual(self.client.get(reverse('njoftimet')).status_code, 302)
+        self.client.post(reverse('njoftimet'), {'kanali': 'SMS', 'teksti': 'x'})
+        from .models import Njoftim
+        self.assertFalse(Njoftim.objects.exists())

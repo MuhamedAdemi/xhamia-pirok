@@ -113,6 +113,12 @@ and open a new Bash console). Free tier: requests must be fast — avoid heavy w
   restarts at 1/27; blloku no longer used), `marresi` (firm / person, required), `qyteti`, `llogaria`; A4 voucher
   "ARKA TË PAGUAJË" (`xhamia/fletepagesa.py`, amount in words via `xhamia/fjalet.py`), with signatures and stamp
   place; the supplier's fiscal invoice is stapled to it. Fund ledger year view has cumulative 3/6/9-month rows.
+- **Zekati**: `PagesaFondi.eshte_zekat` (auto for type "Zeqati") and `Harxhimi.nga_zekati`
+  — money dedicated to the mekteb (Qur'ans, pupils); the fund ledger shows the zekat balance and "Fondi i lirë" separately.
+- **Njoftime & Urime** (`njoftime/`, `xhamia/njoftimet.py`, model `Njoftim`, admin only): one SMS to every active house
+  phone or one email (optional inline photo, recipients in BCC) to every email, deduplicated; test send first; sent in
+  waves (200 SMS via `sms.dergo_sms_shumeve`, 20 numbers per SMSGate request / 100 emails, Gmail ~450/day);
+  `Njoftim.derguar` remembers who got it so "Vazhdo dërgimin" never sends twice.
 - Admin can correct a membership payment (`ndrysho_pagese_antaresia`, e.g. 4300 den → 50 € + 1300 den): same form,
   no new email, old amount noted in `shenime`, category recomputed.
 - `xhamia/fletorja.py` — membership ledger: build rows, read a ledger PDF, compare with the app

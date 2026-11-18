@@ -125,6 +125,9 @@
     </a>
 
     <div class="nav-section-label">SMS</div>
+    <a href="{% url 'njoftimet' %}" class="{% if faqja_aktive == 'njoftimet' %}aktive{% endif %}">
+      <span class="ikona">📣</span> Njoftime &amp; Urime
+    </a>
     <a href="{% url 'borxhlinjte_sms' %}" class="{% if faqja_aktive == 'sms_borxhlinjte' %}aktive{% endif %}">
       <span class="ikona">📱</span> Kujtesa për Borxh
     </a>

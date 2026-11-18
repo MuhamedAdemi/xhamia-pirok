@@ -56,6 +56,8 @@
           <label>{{ form.burimi.label }}</label>
           {% render_field form.burimi %}
           {% if form.burimi.errors %}<p class="gabim-fusha">{{ form.burimi.errors.0 }}</p>{% endif %}
+          <label class="vs-ndarje" style="margin-top:8px;">{% render_field form.nga_zekati %} 🌙 Paguar nga <strong>zekati</strong></label>
+          <p class="ndihma">Vetëm për Fondin: p.sh. Kur'ane për mektebin, materiale për nxënësit.</p>
         </div>
         <div class="forma-grup">
           <label>{{ form.data_pageses.label }}</label>

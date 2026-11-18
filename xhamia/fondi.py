@@ -44,9 +44,25 @@ def _totali(pagesat):
     return t
 
 
-def gjendja_para(data):
-    """Gjendja e Fondit para një date (të gjitha hyrat − të gjitha daljet deri atëherë)."""
-    return Gjendja.nga(_totali(_hyrat(data_pageses__lt=data)), _totali(_daljet(data_pageses__lt=data)))
+def gjendja_para(data, zekati=False):
+    """Gjendja e Fondit para një date (të gjitha hyrat − të gjitha daljet deri atëherë).
+    zekati=True: vetëm zekati (hyrat me "Është zekat" − daljet "Paguar nga zekati")."""
+    hyrat, daljet = _hyrat(data_pageses__lt=data), _daljet(data_pageses__lt=data)
+    if zekati:
+        hyrat, daljet = hyrat.filter(eshte_zekat=True), daljet.filter(nga_zekati=True)
+    return Gjendja.nga(_totali(hyrat), _totali(daljet))
+
+
+def _zekati(fillimi, hyrat, daljet):
+    """Pjesa e zekatit: {'fillimi', 'hyra', 'dalje', 'fundi', 'i_lire'} — 'i_lire' llogaritet nga thirrësi."""
+    hyra = _totali([p for p in hyrat if p.eshte_zekat])
+    dalje = _totali([h for h in daljet if h.nga_zekati])
+    return {'fillimi': fillimi, 'hyra': hyra, 'dalje': dalje, 'fundi': Gjendja.nga(hyra, dalje, fillimi)}
+
+
+def _i_lire(fundi, zekati_fundi):
+    """Fondi i lirë = gjendja e plotë − zekati (i dedikuar)."""
+    return Gjendja({m: fundi.shumat[m] - zekati_fundi.shumat[m] for m in MONEDHAT}, fundi.eur - zekati_fundi.eur)
 
 
 def _rreshti(p, i, dalje=False):
@@ -56,7 +72,10 @@ def _rreshti(p, i, dalje=False):
     else:
         emri = p.shtepia.emri_i_plote if p.shtepia_id else f'{p.emri_donatorit} {p.mbiemri_donatorit}'
         pershkrimi = ' — '.join(x for x in (p.lloji, p.arsyeja) if x)
-    return {'nr': i, 'pagese': p, 'emri': emri, 'pershkrimi': pershkrimi, 'fatura': p.fatura_tekst,
+    zekat = p.nga_zekati if dalje else p.eshte_zekat
+    if zekat:
+        pershkrimi = f'ZEKAT — {pershkrimi}' if pershkrimi else 'ZEKAT'
+    return {'nr': i, 'pagese': p, 'emri': emri, 'pershkrimi': pershkrimi, 'fatura': p.fatura_tekst, 'zekat': zekat,
             'data': p.data_pageses, 'shumat': p.shumat_sipas_monedhes(), 'eur': p.shuma_eur}
 
 
@@ -70,7 +89,9 @@ def muaji(viti, muaji_nr):
     t_hyra, t_dalje = _totali(hyrat), _totali(daljet)
     fillimi = gjendja_para(nga)
     bilanci, fundi = Gjendja.nga(t_hyra, t_dalje), Gjendja.nga(t_hyra, t_dalje, fillimi)
+    zekati = _zekati(gjendja_para(nga, zekati=True), hyrat, daljet)
     return {
+        'zekati': zekati, 'i_lire': _i_lire(fundi, zekati['fundi']),
         'rreshtat_bilanci': [('Gjendja në fillim të muajit', fillimi), ('+ Hyrat', t_hyra), ('− Daljet', t_dalje),
                              ('= Bilanci i muajit (hyra − dalje)', bilanci), ('GJENDJA NË FUND TË MUAJIT', fundi)],
         'viti': viti, 'muaji': muaji_nr, 'emri': f'{MUAJT[muaji_nr - 1]} {viti}',
@@ -107,7 +128,10 @@ def viti_i_plote(viti):
     for i in range(12):
         t_hyra.bashko(hyra[i])
         t_dalje.bashko(dalje[i])
+    zekati = _zekati(gjendja_para(date(viti, 1, 1), zekati=True), list(_hyrat(data_pageses__year=viti)),
+                     list(_daljet(data_pageses__year=viti)))
     return {
+        'zekati': zekati, 'i_lire': _i_lire(gjendja, zekati['fundi']),
         'viti': viti, 'fillimi': fillimi, 'muajt': muajt, 't_hyra': t_hyra, 't_dalje': t_dalje,
         'bilanci': Gjendja.nga(t_hyra, t_dalje), 'fundi': gjendja,
         'monedhat': _monedhat_ne_perdorim([t_hyra, t_dalje, fillimi]),
@@ -180,6 +204,10 @@ def excel(viti, muaji_nr=None):
         ngjyros('C9DAF8')
         ws.append(['Gjendja në fund të muajit', '', '', '', ''] + numrat(d['fundi'].shumat, d['fundi'].eur))
         ngjyros('F6B26B')
+        zk = d['zekati']
+        ws.append(['   nga të cilat: Zekati (i dedikuar për mektebin)', '', '', '', ''] + numrat(zk['fundi'].shumat, zk['fundi'].eur))
+        ws.append(['   Fondi i lirë', '', '', '', ''] + numrat(d['i_lire'].shumat, d['i_lire'].eur))
+        ngjyros('D9EAD3')
         gjeresite = (6, 30, 30, 20, 12)
     else:
         d = viti_i_plote(viti)
@@ -198,6 +226,11 @@ def excel(viti, muaji_nr=None):
         ws.append([f'GJITHSEJ {viti}'] + numrat(d['t_hyra'].shumat, d['t_hyra'].eur)
                   + numrat(d['t_dalje'].shumat, d['t_dalje'].eur) + [float(d['bilanci'].eur), float(d['fundi'].eur)])
         ngjyros('F6B26B')
+        zk = d['zekati']
+        ws.append([])
+        ws.append([f'Zekati {viti}: hyra €', float(zk['hyra'].eur), 'dalje €', float(zk['dalje'].eur),
+                   'gjendja e zekatit €', float(zk['fundi'].eur), 'Fondi i lirë €', float(d['i_lire'].eur)])
+        ngjyros('D9EAD3')
         gjeresite = (26,)
     for rr in ws.iter_rows(min_row=3):
         for c in rr:
@@ -273,9 +306,12 @@ def pdf(viti, muaji_nr=None):
                        ['+', 'Hyrat'] + shumat(d['t_hyra'].shumat, d['t_hyra'].eur),
                        ['−', 'Daljet'] + shumat(d['t_dalje'].shumat, d['t_dalje'].eur),
                        ['=', 'Bilanci i muajit (hyra − dalje)'] + shumat(d['bilanci'].shumat, d['bilanci'].eur),
-                       ['', 'GJENDJA NË FUND TË MUAJIT'] + shumat(d['fundi'].shumat, d['fundi'].eur)]
+                       ['', 'GJENDJA NË FUND TË MUAJIT'] + shumat(d['fundi'].shumat, d['fundi'].eur),
+                       ['', '   nga të cilat: Zekati (i dedikuar)'] + shumat(d['zekati']['fundi'].shumat, d['zekati']['fundi'].eur),
+                       ['', '   Fondi i lirë'] + shumat(d['i_lire'].shumat, d['i_lire'].eur)]
         pjeset += [Paragraph('Bilanci', nentitull), Spacer(1, 3),
-                   tabela(permbledhja, [0.7, 7.5] + [2.6] * len(emrat), 2, [(4, '#C9DAF8'), (5, '#F6B26B')])]
+                   tabela(permbledhja, [0.7, 7.5] + [2.6] * len(emrat), 2,
+                          [(4, '#C9DAF8'), (5, '#F6B26B'), (6, '#FFF2CC'), (7, '#D9EAD3')])]
         faqja = landscape(A4)
     else:
         d = viti_i_plote(viti)
@@ -294,8 +330,15 @@ def pdf(viti, muaji_nr=None):
                           shuma(d['t_hyra'].eur, 'EUR'), shuma(d['t_dalje'].shumat['MKD'], 'MKD'),
                           shuma(d['t_dalje'].shumat['EUR'], 'EUR'), shuma(d['t_dalje'].eur, 'EUR'),
                           shuma(d['bilanci'].eur, 'EUR'), shuma(d['fundi'].eur, 'EUR')])
+        zk = d['zekati']
         pjeset += [Paragraph(f'FLETORJA E FONDIT — VITI {viti}', titulli), Spacer(1, 10),
-                   tabela(te_dhenat, [5.4] + [2.6] * 8, 1, [(1, '#EDE7DC'), (len(te_dhenat) - 1, '#F6B26B')] + ngjyrat_kum)]
+                   tabela(te_dhenat, [5.4] + [2.6] * 8, 1, [(1, '#EDE7DC'), (len(te_dhenat) - 1, '#F6B26B')] + ngjyrat_kum),
+                   Spacer(1, 8),
+                   tabela([['Zekati (i dedikuar për mektebin)', 'Gjendja në fillim', 'Hyra', 'Dalje', 'Gjendja në fund'],
+                           ['Zekati', shuma(zk['fillimi'].eur, 'EUR'), shuma(zk['hyra'].eur, 'EUR'),
+                            shuma(zk['dalje'].eur, 'EUR'), shuma(zk['fundi'].eur, 'EUR')],
+                           ['Fondi i lirë (gjendja − zekati)', '', '', '', shuma(d['i_lire'].eur, 'EUR')]],
+                          [7.0, 3.2, 3.2, 3.2, 3.2], 1, [(1, '#FFF2CC'), (2, '#D9EAD3')])]
         faqja = landscape(A4)
 
     def fundi(canvas, doc):

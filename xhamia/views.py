@@ -1514,6 +1514,77 @@ def borxhlinjte_sms(request):
 
 
 @login_required
+def njoftimet_faqja(request):
+    """Njoftime / urime për gjithë xhematin: krijimi (SMS ose email me foto) dhe historiku."""
+    from . import njoftimet
+    from .models import Njoftim
+    if not është_admin(request.user):
+        messages.error(request, 'Vetëm administratori mund të dërgojë njoftime.')
+        return redirect('dashboard')
+    kanali = request.POST.get('kanali') or request.GET.get('kanali') or 'SMS'
+    kanali = kanali if kanali in ('SMS', 'EMAIL') else 'SMS'
+    if request.method == 'POST':
+        titulli = request.POST.get('titulli', '').strip()
+        teksti = request.POST.get('teksti', '').strip()
+        foto = request.FILES.get('foto') if kanali == 'EMAIL' else None
+        if not teksti or (kanali == 'EMAIL' and not titulli):
+            messages.error(request, 'Shkruani tekstin' + (' dhe titullin (subjektin) e email-it.' if kanali == 'EMAIL' else '.'))
+        elif foto and (not (foto.content_type or '').startswith('image/') or foto.size > 3 * 1024 * 1024):
+            messages.error(request, 'Fotoja duhet të jetë imazh (JPG/PNG) deri në 3 MB.')
+        else:
+            n = Njoftim.objects.create(
+                kanali=kanali, titulli=titulli or teksti[:60], teksti=teksti, krijuar_nga=request.user,
+                foto=foto.read() if foto else None, foto_lloji=foto.content_type if foto else '',
+                foto_emri=foto.name[:150] if foto else '',
+            )
+            return redirect('njoftimi', pk=n.pk)
+    return render(request, 'sms/njoftimet.html', {
+        'kanali': kanali, 'nr_sms': len(njoftimet.marresit('SMS')), 'nr_email': len(njoftimet.marresit('EMAIL')),
+        'historiku': Njoftim.objects.defer('foto')[:30], 'titulli': request.POST.get('titulli', ''),
+        'teksti': request.POST.get('teksti', ''), 'gateway_gati': sms.eshte_konfiguruar(),
+        'faqja_aktive': 'njoftimet',
+    })
+
+
+@login_required
+def njoftimi(request, pk):
+    """Një njoftim: provë te një numër/email, dërgimi me valë te të gjithë, rezultati."""
+    from . import njoftimet
+    from .models import Njoftim
+    if not është_admin(request.user):
+        return redirect('dashboard')
+    n = get_object_or_404(Njoftim, pk=pk)
+    if request.GET.get('foto') and n.foto:
+        return HttpResponse(bytes(n.foto), content_type=n.foto_lloji or 'image/jpeg')
+    if request.method == 'POST':
+        if request.POST.get('veprimi') == 'prove':
+            gabimi = njoftimet.dergo_prove(n, request.POST.get('marresi', '').strip(), request.user)
+            if gabimi:
+                messages.error(request, f'Prova nuk shkoi: {gabimi}')
+            else:
+                messages.success(request, 'Prova u dërgua — kontrolloni telefonin / email-in.')
+        elif request.POST.get('veprimi') == 'dergo':
+            ok, deshtuar, mbetur = njoftimet.dergo_valen(n, request.user)
+            if ok:
+                messages.success(request, f'{ok} ' + ('SMS iu dhanë telefonit për dërgim.' if n.kanali == 'SMS' else 'email-e u dërguan.'))
+            if deshtuar:
+                messages.error(request, f'{deshtuar} nuk shkuan — shihni listën poshtë.')
+            if mbetur:
+                messages.warning(request, f'Mbeten edhe {mbetur} — klikoni "Vazhdo dërgimin"'
+                                          + (' (Gmail lejon ~450 email në ditë: vazhdoni nesër nëse dështon).' if n.kanali == 'EMAIL' else '.'))
+        return redirect('njoftimi', pk=n.pk)
+    gjithsej = len(njoftimet.marresit(n.kanali))
+    mbetur = len(njoftimet.te_mbetur(n))
+    return render(request, 'sms/njoftimi.html', {
+        'n': n, 'gjithsej': gjithsej, 'mbetur': mbetur, 'derguar': len(n.derguar),
+        'perqindja': int(100 * len(n.derguar) / gjithsej) if gjithsej else 0,
+        'vala': njoftimet.VALA_SMS if n.kanali == 'SMS' else njoftimet.VALA_EMAIL,
+        'prove_parazgjedhur': (request.user.email if n.kanali == 'EMAIL' else getattr(getattr(request.user, 'profili', None), 'nr_telefoni', '')) or '',
+        'faqja_aktive': 'njoftimet',
+    })
+
+
+@login_required
 def historiku_sms(request):
     if not mund_shikoje(request.user):
         messages.error(request, 'Nuk keni leje.')
