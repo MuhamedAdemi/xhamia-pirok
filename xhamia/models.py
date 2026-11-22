@@ -530,6 +530,13 @@ def gjenero_nr_fature_harxhim():
     return f"{prefix}{nr:04d}"
 
 
+def _rruga_e_fatures(harxhim, emri):
+    """faturat/2026/43-26_<emri>.pdf"""
+    viti = harxhim.viti or (harxhim.data_pageses.year if harxhim.data_pageses else timezone.now().year)
+    nr = (harxhim.nr_fatures or 'pa-nr').replace('/', '-').replace(' ', '')
+    return f'faturat/{viti}/{nr}_{emri}'
+
+
 class Harxhimi(MonedhaMixin, models.Model):
     FUSHA_EUR = 'shuma_eur'
     URL_DETAJE = 'detaje_harxhimi'
@@ -566,6 +573,9 @@ class Harxhimi(MonedhaMixin, models.Model):
     qyteti = models.CharField(max_length=80, blank=True, verbose_name='Nga qyteti / fshati')
     llogaria = models.CharField(max_length=80, blank=True, verbose_name='Për llogari (opsionale)')
     nga_zekati = models.BooleanField(default=False, verbose_name="Paguar nga zekati (mekteb, Kur'ane…)")
+    # Fatura fiskale e skanuar (PDF / foto) — skedar në server, jo në bazë (shih xhamia/dokumentet.py)
+    dokumenti = models.FileField(upload_to=_rruga_e_fatures, blank=True, max_length=200,
+                                 verbose_name='Fatura e skanuar (PDF / foto)')
     shuma_eur = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='Shuma (€)')
     shuma_mkd = models.DecimalField(
         max_digits=12, decimal_places=2, null=True, blank=True,
@@ -604,6 +614,13 @@ class Harxhimi(MonedhaMixin, models.Model):
 
     def __str__(self):
         return f"{self.fatura_tekst} — {self.lloji} — {self.shuma_origjinale}"
+
+    def delete(self, *args, **kwargs):
+        dokumenti = self.dokumenti
+        rezultati = super().delete(*args, **kwargs)
+        if dokumenti:
+            dokumenti.delete(save=False)   # mos lër skedarë jetimë në server
+        return rezultati
 
     @classmethod
     def nr_i_radhes(cls, viti):

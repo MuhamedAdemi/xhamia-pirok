@@ -27,6 +27,34 @@
   </div>
 
   <div class="card" style="margin-bottom:20px;">
+    <div class="card-header"><h5>📎 Faturat e skanuara të daljeve</h5></div>
+    <div class="card-body">
+      <p>Zënë <strong>{{ faturat.gjithsej|filesizeformat }}</strong> ({{ faturat.nr }} fatura) — rreth <strong>{{ faturat.perqindja }}%</strong>
+        e hapësirës së llogarisë falas në PythonAnywhere (~512 MB bashkë me aplikacionin).</p>
+      <div class="njoftim-progresi" style="margin-bottom:12px;"><div style="width:{% if faturat.perqindja > 100 %}100{% else %}{{ faturat.perqindja }}{% endif %}%;{% if faturat.perqindja > 40 %} background:var(--gabim);{% endif %}"></div></div>
+      {% if faturat.vitet %}
+      <table class="tabela-xhami">
+        <thead><tr><th>Viti</th><th>Fatura</th><th>Madhësia</th><th></th></tr></thead>
+        <tbody>
+          {% for viti, nr, bajtet in faturat.vitet %}
+          <tr><td>{{ viti }}</td><td>{{ nr }}</td><td>{{ bajtet|filesizeformat }}</td>
+            <td class="flex gap-3">
+              <a href="?faturat={{ viti }}" class="btn-dytësor btn-sm">⬇️ Shkarko ZIP</a>
+              <form method="post" onsubmit="return confirm('A i keni shkarkuar dhe ruajtur faturat e vitit {{ viti }}? Ato do të hiqen nga serveri (harxhimet mbeten).');">
+                {% csrf_token %}<input type="hidden" name="hiq_faturat" value="{{ viti }}">
+                <button type="submit" class="btn-rrezik btn-sm">🗑️ Hiq nga serveri</button>
+              </form>
+            </td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% endif %}
+      <p class="ndihma" style="margin-top:10px; line-height:1.7;">Faturat nuk hyjnë në backup-in ZIP më lart. Në fund të çdo viti: shkarkoni ZIP-in e faturave
+        të vitit, ruajeni (USB / Google Drive), pastaj, kur hapësira të nevojitet, hiqini nga serveri.</p>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:20px;">
     <div class="card-header"><h5>🕒 Backup-et automatike në server</h5></div>
     <div class="card-body">
       {% if backupet %}

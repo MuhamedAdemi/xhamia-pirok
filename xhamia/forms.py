@@ -452,7 +452,8 @@ class HarxhimiForm(ShumaMonedhaMixin, forms.ModelForm):
 
     class Meta:
         model = Harxhimi
-        fields = ['nr_fatures', 'marresi', 'qyteti', 'llogaria', 'lloji', 'burimi', 'nga_zekati', 'data_pageses', 'pershkrimi']
+        fields = ['nr_fatures', 'marresi', 'qyteti', 'llogaria', 'lloji', 'burimi', 'nga_zekati', 'data_pageses', 'pershkrimi',
+                  'dokumenti']
         widgets = {
             'lloji': forms.TextInput(attrs={'list': 'llojet', 'autocomplete': 'off',
                                             'placeholder': 'p.sh. Rrymë elektrike, Riparim i çatisë…'}),
@@ -472,6 +473,14 @@ class HarxhimiForm(ShumaMonedhaMixin, forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['marresi'].required = True
+
+    def clean_dokumenti(self):
+        """PDF ≤ 3 MB siç është; fotot ngjeshen (shih xhamia/dokumentet.py). Pa skedar të ri: mbetet i vjetri."""
+        from .dokumentet import prano
+        skedari = self.cleaned_data.get('dokumenti')
+        if skedari and hasattr(skedari, 'content_type'):   # skedar i ri i ngarkuar
+            return prano(skedari)
+        return skedari
 
     def clean_nr_fatures(self):
         """Blloku nuk është më në formë, prandaj kontrolli i numrit të dyfishtë bëhet këtu (ndryshe: IntegrityError)."""

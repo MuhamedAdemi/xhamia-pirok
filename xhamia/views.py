@@ -556,6 +556,18 @@ def backup_faqja(request):
         )
         resp['Content-Disposition'] = f'attachment; filename="{backup.emri_backup()}.xlsx"'
         return resp
+    from . import dokumentet
+    if request.GET.get('faturat'):
+        viti = int(request.GET['faturat']) if request.GET['faturat'].isdigit() else 0
+        resp = HttpResponse(dokumentet.zip_i_vitit(viti), content_type='application/zip')
+        resp['Content-Disposition'] = f'attachment; filename="faturat_e_skanuara_{viti}.zip"'
+        return resp
+    if request.method == 'POST' and request.POST.get('hiq_faturat', '').isdigit():
+        viti = int(request.POST['hiq_faturat'])
+        n = dokumentet.hiq_te_vitit(viti)
+        messages.success(request, f'U hoqën nga serveri {n} fatura të skanuara të vitit {viti}. '
+                                  'Harxhimet mbeten; faturat i keni te ZIP-i i shkarkuar.')
+        return redirect('backup')
     skedari = request.GET.get('skedari')
     if skedari:
         rruga = backup.dosja_backup() / Path(skedari).name
@@ -566,6 +578,7 @@ def backup_faqja(request):
         resp['Content-Disposition'] = f'attachment; filename="{rruga.name}"'
         return resp
     return render(request, 'backup/faqja.html', {
+        'faturat': dokumentet.statistika(),
         'backupet': backup.lista_backup(),
         'dosja': backup.dosja_backup(),
         'faqja_aktive': 'backup',
@@ -1688,7 +1701,7 @@ def shto_harxhim(request):
     if not është_admin(request.user):
         messages.error(request, 'Nuk keni leje.')
         return redirect('lista_harxhimeve')
-    form = HarxhimiForm(request.POST or None, initial={
+    form = HarxhimiForm(request.POST or None, request.FILES or None, initial={
         'nr_fatures': Harxhimi.nr_i_radhes(timezone.localdate().year), 'qyteti': 'Tetovë',
         'data_pageses': timezone.now().date(), 'burimi': request.GET.get('burimi', 'FONDI'),
     })
@@ -1711,13 +1724,16 @@ def ndrysho_harxhimin(request, pk):
         messages.error(request, 'Nuk keni leje.')
         return redirect('detaje_harxhimi', pk=pk)
     harxhim = get_object_or_404(Harxhimi, pk=pk)
-    form = HarxhimiForm(request.POST or None, instance=harxhim, initial={
+    dokumenti_i_vjeter = harxhim.dokumenti.name
+    form = HarxhimiForm(request.POST or None, request.FILES or None, instance=harxhim, initial={
         'shuma_hyrese': harxhim.shuma_ne_monedhe, 'monedha': harxhim.monedha, 'kursi': harxhim.kursi_denar,
     })
     if request.method == 'POST' and form.is_valid():
         harxhim = form.apliko_shumen(form.save(commit=False))
         harxhim.viti = harxhim.data_pageses.year
         harxhim.save()
+        if dokumenti_i_vjeter and dokumenti_i_vjeter != harxhim.dokumenti.name:
+            harxhim.dokumenti.storage.delete(dokumenti_i_vjeter)   # u zëvendësua ose u hoq
         messages.success(request, f'Harxhimi {harxhim.fatura_tekst} u ndryshua.')
         return redirect('detaje_harxhimi', pk=harxhim.pk)
     return render(request, 'harxhimet/forma.html', {
@@ -1736,6 +1752,18 @@ def fletepagesa_pdf(request, pk):
     resp = HttpResponse(ndertoje(harxhim), content_type='application/pdf')
     resp['Content-Disposition'] = f'inline; filename="fletepagesa_{harxhim.nr_fatures.replace("/", "-")}.pdf"'
     return resp
+
+
+@login_required
+def dokumenti_harxhimit(request, pk):
+    """Fatura e skanuar e një harxhimi — vetëm për stafin (nuk është publike si /media/)."""
+    if not mund_shikoje(request.user):
+        return redirect('dashboard')
+    from django.http import FileResponse, Http404
+    harxhim = get_object_or_404(Harxhimi, pk=pk)
+    if not harxhim.dokumenti or not harxhim.dokumenti.storage.exists(harxhim.dokumenti.name):
+        raise Http404('Fatura e skanuar nuk gjendet.')
+    return FileResponse(harxhim.dokumenti.open('rb'), filename=Path(harxhim.dokumenti.name).name)
 
 
 @login_required

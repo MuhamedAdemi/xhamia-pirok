@@ -113,6 +113,10 @@ and open a new Bash console). Free tier: requests must be fast — avoid heavy w
   restarts at 1/27; blloku no longer used), `marresi` (firm / person, required), `qyteti`, `llogaria`; A4 voucher
   "ARKA TË PAGUAJË" (`xhamia/fletepagesa.py`, amount in words via `xhamia/fjalet.py`), with signatures and stamp
   place; the supplier's fiscal invoice is stapled to it. Fund ledger year view has cumulative 3/6/9-month rows.
+- **Scanned invoices** of expenses: `Harxhimi.dokumenti` FileField in MEDIA_ROOT/faturat/<year>/ (NOT in the DB),
+  served only to staff by `dokumenti_harxhimit`; `xhamia/dokumentet.py`: PDF ≤ 3 MB, photos re-encoded to JPG ≤ 1800 px;
+  Backup page shows used space vs the ~512 MB free-tier quota, a per-year ZIP and "remove from server" (record stays).
+  Files are not in the JSON backup. Deleting/replacing an expense deletes its file.
 - **Zekati**: `PagesaFondi.eshte_zekat` (auto for type "Zeqati") and `Harxhimi.nga_zekati`
   — money dedicated to the mekteb (Qur'ans, pupils); the fund ledger shows the zekat balance and "Fondi i lirë" separately.
 - **Njoftime & Urime** (`njoftime/`, `xhamia/njoftimet.py`, model `Njoftim`, admin only): one SMS to every active house

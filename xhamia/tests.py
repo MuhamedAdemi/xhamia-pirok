@@ -1735,3 +1735,100 @@ class NjoftimetTest(TestCase):
         self.client.post(reverse('njoftimet'), {'kanali': 'SMS', 'teksti': 'x'})
         from .models import Njoftim
         self.assertFalse(Njoftim.objects.exists())
+
+
+class FaturatESkanuaraTest(TestCase):
+    """Fatura e skanuar te harxhimi: PDF ≤ 3 MB, foto e ngjeshur, skedar në server (jo në bazë), arkiv ZIP sipas vitit."""
+
+    def setUp(self):
+        import tempfile
+        self.dosja = tempfile.mkdtemp()
+        self.media = override_settings(MEDIA_ROOT=self.dosja)
+        self.media.enable()
+        self.admin = User.objects.create_user('admin', password='x', first_name='A', last_name='B')
+        ProfilStafi.objects.create(user=self.admin, rol='ADMIN')
+        self.client.force_login(self.admin)
+
+    def tearDown(self):
+        import shutil
+        self.media.disable()
+        shutil.rmtree(self.dosja, ignore_errors=True)
+
+    def _dalje(self, nr, skedari=None, **te_dhenat):
+        data = {'nr_fatures': nr, 'marresi': 'EVN Maqedoni', 'qyteti': 'Tetovë', 'lloji': 'Rrymë', 'burimi': 'FONDI',
+                'data_pageses': '2026-11-20', 'pershkrimi': 'Fatura e tetorit', 'shuma_hyrese': '5960',
+                'monedha': 'MKD', 'kursi': '61'}
+        data.update(te_dhenat)
+        if skedari:
+            data['dokumenti'] = skedari
+        return self.client.post(reverse('shto_harxhim'), data)
+
+    def test_pdf_foto_kufiri_dhe_arkivi(self):
+        import io
+        from pathlib import Path
+        from PIL import Image
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from .models import Harxhimi
+        from . import dokumentet
+        pdf = SimpleUploadedFile('skanimi.pdf', b'%PDF-1.4\n' + b'x' * 2000, content_type='application/pdf')
+        r = self._dalje('60/26', pdf)
+        self.assertEqual(r.status_code, 302)
+        h = Harxhimi.objects.get(nr_fatures='60/26')
+        self.assertTrue(h.dokumenti.name.startswith('faturat/2026/60-26_'))
+        self.assertTrue(Path(self.dosja, h.dokumenti.name).exists())
+        self.assertContains(self.client.get(reverse('detaje_harxhimi', args=[h.pk])), 'Fatura e skanuar')
+        r = self.client.get(reverse('dokumenti_harxhimit', args=[h.pk]))
+        self.assertEqual(b''.join(r.streaming_content)[:4], b'%PDF')
+        # foto e madhe nga telefoni → JPG i ngjeshur (≤ 1800 px)
+        buffer = io.BytesIO()
+        Image.new('RGB', (4000, 3000), (200, 120, 50)).save(buffer, 'PNG')
+        foto = SimpleUploadedFile('foto.png', buffer.getvalue(), content_type='image/png')
+        self._dalje('61/26', foto)
+        h2 = Harxhimi.objects.get(nr_fatures='61/26')
+        self.assertTrue(h2.dokumenti.name.endswith('.jpg'))
+        self.assertLessEqual(max(Image.open(Path(self.dosja, h2.dokumenti.name)).size), 1800)
+        # PDF > 3 MB ose skedar tjetër → refuzohet
+        e_madhe = SimpleUploadedFile('e_madhe.pdf', b'%PDF' + b'x' * (3 * 1024 * 1024 + 1), content_type='application/pdf')
+        r = self._dalje('62/26', e_madhe)
+        self.assertContains(r, 'më e madhe se 3 MB')
+        r = self._dalje('62/26', SimpleUploadedFile('a.exe', b'MZ', content_type='application/octet-stream'))
+        self.assertContains(r, 'Lejohen vetëm PDF, JPG ose PNG')
+        self.assertEqual(Harxhimi.objects.count(), 2)
+        # zëvendësimi fshin skedarin e vjetër
+        i_vjetri = Path(self.dosja, h.dokumenti.name)
+        r = self.client.post(reverse('ndrysho_harxhimin', args=[h.pk]), {
+            'nr_fatures': '60/26', 'marresi': 'EVN Maqedoni', 'qyteti': 'Tetovë', 'lloji': 'Rrymë', 'burimi': 'FONDI',
+            'data_pageses': '2026-11-20', 'pershkrimi': 'x', 'shuma_hyrese': '5960', 'monedha': 'MKD', 'kursi': '61',
+            'dokumenti': SimpleUploadedFile('i_ri.pdf', b'%PDF-1.4 i ri', content_type='application/pdf')})
+        self.assertEqual(r.status_code, 302)
+        h.refresh_from_db()
+        self.assertFalse(i_vjetri.exists())
+        self.assertTrue(Path(self.dosja, h.dokumenti.name).exists())
+        # statistika, ZIP-i i vitit, heqja nga serveri
+        stat = dokumentet.statistika()
+        self.assertEqual((stat['nr'], stat['vitet'][0][0]), (2, 2026))
+        self.assertContains(self.client.get(reverse('backup')), 'Faturat e skanuara')
+        import zipfile
+        r = self.client.get(reverse('backup'), {'faturat': 2026})
+        emrat = zipfile.ZipFile(io.BytesIO(r.content)).namelist()
+        self.assertEqual(sorted(emrat), ['faturat_2026/60-26_EVN Maqedoni.pdf', 'faturat_2026/61-26_EVN Maqedoni.jpg'])
+        self.client.post(reverse('backup'), {'hiq_faturat': '2026'})
+        self.assertEqual(Harxhimi.objects.exclude(dokumenti='').count(), 0)
+        self.assertEqual(Harxhimi.objects.count(), 2)
+        self.assertEqual(list(Path(self.dosja, 'faturat', '2026').iterdir()), [])
+        # fshirja e harxhimit fshin edhe skedarin
+        self._dalje('63/26', SimpleUploadedFile('f.pdf', b'%PDF-1.4', content_type='application/pdf'))
+        h3 = Harxhimi.objects.get(nr_fatures='63/26')
+        rruga = Path(self.dosja, h3.dokumenti.name)
+        h3.delete()
+        self.assertFalse(rruga.exists())
+
+    def test_vetem_stafi_e_sheh_faturen(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from .models import Harxhimi
+        self._dalje('70/26', SimpleUploadedFile('f.pdf', b'%PDF-1.4', content_type='application/pdf'))
+        h = Harxhimi.objects.get()
+        self.client.logout()
+        r = self.client.get(reverse('dokumenti_harxhimit', args=[h.pk]))
+        self.assertEqual(r.status_code, 302)
+        self.assertIn('/login', r['Location'])

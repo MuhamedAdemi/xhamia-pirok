@@ -10,7 +10,7 @@
   </div>
 </div>
 
-<form method="post" style="max-width:680px;">
+<form method="post" enctype="multipart/form-data" style="max-width:680px;">
   {% csrf_token %}
 
   <div class="card" style="margin-bottom:20px;">
@@ -69,6 +69,14 @@
         <label>{{ form.pershkrimi.label }}</label>
         {% render_field form.pershkrimi placeholder="p.sh. Vendosja e radiatorëve në sallën e madhe (6 copë) dhe puna e dorës…" %}
         <p class="ndihma">Ky tekst del te fletëpagesa A4. Fatura fiskale / llogaria e ofruesit i bashkëngjitet fletëpagesës.</p>
+      </div>
+      <div class="forma-grup">
+        <label>📎 {{ form.dokumenti.label }} — opsionale</label>
+        {% if ndryshim and ndryshim.dokumenti %}<p class="ndihma">Tani: <a href="{% url 'dokumenti_harxhimit' ndryshim.pk %}" target="_blank">hap faturën e skanuar</a>
+          — zgjidhni skedar të ri për ta zëvendësuar, ose shënoni kutinë poshtë për ta hequr.</p>{% endif %}
+        {% render_field form.dokumenti accept="application/pdf,image/jpeg,image/png" %}
+        {% if form.dokumenti.errors %}<p class="gabim-fusha">{{ form.dokumenti.errors.0 }}</p>{% endif %}
+        <p class="ndihma">PDF deri në 3 MB (skanoni me 150–200 dpi) ose foto nga telefoni — fotot ngjeshen vetë.</p>
       </div>
     </div>
   </div>

@@ -13,6 +13,7 @@
   </div>
   <div class="flex gap-3">
     <a href="{% url 'fletepagesa_pdf' harxhim.pk %}" class="btn-kryesor" target="_blank">🖨️ Fletëpagesa A4</a>
+    {% if harxhim.dokumenti %}<a href="{% url 'dokumenti_harxhimit' harxhim.pk %}" class="btn-dytësor" target="_blank">📎 Fatura e skanuar</a>{% endif %}
     {% if request.user.profili.është_admin %}
     <a href="{% url 'ndrysho_harxhimin' harxhim.pk %}" class="btn-dytësor">✏️ Ndrysho</a>
     <a href="{% url 'fshi_harxhimin' harxhim.pk %}" class="btn-rrezik">Fshi</a>
