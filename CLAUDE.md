@@ -130,9 +130,12 @@ and open a new Bash console). Free tier: requests must be fast — avoid heavy w
 - **Spoiled invoices** (`FaturaEPrishur`, lloji antaresia/varrezat/fondi): marked on the block ledger page (one nr or a
   range ≤ 100); shown in red as "E PRISHUR" (screen/PDF/Excel), not counted as missing; payment forms refuse that number
   (`ShumaMonedhaMixin.clean`).
-- **Membership dashboard** (`xhamia/analiza.py`, Power BI style, Chart.js): KPIs vs previous year (same period), monthly
-  curve (current vs previous year, cumulative toggle), seasonality over all years, coverage per year (payments + history),
-  € per covered year, debt-years distribution, currencies, categories.
+- **Dashboards Antarësia + Fondi** (interactive, Power BI style): the server sends compact facts
+  (`analiza.faktet_antaresia/faktet_fondi`, no names for membership) in a `json_script`; `static/js/bi.js` (shared parts:
+  slicers, KPI + sparkline, gauge, heat matrix, treemap, ranked bars, 100% bar, tooltip, Chart.js defaults, selective labels)
+  + `dashboard_antaresia.js` / `dashboard_fondi.js` filter in the browser (year, months, currency, category / type, zekat)
+  with cross-filter clicks; `static/css/bi.css`. Validated palette (blue #2a78d6, orange #eb6834, aqua…), one y-axis only,
+  previous year in gray. Fund: income vs expenses, balance "bridge" (waterfall), types treemap, expenses, top donors, zekat.
 - **Power BI** (`xhamia/powerbi.py`, page `powerbi/`, admin): CSV tables (shtepite, antaresia, antaresia_vitet, fondi,
   varrezat, harxhimet) at `powerbi/<name>.csv?celesi=…`, no login but secret key `KonfigurimiSistemit.celesi_powerbi`
   (create / regenerate / close); no phones/emails in them.

@@ -698,8 +698,12 @@ class FondiShtepiaKerkimiMonedhatTest(TestCase):
         tot = totalet_sipas_monedhes(PagesaFondi.objects.all())
         self.assertEqual((tot['EUR'], tot['MKD'], tot['CHF'], tot['USD']),
                          (Decimal('1380'), Decimal('75000'), Decimal('200'), Decimal('0')))
-        r = self.client.get(reverse('dashboard_fondi'))
-        self.assertContains(r, '75.000 den · 1.380 € · 200 CHF')
+        from . import analiza
+        hyrjet = analiza.faktet_fondi()['hyrjet']   # dashboardi (JS) i mbledh sipas monedhës: "75.000 den · 1.380 € · 200 CHF"
+        totalet = {}
+        for h in hyrjet:
+            totalet[h[6]] = totalet.get(h[6], 0) + h[7]
+        self.assertEqual({k: v for k, v in totalet.items() if v}, {'MKD': 75000.0, 'EUR': 1380.0, 'CHF': 200.0})
         self.assertEqual(formato_shumen(Decimal('69.92'), 'EUR'), '69,92 €')
 
 
@@ -1921,8 +1925,22 @@ class NdryshimiFonditFaturatEPrishuraPowerBITest(TestCase):
         mb = {m['viti']: m for m in a['mbulimi']}
         self.assertEqual((mb[2024]['paguar'], mb[2025]['paguar'], mb[2026]['paguar']), (1, 1, 1))   # 2024 nga historia
         r = self.client.get(reverse('dashboard') + '?viti=2026')
-        self.assertContains(r, 'id="gMujore"')
-        self.assertContains(r, 'Në cilët muaj paguhet më shumë')
+        self.assertContains(r, 'id="gKryesor"')
+        self.assertContains(r, 'id="te-dhenat-bi"')
+        f = analiza.faktet_antaresia()
+        self.assertEqual(f['pagesat'][0][:2], ['2026-03-10', 120.0])
+        self.assertEqual(f['pagesat'][0][4], [[2025, 60.0], [2026, 60.0]])
+        self.assertNotIn('Agim', str(f))   # pa emra
+        # Fondi
+        PagesaFondi.objects.create(nr_fatures='1', lloji='Zeqati', eshte_zekat=True, emri_donatorit='Besnik', mbiemri_donatorit='M',
+                                   shuma=Decimal('50'), monedha='EUR', shuma_monedhe=Decimal('50'), data_pageses=date(2026, 3, 13),
+                                   arktar=self.admin)
+        ff = analiza.faktet_fondi()
+        self.assertEqual(ff['hyrjet'][0][:4], ['2026-03-13', 50.0, 0, 1])
+        self.assertEqual(ff['llojet'], ['Zeqati'])
+        r = self.client.get(reverse('dashboard_fondi'))
+        self.assertContains(r, 'id="gUra"')
+        self.assertContains(r, 'dashboard_fondi.js')
 
     def test_powerbi(self):
         self.sh.nr_telefoni_kryesor = '070 999 888'

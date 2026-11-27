@@ -267,8 +267,7 @@ def dashboard_antaresia(request):
         'shtepite_pa_pagese': Shtepia.objects.filter(është_aktiv=True).exclude(id__in=paguar_ids)
                                              .exclude(kategoria__shuma_vjetore=0).select_related('kategoria')[:20],
         'a': a,
-        'grafiket_json': json.dumps({k: a[k] for k in ('muajt', 'mujore', 'sezoni', 'mbulimi', 'per_vitet',
-                                                       'monedhat', 'kategorite', 'borxhi')}),
+        'te_dhenat_bi': analiza_mod.faktet_antaresia(),
         'faqja_aktive': 'dashboard',
     }
     return render(request, 'dashboard/antaresia.html', konteksti)
@@ -276,63 +275,13 @@ def dashboard_antaresia(request):
 
 @login_required
 def dashboard_fondi(request):
-    viti_zgjedhur = int(request.GET.get('viti', timezone.now().year))
-    vitit_lista = list(range(2020, timezone.now().year + 2))
-
-    total_fondi = PagesaFondi.objects.filter(
-        data_pageses__year=viti_zgjedhur
-    ).aggregate(s=Sum('shuma'))['s'] or 0
-
-    total_donator = PagesaFondi.objects.filter(
-        data_pageses__year=viti_zgjedhur
-    ).count()
-
-    pagesat_mujore = []
-    muajt_etiketat = ['Jan', 'Shk', 'Mar', 'Pri', 'Maj', 'Qer', 'Kor', 'Gus', 'Sht', 'Tet', 'Nën', 'Dhj']
-    for m in range(1, 13):
-        shuma = PagesaFondi.objects.filter(
-            data_pageses__year=viti_zgjedhur, data_pageses__month=m
-        ).aggregate(s=Sum('shuma'))['s'] or 0
-        pagesat_mujore.append(float(shuma))
-
-    # Krahasimi i viteve
-    krahasimi_viteve = []
-    for v in range(viti_zgjedhur - 2, viti_zgjedhur + 1):
-        shuma = PagesaFondi.objects.filter(data_pageses__year=v).aggregate(s=Sum('shuma'))['s'] or 0
-        krahasimi_viteve.append({'viti': v, 'shuma': float(shuma)})
-
-    pagesat_e_fundit = PagesaFondi.objects.select_related('arktar').order_by('-data_pageses')[:10]
-
-    top_donator = PagesaFondi.objects.filter(
-        data_pageses__year=viti_zgjedhur
-    ).values('emri_donatorit', 'mbiemri_donatorit').annotate(
-        total=Sum('shuma')
-    ).order_by('-total')[:5]
-
-    pagesat_e_vitit = PagesaFondi.objects.filter(data_pageses__year=viti_zgjedhur)
-    dhurata = pagesat_e_vitit.exclude(lloji=PagesaFondi.LLOJI_AKTIVITET)
-    aktivitete = pagesat_e_vitit.filter(lloji=PagesaFondi.LLOJI_AKTIVITET)
-    total_dhurata = dhurata.aggregate(s=Sum('shuma'))['s'] or 0
-    total_aktivitete = aktivitete.aggregate(s=Sum('shuma'))['s'] or 0
-
-    konteksti = {
-        'viti_zgjedhur': viti_zgjedhur,
-        'vitit_lista': vitit_lista,
-        'total_fondi': total_fondi,
-        'total_fondi_m': totalet_sipas_monedhes(PagesaFondi.objects.filter(data_pageses__year=viti_zgjedhur)),
-        'total_donator': total_donator,
-        'total_dhurata': total_dhurata,
-        'total_dhurata_m': totalet_sipas_monedhes(dhurata),
-        'total_aktivitete': total_aktivitete,
-        'total_aktivitete_m': totalet_sipas_monedhes(aktivitete),
-        'pagesat_mujore_json': json.dumps(pagesat_mujore),
-        'muajt_etiketat_json': json.dumps(muajt_etiketat),
-        'krahasimi_viteve_json': json.dumps(krahasimi_viteve),
-        'pagesat_e_fundit': pagesat_e_fundit,
-        'top_donator': top_donator,
+    """Dashboard interaktiv i Fondit (si Power BI): filtrat dhe grafiket llogariten në shfletues nga faktet."""
+    from . import analiza as analiza_mod
+    return render(request, 'dashboard/fondi.html', {
+        'te_dhenat_bi': analiza_mod.faktet_fondi(),
+        'pagesat_e_fundit': PagesaFondi.objects.order_by('-data_pageses', '-pk')[:10],
         'faqja_aktive': 'dashboard_fondi',
-    }
-    return render(request, 'dashboard/fondi.html', konteksti)
+    })
 
 
 @login_required

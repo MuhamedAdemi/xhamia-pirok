@@ -24,7 +24,7 @@ VITI_PARE = 2015
 
 
 def _monedha_e_pageses(p):
-    if p.monedha_2 and p.shuma_monedhe_2:
+    if getattr(p, 'monedha_2', '') and getattr(p, 'shuma_monedhe_2', None):
         return 'EUR + den' if {p.monedha, p.monedha_2} == {'EUR', 'MKD'} else f'{p.monedha} + {p.monedha_2}'
     return {'MKD': 'Denarë', 'EUR': 'Euro', 'CHF': 'Franga', 'USD': 'Dollarë'}.get(p.monedha, p.monedha)
 
@@ -160,3 +160,49 @@ def antaresia(viti):
             'gratis': sum(1 for sh in shtepite if sh.kategoria_id in gratis),
         },
     }
+
+
+# ─── Faktet për dashboardet interaktive (filtrat llogariten në shfletues, si Power BI) ───────────────────────
+
+def _indeksi(lista, vlera):
+    if vlera not in lista:
+        lista.append(vlera)
+    return lista.index(vlera)
+
+
+def faktet_antaresia():
+    """Të gjitha pagesat (pa emra) + gjendja e shtëpive — shfletuesi i filtron sipas vitit, muajit, monedhës, kategorisë."""
+    from .kategorite import numrat_e_kategorive
+    konfigurimi = KonfigurimiSistemit.merr()
+    numrat = numrat_e_kategorive()
+    monedhat, kategorite, pagesat = [], [], []
+    for p in PagesaAntaresia.objects.order_by('data_pageses', 'pk'):
+        nr = numrat.get(p.kategoria_pageses_id) if p.kategoria_pageses_id else None
+        kat = f'Kat. {nr}' if nr and nr.isdigit() else ('Gratis' if nr == 'G' else 'Pa kategori')
+        vitet = [[v, round(float(e), 2)] for v, e in sorted(_ndarja_ne_eur(p, konfigurimi).items())]
+        pagesat.append([p.data_pageses.isoformat(), round(float(p.shuma_paguar or 0), 2),
+                        _indeksi(monedhat, _monedha_e_pageses(p)), _indeksi(kategorite, kat), vitet])
+    a = antaresia(timezone.localdate().year)
+    return {
+        'pagesat': pagesat, 'monedhat': monedhat, 'kategorite': kategorite, 'mbulimi': a['mbulimi'], 'borxhi': a['borxhi'],
+        'shtepite_kategorite': a['kategorite'],
+        'borxhi_total': float(a['kpi']['borxhi_total']), 'pa_borxh': a['kpi']['pa_borxh'],
+        'shtepite': a['kpi']['shtepite'], 'gratis': a['kpi']['gratis'], 'sot': timezone.localdate().isoformat(),
+    }
+
+
+def faktet_fondi():
+    """Donacionet dhe daljet e Fondit (vetëm burimi "Fondi i Xhamisë") për dashboardin e Fondit."""
+    from .models import Harxhimi, PagesaFondi
+    llojet, monedhat, donatoret, hyrjet = [], [], [], []
+    for p in PagesaFondi.objects.select_related('shtepia').order_by('data_pageses', 'pk'):
+        emri = p.shtepia.emri_i_plote if p.shtepia_id else f'{p.emri_donatorit} {p.mbiemri_donatorit}'.strip()
+        hyrjet.append([p.data_pageses.isoformat(), round(float(p.shuma or 0), 2), _indeksi(llojet, p.lloji or '—'),
+                       1 if p.eshte_zekat else 0, _indeksi(monedhat, _monedha_e_pageses(p)),
+                       _indeksi(donatoret, emri or '—'), p.monedha, round(float(p.shuma_ne_monedhe or 0), 2)])
+    llojet_dalje, daljet = [], []
+    for h in Harxhimi.objects.filter(burimi='FONDI').order_by('data_pageses', 'pk'):
+        daljet.append([h.data_pageses.isoformat(), round(float(h.shuma_eur or 0), 2),
+                       _indeksi(llojet_dalje, h.lloji or '—'), 1 if h.nga_zekati else 0])
+    return {'hyrjet': hyrjet, 'daljet': daljet, 'llojet': llojet, 'llojet_dalje': llojet_dalje,
+            'monedhat': monedhat, 'donatoret': donatoret, 'sot': timezone.localdate().isoformat()}

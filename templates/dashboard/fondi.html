@@ -1,193 +1,110 @@
 {% extends 'base.html' %}
-{% load shumat %}
+{% load static %}
 {% block titulli %}Dashboard Fondi — Xhamia Pirok{% endblock %}
+{% block stile %}<link rel="stylesheet" href="{% static 'css/bi.css' %}">{% endblock %}
 
 {% block kontent %}
 <div class="page-header">
   <div>
-    <h2>Dashboard Fondi i Xhamisë</h2>
-    <p>Pasqyra e donacioneve dhe fondit të xhamisë</p>
+    <h2>🤲 Dashboard Fondi i Xhamisë</h2>
+    <p>Donacionet dhe harxhimet e Fondit. Klikoni filtrat, një muaj, një lloj ose një qelizë — gjithë faqja ndryshon menjëherë.</p>
   </div>
-  <div class="flex items-center gap-3">
-    <form method="get" style="display:flex; gap:10px; align-items:center;">
-      <select name="viti" onchange="this.form.submit()" style="padding:8px 13px; border:1.5px solid var(--kufi); border-radius:10px; font-family:'Inter',sans-serif; font-size:14px; background:var(--e-bardhë);">
-        {% for v in vitit_lista %}
-          <option value="{{ v }}" {% if v == viti_zgjedhur %}selected{% endif %}>{{ v }}</option>
-        {% endfor %}
-      </select>
-    </form>
+  <div class="flex gap-3" style="white-space:nowrap;">
+    <a href="{% url 'fletorja_fondit' %}" class="btn-dytësor">📒 Fletorja e Fondit</a>
     <a href="{% url 'shto_pagese_fondi' %}" class="btn-kryesor">+ Regjistro Donacion</a>
   </div>
 </div>
 
-<!-- Statistikat -->
-<div class="grid-3" style="margin-bottom:24px;">
-  <div class="stat-card kafe">
-    <div class="stat-label">Total Fondi {{ viti_zgjedhur }}</div>
-    <div class="stat-vlera kafe" style="font-size:22px;">{{ total_fondi_m|monedhat }}</div>
-    <div class="stat-nën" style="font-weight:600;">≈ {{ total_fondi|euro }} gjithsej</div>
-    <div class="stat-nën">donacione të mbledhura</div>
+<div class="bi-faqja">
+  <div class="bi-filtrat" id="biFiltrat">
+    <button type="button" class="bi-pastro" id="biPastro">✕ Pastro filtrat</button>
   </div>
-  <div class="stat-card gjelbër">
-    <div class="stat-label">Nr. Donatorëve</div>
-    <div class="stat-vlera gjelbër">{{ total_donator }}</div>
-    <div class="stat-nën">donatorë gjatë vitit {{ viti_zgjedhur }}</div>
-  </div>
-  <div class="stat-card blu">
-    <div class="stat-label">Mesatare / Donacion</div>
-    <div class="stat-vlera" style="color:#007AFF;">
-      {% if total_donator > 0 %}{% widthratio total_fondi total_donator 1 %}€{% else %}0€{% endif %}
-    </div>
-    <div class="stat-nën">shuma mesatare e donacionit</div>
-  </div>
-</div>
+  <div class="bi-perzgjedhja">Duke parë: <strong id="biPerzgjedhja"></strong></div>
 
-<!-- Ndarja sipas llojit -->
-<div class="grid-2" style="margin-bottom:24px;">
-  <div class="stat-card kafe">
-    <div class="stat-label">Dhurata të Përgjithshme {{ viti_zgjedhur }}</div>
-    <div class="stat-vlera kafe" style="font-size:20px;">{{ total_dhurata_m|monedhat }}</div>
-    <div class="stat-nën">donacione të lira, jo për aktivitet specifik</div>
-  </div>
-  <div class="stat-card portokalli">
-    <div class="stat-label">Aktivitete {{ viti_zgjedhur }}</div>
-    <div class="stat-vlera" style="color:var(--paralajmërim); font-size:20px;">{{ total_aktivitete_m|monedhat }}</div>
-    <div class="stat-nën">pagesa për aktivitete të organizuara nga xhamia</div>
-  </div>
-</div>
+  <div class="bi-narrativa"><span class="bi-narrativa-ik">💡</span><p id="biNarrativa"></p></div>
 
-<div class="grid-2" style="margin-bottom:24px;">
-  <!-- Grafiku mujor -->
-  <div class="card">
-    <div class="card-header">
-      <h5>📈 Donacionet Mujore {{ viti_zgjedhur }}</h5>
-    </div>
-    <div class="card-body">
-      <canvas id="grafikuMujor" height="220"></canvas>
-    </div>
+  <div class="bi-kpi-rreshti">
+    <div class="bi-kpi" id="kpiHyrje"></div>
+    <div class="bi-kpi" id="kpiDalje"></div>
+    <div class="bi-kpi" id="kpiBilanci"></div>
+    <div class="bi-kpi" id="kpiGjendja"></div>
   </div>
 
-  <!-- Krahasimi viteve -->
-  <div class="card">
-    <div class="card-header">
-      <h5>📊 Krahasimi i Viteve</h5>
-    </div>
-    <div class="card-body">
-      <canvas id="grafikuVitet" height="220"></canvas>
-    </div>
-  </div>
-</div>
+  <section class="bi-karta">
+    <header><div><h5 id="titulliKryesor"></h5><span class="bi-shenim">Blu: hyrje · portokalli: dalje · klikoni një muaj për ta filtruar</span></div>
+      <div class="bi-butonat" id="biMetrika"><button type="button" data-m="muaj">Për muaj</button><button type="button" data-m="kumul">Kumulative</button></div></header>
+    <div class="bi-grafik" style="height:300px;"><canvas id="gKryesor" role="img" aria-label="Hyrjet dhe daljet"></canvas></div>
+  </section>
 
-<div class="grid-2">
-  <!-- Pagesat e fundit -->
-  <div class="card">
-    <div class="card-header">
-      <h5>🕐 Donacionet e Fundit</h5>
-      <a href="{% url 'lista_pagesa_fondi' %}" class="btn-dytësor btn-sm">Shih të gjitha</a>
-    </div>
+  <section class="bi-karta" id="kartaUra">
+    <header><div><h5>🌉 Ura e gjendjes</h5><span class="bi-shenim">Nga gjendja në fillim të vitit, muaj për muaj (blu: u shtua · e kuqe: u pakësua), te gjendja në fund</span></div></header>
+    <div class="bi-grafik" style="height:260px;"><canvas id="gUra" role="img" aria-label="Ura e gjendjes së Fondit"></canvas></div>
+  </section>
+
+  <div class="bi-rrjeta bi-r-3-2">
+    <section class="bi-karta">
+      <header><div><h5>🧩 Hyrjet sipas llojit</h5><span class="bi-shenim">sa më e madhe kutia, aq më shumë € · klikoni për filtër</span></div></header>
+      <div id="biTreemap" class="bi-treemap"></div>
+    </section>
+    <section class="bi-karta">
+      <header><div><h5>💸 Ku shkuan paratë</h5><span class="bi-shenim">daljet sipas llojit · klikoni për filtër</span></div></header>
+      <div id="biDaljet"></div>
+    </section>
+  </div>
+
+  <div class="bi-rrjeta bi-r-3-2">
+    <section class="bi-karta">
+      <header><div><h5>🗓️ Matrica e donacioneve</h5><span class="bi-shenim">€ për çdo muaj të çdo viti · klikoni një qelizë</span></div></header>
+      <div id="biMatrica" class="bi-matrica-mb"></div>
+    </section>
+    <section class="bi-karta">
+      <header><div><h5>🏆 Donatorët kryesorë</h5><span class="bi-shenim">top 10 për filtrat e zgjedhur</span></div></header>
+      <div id="biDonatoret"></div>
+    </section>
+  </div>
+
+  <div class="bi-rrjeta bi-r-3">
+    <section class="bi-karta">
+      <header><div><h5>🌙 Zekati</h5><span class="bi-shenim">i dedikuar për mektebin · në periudhën e zgjedhur</span></div></header>
+      <div id="biZekati"></div>
+    </section>
+    <section class="bi-karta">
+      <header><div><h5>💱 Monedhat</h5><span class="bi-shenim">pjesa e çdo monedhe në hyrje</span></div></header>
+      <div id="biMonedhat"></div>
+    </section>
+    <section class="bi-karta">
+      <header><div><h5>📅 Ditët e javës</h5><span class="bi-shenim">€ të dhuruara sipas ditës</span></div></header>
+      <div class="bi-grafik" style="height:200px;"><canvas id="gDitet" role="img" aria-label="Donacionet sipas ditës së javës"></canvas></div>
+    </section>
+  </div>
+
+  <section class="bi-karta">
+    <header><div><h5>🕐 Donacionet e fundit</h5></div><a href="{% url 'lista_pagesa_fondi' %}" class="btn-dytësor btn-sm">Shih të gjitha</a></header>
     <div style="overflow-x:auto;">
       <table class="tabela-xhami">
-        <thead>
-          <tr>
-            <th>Fatura</th>
-            <th>Donatori</th>
-            <th>Shuma</th>
-            <th>Data</th>
-          </tr>
-        </thead>
+        <thead><tr><th>Fatura</th><th>Donatori</th><th>Lloji</th><th>Shuma</th><th>Data</th></tr></thead>
         <tbody>
           {% for p in pagesat_e_fundit %}
           <tr>
             <td><a href="{% url 'detaje_pagesa_fondi' p.pk %}">{{ p.fatura_tekst }}</a></td>
             <td>{{ p.emri_donatorit }} {{ p.mbiemri_donatorit }}</td>
-            <td class="tekst-kafe font-semibold">{{ p.shuma_origjinale }}</td>
-            <td class="tekst-dytësor">{{ p.data_pageses|date:"d M Y" }}</td>
+            <td>{{ p.lloji }}{% if p.eshte_zekat %} · 🌙{% endif %}</td>
+            <td class="font-semibold">{{ p.shuma_origjinale }}</td>
+            <td class="tekst-dytësor">{{ p.data_pageses|date:"d.m.Y" }}</td>
           </tr>
           {% empty %}
-          <tr><td colspan="4" style="text-align:center; padding:24px; color:var(--tekst-dytësor);">Asnjë donacion ende.</td></tr>
+          <tr><td colspan="5" style="text-align:center; padding:24px; color:var(--tekst-dytësor);">Asnjë donacion ende.</td></tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
-  </div>
-
-  <!-- Top donatorë -->
-  <div class="card">
-    <div class="card-header">
-      <h5>🏆 Top Donatorët {{ viti_zgjedhur }}</h5>
-    </div>
-    <div class="card-body">
-      {% for d in top_donator %}
-      <div class="flex items-center justify-between" style="padding:10px 0; border-bottom:1px solid var(--krem-errët);">
-        <div class="flex items-center gap-3">
-          <div style="width:32px;height:32px;background:rgba(107,68,35,0.12);border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--kafe);font-size:13px;">
-            {{ forloop.counter }}
-          </div>
-          <span>{{ d.emri_donatorit }} {{ d.mbiemri_donatorit }}</span>
-        </div>
-        <span class="tekst-kafe font-semibold">{{ d.total|euro }}</span>
-      </div>
-      {% empty %}
-      <p style="text-align:center; color:var(--tekst-dytësor);">Asnjë donacion ende.</p>
-      {% endfor %}
-    </div>
-  </div>
+  </section>
 </div>
+{{ te_dhenat_bi|json_script:"te-dhenat-bi" }}
 {% endblock %}
 
 {% block skripte %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-<script>
-const muajt = {{ muajt_etiketat_json|safe }};
-const pagesat = {{ pagesat_mujore_json|safe }};
-const krahasimi = {{ krahasimi_viteve_json|safe }};
-
-new Chart(document.getElementById('grafikuMujor'), {
-  type: 'line',
-  data: {
-    labels: muajt,
-    datasets: [{
-      label: 'Donacione (€)',
-      data: pagesat,
-      borderColor: '#6B4423',
-      backgroundColor: 'rgba(107,68,35,0.1)',
-      fill: true,
-      tension: 0.4,
-      borderWidth: 2.5,
-      pointBackgroundColor: '#6B4423',
-      pointRadius: 4,
-    }]
-  },
-  options: {
-    responsive: true,
-    plugins: { legend: { display: false } },
-    scales: {
-      y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' } },
-      x: { grid: { display: false } }
-    }
-  }
-});
-
-new Chart(document.getElementById('grafikuVitet'), {
-  type: 'bar',
-  data: {
-    labels: krahasimi.map(k => k.viti),
-    datasets: [{
-      label: 'Total (€)',
-      data: krahasimi.map(k => k.shuma),
-      backgroundColor: ['rgba(107,68,35,0.5)', 'rgba(107,68,35,0.7)', 'rgba(107,68,35,1)'],
-      borderRadius: 8,
-    }]
-  },
-  options: {
-    responsive: true,
-    plugins: { legend: { display: false } },
-    scales: {
-      y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' } },
-      x: { grid: { display: false } }
-    }
-  }
-});
-</script>
+<script src="{% static 'js/bi.js' %}"></script>
+<script src="{% static 'js/dashboard_fondi.js' %}"></script>
 {% endblock %}
-
