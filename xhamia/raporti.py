@@ -13,7 +13,7 @@ from openpyxl import Workbook
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 
-from .models import PagesaAntaresia, PagesaFondi, PagesaVarrezave
+from .models import FaturaEPrishur, PagesaAntaresia, PagesaFondi, PagesaVarrezave
 
 MUAJT = ['Janar', 'Shkurt', 'Mars', 'Prill', 'Maj', 'Qershor', 'Korrik', 'Gusht',
          'Shtator', 'Tetor', 'Nëntor', 'Dhjetor']
@@ -423,8 +423,8 @@ def _numri(nr):
         return None
 
 
-# Blloqet e faturave dorëzohen në Myftini sipas llojit: antarësia veç, varrezat veç (fondi ndiqet muaj për muaj).
-LLOJET_E_BLLOQEVE = [('antaresia', 'Antarësia'), ('varrezat', 'Varrezat')]
+# Blloqet e faturave dorëzohen në Myftini sipas llojit: antarësia veç, varrezat veç, fondi veç.
+LLOJET_E_BLLOQEVE = [('antaresia', 'Antarësia'), ('varrezat', 'Varrezat'), ('fondi', 'Fondi')]
 
 
 def blloqet(lloji='antaresia'):
@@ -434,6 +434,9 @@ def blloqet(lloji='antaresia'):
         for blloku, regjistruar in model.objects.exclude(blloku='').values_list('blloku', 'data_regjistrimit'):
             numri[blloku] = numri.get(blloku, 0) + 1
             i_fundit[blloku] = max(i_fundit.get(blloku, regjistruar), regjistruar)
+    for blloku, krijuar in FaturaEPrishur.objects.filter(lloji=lloji).values_list('blloku', 'krijuar_me'):
+        numri.setdefault(blloku, 0)   # bllok vetëm me fatura të prishura del gjithashtu
+        i_fundit[blloku] = max(i_fundit.get(blloku, krijuar), krijuar)
     return [(b, numri[b]) for b in sorted(numri, key=lambda b: i_fundit[b], reverse=True)]
 
 
@@ -457,6 +460,13 @@ def fletorja_e_bllokut(blloku, lloji='antaresia'):
                 'pershkrimi': vitet, 'lloji': emri_llojit,
             })
             totali.shto(p)
+    prishura = FaturaEPrishur.objects.filter(lloji=lloji, blloku=blloku)
+    for f in prishura:
+        rreshtat.append({
+            'pagese': None, 'prishur': f, 'emri': 'E PRISHUR / ANULUAR', 'nr_fatures': f.nr_fatures,
+            'data': f.krijuar_me.date(), 'shumat': {m: None for m in MONEDHAT}, 'eur': None,
+            'pershkrimi': f.arsyeja or 'faturë e prishur', 'lloji': LLOJET[lloji][0],
+        })
     rreshtat.sort(key=lambda r: (_numri(r['nr_fatures']) is None, _numri(r['nr_fatures']) or 0, r['nr_fatures'], r['data']))
     for i, r in enumerate(rreshtat, 1):
         r['nr'] = i
@@ -487,6 +497,9 @@ def blloku_excel(blloku, lloji='antaresia'):
         ws.append([r['nr'], r['emri'], r['nr_fatures'], r['data']]
                   + [float(r['shumat'][m]) if r['shumat'][m] is not None else None for m in MONEDHAT] + [r['pershkrimi']])
         ws.cell(ws.max_row, 4).number_format = 'DD.MM.YYYY'
+        if r.get('prishur'):
+            for c in ws[ws.max_row]:
+                c.font = Font(color='C00000', italic=True)
     ws.append(['', f'TOTALI I BLLOKUT {blloku} · {totali.nr} pagesa', '', '']
               + [float(totali.shumat[m]) or None for m in MONEDHAT] + [f'= {float(totali.eur):,.2f} € gjithsej'])
     for c in ws[ws.max_row]:
@@ -526,7 +539,10 @@ def blloku_pdf(blloku, lloji='antaresia'):
     emrat_monedhave = {'MKD': 'Denarë', 'EUR': 'Euro', 'CHF': 'Franga', 'USD': 'Dollar'}
     koka = ['Nr.', 'Emri  Prindi  Mbiemri', 'Nr. fat.', 'Data'] + [emrat_monedhave[m] for m in monedhat] + ['Për (vitet)']
     te_dhenat = [koka]
+    te_prishura = []
     for r in rreshtat:
+        if r.get('prishur'):
+            te_prishura.append(len(te_dhenat))
         te_dhenat.append([r['nr'], r['emri'][:34], r['nr_fatures'], r['data'].strftime('%d.%m.%y')]
                          + [_shuma_pdf(r['shumat'][m], m) for m in monedhat] + [r['pershkrimi'][:24]])
     te_dhenat.append(['', f'TOTALI · {totali.nr} pagesa', '', ''] + [_shuma_pdf(totali.shumat[m], m) for m in monedhat]
@@ -547,6 +563,9 @@ def blloku_pdf(blloku, lloji='antaresia'):
         ('TEXTCOLOR', (0, -1), (-1, -1), colors.HexColor('#9C0006')),
         ('TOPPADDING', (0, 0), (-1, -1), 3), ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
     ]
+    for i in te_prishura:   # faturat e prishura: me të kuqe
+        stili += [('TEXTCOLOR', (0, i), (-1, i), colors.HexColor('#C00000')),
+                  ('BACKGROUND', (0, i), (-1, i), colors.HexColor('#FDECEC'))]
     tabela = LongTable(te_dhenat, colWidths=[g * cm for g in gjeresite], repeatRows=1)
     tabela.setStyle(TableStyle(stili))
 

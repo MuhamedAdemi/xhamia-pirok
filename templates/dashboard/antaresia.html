@@ -5,12 +5,12 @@
 {% block kontent %}
 <div class="page-header">
   <div>
-    <h2>Dashboard Antarësia</h2>
-    <p>Pasqyra e pagesave të antarësisë së xhamisë</p>
+    <h2>📊 Dashboard Antarësia {{ viti_zgjedhur }}</h2>
+    <p>Analiza e pagesave të antarësisë — muaj për muaj, vit për vit, monedhat, kategoritë dhe borxhi</p>
   </div>
   <div class="flex items-center gap-3">
     <form method="get" style="display:flex; gap:10px; align-items:center;">
-      <select name="viti" onchange="this.form.submit()" style="padding:8px 13px; border:1.5px solid var(--kufi); border-radius:10px; font-family:'Inter',sans-serif; font-size:14px; background:var(--e-bardhë);">
+      <select name="viti" onchange="this.form.submit()" class="bi-zgjedhja">
         {% for v in vitit_lista %}
           <option value="{{ v }}" {% if v == viti_zgjedhur %}selected{% endif %}>{{ v }}</option>
         {% endfor %}
@@ -20,78 +20,95 @@
   </div>
 </div>
 
-<!-- Statistikat -->
-<div class="grid-4" style="margin-bottom:24px;">
-  <div class="stat-card gjelbër">
-    <div class="stat-label">Total Mbledhur {{ viti_zgjedhur }}</div>
-    <div class="stat-vlera gjelbër" style="font-size:22px;">{{ total_mbledhur_m|monedhat }}</div>
-    <div class="stat-nën" style="font-weight:600;">≈ {{ total_mbledhur|euro }} gjithsej</div>
-    <div class="stat-nën">nga pagesat e antarësisë</div>
+<!-- ── Treguesit kryesorë ─────────────────────────────────────────── -->
+<div class="bi-kpi-rreshti">
+  <div class="bi-kpi">
+    <div class="bi-kpi-etiketa">Mbledhur {{ viti_zgjedhur }}</div>
+    <div class="bi-kpi-vlera">{{ a.kpi.eur|euro }}</div>
+    <div class="bi-kpi-nen">{{ total_mbledhur_m|monedhat|default:"—" }}</div>
+    {% if a.kpi.ndryshimi is not None %}
+    <div class="bi-delta {% if a.kpi.ndryshimi >= 0 %}lart{% else %}poshte{% endif %}">
+      {% if a.kpi.ndryshimi >= 0 %}▲{% else %}▼{% endif %} {{ a.kpi.ndryshimi }}% <span>kundrejt {{ viti_zgjedhur|add:"-1" }} ({{ a.kpi.periudha }})</span></div>
+    {% endif %}
   </div>
-  <div class="stat-card blu">
-    <div class="stat-label">Kanë Paguar</div>
-    <div class="stat-vlera" style="color:#007AFF;">{{ kane_paguar }}</div>
-    <div class="stat-nën">shtëpi nga {{ total_shtepite }} gjithsej</div>
+  <div class="bi-kpi">
+    <div class="bi-kpi-etiketa">Pagesa (fatura)</div>
+    <div class="bi-kpi-vlera">{{ a.kpi.nr }}</div>
+    <div class="bi-kpi-nen">mesatarisht {{ a.kpi.mesatarja|euro }} për pagesë</div>
+    {% if a.kpi.ndryshimi_nr is not None %}
+    <div class="bi-delta {% if a.kpi.ndryshimi_nr >= 0 %}lart{% else %}poshte{% endif %}">
+      {% if a.kpi.ndryshimi_nr >= 0 %}▲{% else %}▼{% endif %} {{ a.kpi.ndryshimi_nr }}% <span>({{ a.kpi.nr_para }} vjet)</span></div>
+    {% endif %}
   </div>
-  <div class="stat-card portokalli">
-    <div class="stat-label">Nuk Kanë Paguar</div>
-    <div class="stat-vlera" style="color:var(--paralajmërim);">{{ nuk_kane_paguar }}</div>
-    <div class="stat-nën">shtëpi ende pa pagesë</div>
+  <div class="bi-kpi">
+    <div class="bi-kpi-etiketa">Shtëpi që e kanë paguar {{ viti_zgjedhur }}</div>
+    {% if a.kpi.mbulimi %}
+    <div class="bi-kpi-vlera">{{ a.kpi.mbulimi.paguar }} <small>/ {{ a.kpi.mbulimi.paguar|add:a.kpi.mbulimi.papaguar }}</small></div>
+    <div class="bi-shiriti"><div style="width:{{ a.kpi.mbulimi.perqindja|stringformat:'s' }}%;"></div></div>
+    <div class="bi-kpi-nen">{{ a.kpi.mbulimi.perqindja }}% · {{ a.kpi.mbulimi.papaguar }} ende pa paguar · {{ a.kpi.gratis }} gratis</div>
+    {% else %}<div class="bi-kpi-vlera">—</div>{% endif %}
   </div>
-  <div class="stat-card kafe">
-    <div class="stat-label">Përqindja</div>
-    <div class="stat-vlera kafe">
-      {% if total_shtepite > 0 %}{% widthratio kane_paguar total_shtepite 100 %}%{% else %}0%{% endif %}
-    </div>
-    <div class="stat-nën">shkalla e pagesës</div>
-  </div>
-</div>
-
-<div class="grid-2" style="margin-bottom:24px;">
-  <!-- Grafiku mujor -->
-  <div class="card">
-    <div class="card-header">
-      <h5>📈 Pagesat Mujore {{ viti_zgjedhur }}</h5>
-    </div>
-    <div class="card-body">
-      <canvas id="grafikuMujor" height="220"></canvas>
-    </div>
-  </div>
-
-  <!-- Sipas kategorisë -->
-  <div class="card">
-    <div class="card-header">
-      <h5>🏷️ Sipas Kategorisë</h5>
-    </div>
-    <div class="card-body">
-      <canvas id="grafikuKategoria" height="220"></canvas>
-    </div>
+  <div class="bi-kpi">
+    <div class="bi-kpi-etiketa">Borxhi minimal sot</div>
+    <div class="bi-kpi-vlera" style="color:#C2410C;">{{ a.kpi.borxhi_total|euro }}</div>
+    <div class="bi-kpi-nen">{{ a.kpi.pa_borxh }} nga {{ a.kpi.shtepite }} shtëpi pa asnjë borxh</div>
+    <div class="bi-kpi-nen">{{ a.kpi.borxh_i_vjeter_perqindja }}% e të mbledhurave {{ viti_zgjedhur }} ishin për vite të vjetra</div>
   </div>
 </div>
 
-<!-- Grafiket vjetore -->
-<div class="grid-2" style="margin-bottom:24px;">
-  <div class="card">
-    <div class="card-header">
-      <h5>📊 Pagesa — 3 Vitet e Fundit (€)</h5>
-    </div>
-    <div class="card-body">
-      <canvas id="grafiku3Vite" height="220"></canvas>
+<!-- ── Kurba mujore ───────────────────────────────────────────────── -->
+<div class="card bi-karta" style="margin-bottom:20px;">
+  <div class="card-header">
+    <h5>📈 Pagesat muaj për muaj — {{ viti_zgjedhur }} kundrejt {{ viti_zgjedhur|add:"-1" }}</h5>
+    <div class="bi-butonat" id="mujoreMenyra">
+      <button type="button" class="aktiv" data-m="muaj">Për muaj</button>
+      <button type="button" data-m="kumul">Kumulative</button>
     </div>
   </div>
-  <div class="card">
-    <div class="card-header">
-      <h5>📈 Shtëpi që Paguan — 10 Vitet e Fundit</h5>
-      <span style="font-size:12px; color:var(--tekst-dytësor);">Aktuale + historike</span>
-    </div>
+  <div class="card-body"><div class="bi-grafik" style="height:320px;"><canvas id="gMujore"></canvas></div>
+    <p class="ndihma">Vija e plotë: € të mbledhura në {{ viti_zgjedhur }}; vija me pika: {{ viti_zgjedhur|add:"-1" }}; shtyllat: numri i pagesave.</p></div>
+</div>
+
+<div class="bi-rrjeta-2" style="margin-bottom:20px;">
+  <div class="card bi-karta">
+    <div class="card-header"><h5>🗓️ Në cilët muaj paguhet më shumë?</h5>
+      <span class="bi-shenim">gjithë vitet ({{ a.sezoni.vitet }})</span></div>
     <div class="card-body">
-      <canvas id="grafiku10Vite" height="220"></canvas>
+      <div class="bi-grafik" style="height:260px;"><canvas id="gSezoni"></canvas></div>
+      <p class="ndihma">Më së shumti pagesa: <strong>{{ a.sezoni.i_forti }}</strong> · më së paku: <strong>{{ a.sezoni.i_dobeti }}</strong>.
+        Kjo ndihmon kur të dërgoni letrat / SMS-të e kujtesës — para muajve të fortë.</p>
+    </div>
+  </div>
+  <div class="card bi-karta">
+    <div class="card-header"><h5>🏠 Mbulimi vit për vit</h5><span class="bi-shenim">pagesa + historia (fletoret)</span></div>
+    <div class="card-body">
+      <div class="bi-grafik" style="height:260px;"><canvas id="gMbulimi"></canvas></div>
+      <p class="ndihma">Sa shtëpi e kanë paguar secilin vit. Kush ka paguar 2025 llogaritet se i ka paguar edhe vitet më parë (sipas fletores).</p>
+    </div>
+  </div>
+</div>
+
+<div class="bi-rrjeta-3" style="margin-bottom:20px;">
+  <div class="card bi-karta">
+    <div class="card-header"><h5>⏳ Për cilat vite u pagua në {{ viti_zgjedhur }}</h5></div>
+    <div class="card-body"><div class="bi-grafik" style="height:240px;"><canvas id="gPerVitet"></canvas></div>
+      <p class="ndihma">€ të ndara sipas vitit që mbulojnë: viti aktual apo borxhe të vjetra.</p></div>
+  </div>
+  <div class="card bi-karta">
+    <div class="card-header"><h5>⚠️ Sa vite borxh kanë shtëpitë</h5></div>
+    <div class="card-body"><div class="bi-grafik" style="height:240px;"><canvas id="gBorxhi"></canvas></div>
+      <p class="ndihma">Numri i shtëpive sipas viteve të papaguara (pa gratis).</p></div>
+  </div>
+  <div class="card bi-karta">
+    <div class="card-header"><h5>💱 Monedhat · 🏷️ Kategoritë</h5></div>
+    <div class="card-body">
+      <div class="bi-grafik" style="height:115px;"><canvas id="gMonedhat"></canvas></div>
+      <div class="bi-grafik" style="height:115px; margin-top:10px;"><canvas id="gKategorite"></canvas></div>
     </div>
   </div>
 </div>
 
 <div class="grid-2">
-  <!-- Pagesat e fundit -->
   <div class="card">
     <div class="card-header">
       <h5>🕐 Pagesat e Fundit</h5>
@@ -99,22 +116,12 @@
     </div>
     <div style="overflow-x:auto;">
       <table class="tabela-xhami">
-        <thead>
-          <tr>
-            <th>Fatura</th>
-            <th>Shtëpia</th>
-            <th>Shuma</th>
-            <th>Data</th>
-          </tr>
-        </thead>
+        <thead><tr><th>Fatura</th><th>Shtëpia</th><th>Shuma</th><th>Data</th></tr></thead>
         <tbody>
           {% for p in pagesat_e_fundit %}
           <tr>
             <td><a href="{% url 'detaje_pagesa_antaresia' p.pk %}">{{ p.fatura_tekst }}</a></td>
-            <td>
-              <span class="nr-shtepi">{{ p.shtepia.nr_shtepise }}</span>
-              {{ p.shtepia.emri_i_plote }}
-            </td>
+            <td><span class="nr-shtepi">{{ p.shtepia.nr_shtepise }}</span> {{ p.shtepia.emri_i_plote }}</td>
             <td class="tekst-gjelbër font-semibold">{{ p.shuma_origjinale }}</td>
             <td class="tekst-dytësor">{{ p.data_pageses|date:"d M Y" }}</td>
           </tr>
@@ -125,8 +132,6 @@
       </table>
     </div>
   </div>
-
-  <!-- Shtëpitë pa pagesë -->
   <div class="card">
     <div class="card-header">
       <h5>⚠️ Shtëpi pa Pagesë ({{ viti_zgjedhur }})</h5>
@@ -134,9 +139,7 @@
     </div>
     <div style="overflow-x:auto;">
       <table class="tabela-xhami">
-        <thead>
-          <tr><th>Nr.</th><th>Kryefamiljari</th><th>Kategoria</th></tr>
-        </thead>
+        <thead><tr><th>Nr.</th><th>Kryefamiljari</th><th>Kategoria</th></tr></thead>
         <tbody>
           {% for sh in shtepite_pa_pagese %}
           <tr>
@@ -152,113 +155,116 @@
     </div>
   </div>
 </div>
-
 {% endblock %}
 
 {% block skripte %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script>
-const ngjyraGjelbër = '#2D5A1B';
-const ngjyraKafe = '#6B4423';
-const muajt = {{ muajt_etiketat_json|safe }};
-const pagesat = {{ pagesat_mujore_json|safe }};
-const katData = {{ sipas_kategorise_json|safe }};
+(function () {
+  const D = {{ grafiket_json|safe }};
+  const viti = {{ viti_zgjedhur }};
+  // Ngjyrat (në stilin e Power BI): blu-gurkali kryesore, vjollcë për vitin e kaluar, portokalli për theksim
+  const K = { kryesore: '#0F766E', kryesoreE: 'rgba(15,118,110,0.18)', dyte: '#6366F1', theks: '#F59E0B',
+              rrezik: '#DC2626', gri: '#94A3B8', rrjeta: 'rgba(15,23,42,0.06)' };
+  const PALETA = ['#0F766E', '#6366F1', '#F59E0B', '#EC4899', '#0EA5E9', '#84CC16', '#94A3B8'];
+  Chart.defaults.font.family = "'Inter', sans-serif";
+  Chart.defaults.color = '#475569';
+  const eur = v => new Intl.NumberFormat('de-DE', { maximumFractionDigits: 0 }).format(v) + ' €';
+  const boshtet = (yCallback) => ({
+    y: { beginAtZero: true, grid: { color: K.rrjeta }, border: { display: false }, ticks: { callback: yCallback } },
+    x: { grid: { display: false }, border: { display: false } },
+  });
 
-// Grafiku mujor
-new Chart(document.getElementById('grafikuMujor'), {
-  type: 'bar',
-  data: {
-    labels: muajt,
-    datasets: [{
-      label: 'Shuma (€)',
-      data: pagesat,
-      backgroundColor: 'rgba(45,90,27,0.75)',
-      borderColor: ngjyraGjelbër,
-      borderWidth: 1.5,
-      borderRadius: 6,
-    }]
-  },
-  options: {
-    responsive: true,
-    plugins: { legend: { display: false } },
-    scales: {
-      y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' } },
-      x: { grid: { display: false } }
-    }
-  }
-});
-
-// Grafiket vjetore
-const dataVitet = {{ data_vitet_json|safe }};
-const data3Vite = dataVitet.slice(-3);
-
-new Chart(document.getElementById('grafiku3Vite'), {
-  type: 'bar',
-  data: {
-    labels: data3Vite.map(d => d.viti),
-    datasets: [{
-      label: 'Shuma (€)',
-      data: data3Vite.map(d => d.shuma),
-      backgroundColor: data3Vite.map((d, i) => `rgba(45,90,27,${0.4 + i * 0.3})`),
-      borderRadius: 10,
-      borderWidth: 0,
-    }]
-  },
-  options: {
-    responsive: true,
-    plugins: { legend: { display: false } },
-    scales: {
-      y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { callback: v => v + '€' } },
-      x: { grid: { display: false } }
-    }
-  }
-});
-
-new Chart(document.getElementById('grafiku10Vite'), {
-  type: 'bar',
-  data: {
-    labels: dataVitet.map(d => d.viti),
-    datasets: [{
-      label: 'Shtëpi',
-      data: dataVitet.map(d => d.nr),
-      backgroundColor: 'rgba(107,68,35,0.55)',
-      borderColor: 'rgba(107,68,35,0.9)',
-      borderWidth: 1.5,
-      borderRadius: 6,
-    }]
-  },
-  options: {
-    responsive: true,
-    plugins: { legend: { display: false } },
-    scales: {
-      y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { stepSize: 1 } },
-      x: { grid: { display: false } }
-    }
-  }
-});
-
-// Grafiku kategoria
-if (katData.length > 0) {
-  new Chart(document.getElementById('grafikuKategoria'), {
-    type: 'doughnut',
+  // 1) Kurba mujore (me gradient) + numri i pagesave
+  const ctx = document.getElementById('gMujore').getContext('2d');
+  const grad = ctx.createLinearGradient(0, 0, 0, 320);
+  grad.addColorStop(0, 'rgba(15,118,110,0.35)');
+  grad.addColorStop(1, 'rgba(15,118,110,0.02)');
+  const mujore = new Chart(ctx, {
     data: {
-      labels: katData.map(k => k.emri),
-      datasets: [{
-        data: katData.map(k => k.count),
-        backgroundColor: ['#2D5A1B', '#6B4423', '#007AFF', '#FF9500', '#34C759'],
-        borderWidth: 2,
-        borderColor: '#fff',
-      }]
+      labels: D.muajt,
+      datasets: [
+        { type: 'line', label: '€ ' + viti, data: D.mujore.tani, borderColor: K.kryesore, backgroundColor: grad, fill: true,
+          tension: 0.4, borderWidth: 3, pointRadius: 4, pointHoverRadius: 7, pointBackgroundColor: '#fff', pointBorderWidth: 2, yAxisID: 'y' },
+        { type: 'line', label: '€ ' + (viti - 1), data: D.mujore.para, borderColor: K.dyte, borderDash: [6, 5], fill: false,
+          tension: 0.4, borderWidth: 2, pointRadius: 0, pointHoverRadius: 5, yAxisID: 'y' },
+        { type: 'bar', label: 'Nr. pagesave ' + viti, data: D.mujore.numri, backgroundColor: 'rgba(245,158,11,0.35)',
+          borderRadius: 6, yAxisID: 'y1', order: 3 },
+      ]
     },
     options: {
-      responsive: true,
-      plugins: {
-        legend: { position: 'bottom', labels: { font: { family: 'Inter', size: 13 }, padding: 16 } }
-      },
-      cutout: '65%',
+      responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+      plugins: { legend: { position: 'top', align: 'end', labels: { usePointStyle: true, boxWidth: 8 } },
+                 tooltip: { callbacks: { label: c => c.dataset.yAxisID === 'y1' ? ` ${c.dataset.label}: ${c.raw}` : ` ${c.dataset.label}: ${eur(c.raw)}` } } },
+      scales: Object.assign(boshtet(eur), { y1: { position: 'right', beginAtZero: true, grid: { display: false }, border: { display: false },
+                                                  ticks: { precision: 0 } } }),
     }
   });
-}
+  document.querySelectorAll('#mujoreMenyra button').forEach(b => b.addEventListener('click', () => {
+    document.querySelectorAll('#mujoreMenyra button').forEach(x => x.classList.toggle('aktiv', x === b));
+    const kumul = b.dataset.m === 'kumul';
+    mujore.data.datasets[0].data = kumul ? D.mujore.kumul_tani : D.mujore.tani;
+    mujore.data.datasets[1].data = kumul ? D.mujore.kumul_para : D.mujore.para;
+    mujore.data.datasets[2].hidden = kumul;
+    mujore.update();
+  }));
+
+  // 2) Sezonaliteti — muaji më i fortë me ngjyrë theksi
+  const maxNr = Math.max(...D.sezoni.nr), minNr = Math.min(...D.sezoni.nr);
+  new Chart(document.getElementById('gSezoni'), {
+    type: 'bar',
+    data: { labels: D.muajt, datasets: [{ label: 'Pagesa', data: D.sezoni.nr, borderRadius: 6,
+      backgroundColor: D.sezoni.nr.map(n => n === maxNr && n > 0 ? K.theks : (n === minNr ? K.gri : K.kryesore)) }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false },
+      tooltip: { callbacks: { label: c => ` ${c.raw} pagesa · ${eur(D.sezoni.eur[c.dataIndex])}` } } },
+      scales: boshtet(v => v) }
+  });
+
+  // 3) Mbulimi vit për vit — shtyllat e grumbulluara + % si vijë
+  new Chart(document.getElementById('gMbulimi'), {
+    data: { labels: D.mbulimi.map(m => m.viti), datasets: [
+      { type: 'bar', label: 'Paguar', data: D.mbulimi.map(m => m.paguar), backgroundColor: K.kryesore, borderRadius: 4, stack: 's' },
+      { type: 'bar', label: 'Pa paguar', data: D.mbulimi.map(m => m.papaguar), backgroundColor: 'rgba(220,38,38,0.25)', borderRadius: 4, stack: 's' },
+      { type: 'line', label: '% paguar', data: D.mbulimi.map(m => m.perqindja), borderColor: K.theks, backgroundColor: K.theks,
+        yAxisID: 'y1', tension: 0.3, pointRadius: 3 },
+    ] },
+    options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+      plugins: { legend: { position: 'top', align: 'end', labels: { usePointStyle: true, boxWidth: 8 } } },
+      scales: { x: { stacked: true, grid: { display: false }, border: { display: false } },
+                y: { stacked: true, beginAtZero: true, grid: { color: K.rrjeta }, border: { display: false } },
+                y1: { position: 'right', min: 0, max: 100, grid: { display: false }, border: { display: false }, ticks: { callback: v => v + '%' } } } }
+  });
+
+  // 4) Për cilat vite u pagua
+  new Chart(document.getElementById('gPerVitet'), {
+    type: 'bar',
+    data: { labels: D.per_vitet.map(p => p.viti), datasets: [{ data: D.per_vitet.map(p => p.eur), borderRadius: 6,
+      backgroundColor: D.per_vitet.map(p => p.viti < viti ? K.dyte : (p.viti === viti ? K.kryesore : K.theks)) }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false },
+      tooltip: { callbacks: { label: c => ' ' + eur(c.raw) } } }, scales: boshtet(eur) }
+  });
+
+  // 5) Sa vite borxh
+  new Chart(document.getElementById('gBorxhi'), {
+    type: 'bar',
+    data: { labels: D.borxhi.map(b => b.grupi === '0' ? 'Pa borxh' : b.grupi + ' vite'), datasets: [{ data: D.borxhi.map(b => b.nr),
+      borderRadius: 6, backgroundColor: D.borxhi.map((b, i) => i === 0 ? K.kryesore : `rgba(220,38,38,${0.25 + i * 0.12})`) }] },
+    options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false },
+      tooltip: { callbacks: { label: c => ` ${c.raw} shtëpi` } } },
+      scales: { x: { beginAtZero: true, grid: { color: K.rrjeta }, border: { display: false } }, y: { grid: { display: false }, border: { display: false } } } }
+  });
+
+  // 6) Monedhat dhe kategoritë (unaza)
+  function unaze(id, te_dhenat) {
+    new Chart(document.getElementById(id), {
+      type: 'doughnut',
+      data: { labels: te_dhenat.map(x => x.emri), datasets: [{ data: te_dhenat.map(x => x.nr), backgroundColor: PALETA, borderWidth: 2, borderColor: '#fff' }] },
+      options: { responsive: true, maintainAspectRatio: false, cutout: '62%',
+        plugins: { legend: { position: 'right', labels: { usePointStyle: true, boxWidth: 8, font: { size: 11 } } } } }
+    });
+  }
+  unaze('gMonedhat', D.monedhat);
+  unaze('gKategorite', D.kategorite);
+})();
 </script>
 {% endblock %}
-

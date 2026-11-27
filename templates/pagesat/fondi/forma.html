@@ -1,14 +1,19 @@
 {% extends 'base.html' %}
 {% load widget_tweaks %}
-{% block titulli %}Regjistro Donacion — Xhamia Pirok{% endblock %}
+{% block titulli %}{% if ndryshim %}{{ titulli }}{% else %}Regjistro Donacion{% endif %} — Xhamia Pirok{% endblock %}
 
 {% block kontent %}
 <div class="page-header">
   <div class="flex items-center gap-3">
-    <a href="{% if kthimi %}{{ kthimi }}{% else %}{% url 'lista_pagesa_fondi' %}{% endif %}" class="btn-dytësor btn-sm">← Kthehu</a>
-    <h2>🤲 Regjistro Donacion — Fondi i Xhamisë</h2>
+    <a href="{% if ndryshim %}{% url 'detaje_pagesa_fondi' ndryshim.pk %}{% elif kthimi %}{{ kthimi }}{% else %}{% url 'lista_pagesa_fondi' %}{% endif %}" class="btn-dytësor btn-sm">← Kthehu</a>
+    <h2>🤲 {% if ndryshim %}{{ titulli }}{% else %}Regjistro Donacion — Fondi i Xhamisë{% endif %}</h2>
   </div>
 </div>
+{% if ndryshim %}
+<div class="njoftim paralajmërim" style="max-width:680px;">✏️ Po ndryshoni donacionin <strong>{{ ndryshim.fatura_tekst }}</strong> — tani:
+  <strong>{{ ndryshim.shuma_origjinale }}</strong>, {{ ndryshim.data_pageses|date:"d.m.Y" }}. Mund të ndryshoni gjithçka (bllokun, numrin,
+  shtëpinë, llojin, zekatin, emrin, telefonin, shumën, datën). Nuk dërgohet email i ri; e vjetra shënohet te Shënime.</div>
+{% endif %}
 
 <form method="post" style="max-width:680px;">
   {% csrf_token %}
@@ -109,7 +114,7 @@
   </div>
 
   <div class="flex gap-3">
-    <button type="submit" class="btn-kryesor">✅ Regjistro Donacionin</button>
+    <button type="submit" class="btn-kryesor">{% if ndryshim %}💾 Ruaj ndryshimet{% else %}✅ Regjistro Donacionin{% endif %}</button>
     <a href="{% if kthimi %}{{ kthimi }}{% else %}{% url 'lista_pagesa_fondi' %}{% endif %}" class="btn-dytësor">Anulo</a>
   </div>
 </form>

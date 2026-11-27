@@ -7,7 +7,7 @@
   <div>
     <h2>🧾 Fletorja e bllokut{% if blloku %} {{ blloku }}{% endif %}</h2>
     <p>Për dorëzim në Myftini: të gjitha pagesat e bllokut sipas numrit të faturës, me totalin në denarë dhe euro —
-      Antarësia dhe Varrezat veç e veç. Fondi ndiqet muaj për muaj te <a href="{% url 'fletorja_fondit' %}">Fletorja e Fondit</a>.</p>
+      Antarësia, Varrezat dhe Fondi veç e veç. Fondi ndiqet edhe muaj për muaj te <a href="{% url 'fletorja_fondit' %}">Fletorja e Fondit</a>.</p>
   </div>
 </div>
 
@@ -62,16 +62,19 @@
       </thead>
       <tbody>
         {% for r in rreshtat %}
-        <tr>
+        <tr{% if r.prishur %} class="rresht-prishur"{% endif %}>
           <td class="tekst-dytësor">{{ r.nr }}</td>
-          <td><a href="{{ r.pagese.get_absolute_url }}">{{ r.emri }}</a></td>
+          <td>{% if r.prishur %}❌ {{ r.emri }}{% else %}<a href="{{ r.pagese.get_absolute_url }}">{{ r.emri }}</a>{% endif %}</td>
           <td>{{ r.nr_fatures }}</td>
           <td>{{ r.data|date:"d.m.y" }}</td>
           <td class="djathtas">{{ r.shumat.MKD|shuma:"MKD" }}</td>
           <td class="djathtas">{{ r.shumat.EUR|shuma:"EUR" }}</td>
           {% if totali.shumat.CHF %}<td class="djathtas">{{ r.shumat.CHF|shuma:"CHF" }}</td>{% endif %}
           {% if totali.shumat.USD %}<td class="djathtas">{{ r.shumat.USD|shuma:"USD" }}</td>{% endif %}
-          <td>{{ r.pershkrimi }}</td>
+          <td>{{ r.pershkrimi }}{% if r.prishur and mund_shenoje %}
+            <form method="post" class="no-print" style="display:inline;" onsubmit="return confirm('Hiq shënimin E PRISHUR për nr {{ r.nr_fatures }}?');">
+              {% csrf_token %}<input type="hidden" name="hiq_prishur" value="{{ r.prishur.pk }}">
+              <button type="submit" class="btn-dytësor btn-sm" title="Hiq shënimin">✕</button></form>{% endif %}</td>
         </tr>
         {% empty %}
         <tr><td colspan="9" style="text-align:center; padding:40px; color:var(--tekst-dytësor);">Asnjë pagesë me bllok.</td></tr>
@@ -91,6 +94,32 @@
   </div>
 </div>
 {% if mungojne %}
-<p class="ndihma" style="margin-top:10px;">⚠️ Numrat që mungojnë në bllok (anuluar ose pa regjistruar ende): <strong>{{ mungojne|join:", " }}</strong></p>
+<p class="ndihma" style="margin-top:10px;">⚠️ Numrat që mungojnë në bllok (pa regjistruar ende): <strong>{{ mungojne|join:", " }}</strong>
+  — nëse janë fatura të prishura, shënojini më poshtë.</p>
+{% endif %}
+
+{% if mund_shenoje %}
+<div class="card no-print" style="margin-top:20px; max-width:800px;">
+  <div class="card-header"><h5>❌ Shëno faturë të prishur / anuluar</h5></div>
+  <div class="card-body">
+    <form method="post" class="flex gap-3" style="flex-wrap:wrap; align-items:flex-end;">
+      {% csrf_token %}
+      <input type="hidden" name="shto_prishur" value="1">
+      <div class="forma-grup" style="margin:0;"><label>Blloku i</label>
+        <select name="lloji_prishur">{% for k, emri in llojet %}<option value="{{ k }}" {% if k == lloji %}selected{% endif %}>{{ emri }}</option>{% endfor %}</select></div>
+      <div class="forma-grup" style="margin:0;"><label>Blloku</label>
+        <input type="text" name="blloku_prishur" value="{{ blloku }}" inputmode="numeric" style="width:90px;" required></div>
+      <div class="forma-grup" style="margin:0;"><label>Nr. i faturës</label>
+        <input type="text" name="nr_nga" value="{{ mungojne.0 }}" inputmode="numeric" style="width:110px;" required></div>
+      <div class="forma-grup" style="margin:0;"><label>deri nr (opsionale)</label>
+        <input type="text" name="nr_deri" inputmode="numeric" style="width:110px;" placeholder="vetëm një"></div>
+      <div class="forma-grup" style="margin:0; flex:1; min-width:180px;"><label>Arsyeja</label>
+        <input type="text" name="arsyeja" maxlength="200" placeholder="p.sh. shkruar gabim, e grisur"></div>
+      <button type="submit" class="btn-rrezik">❌ Shëno si të prishur</button>
+    </form>
+    <p class="ndihma" style="margin-top:8px;">Fatura e prishur del te fletorja (ekran, PDF, Excel) me të kuqe dhe nuk numërohet më si "mungon".
+      Për një bllok të tërë të prishur shkruani numrin e parë dhe te "deri nr" të fundit. Me këtë numër nuk mund të regjistrohet më pagesë.</p>
+  </div>
+</div>
 {% endif %}
 {% endblock %}

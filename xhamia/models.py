@@ -696,6 +696,8 @@ class KonfigurimiSistemit(models.Model):
     tarifa_viti_aktual = models.DecimalField(
         max_digits=8, decimal_places=2, default=Decimal('70'), verbose_name='Antarësia — minimumi për vitin aktual e më tej (€)'
     )
+    # Çelësi sekret i lidhjeve CSV për Power BI (faqja "📊 Power BI"); bosh = lidhjet janë të mbyllura
+    celesi_powerbi = models.CharField(max_length=64, blank=True, verbose_name='Çelësi i Power BI')
 
     class Meta:
         verbose_name = 'Konfigurimi i Sistemit'
@@ -716,6 +718,27 @@ class KonfigurimiSistemit(models.Model):
     def kursi(self, monedha):
         """Sa denarë vlen 1 njësi e monedhës."""
         return {'MKD': Decimal('1'), 'EUR': self.kursi_eur, 'CHF': self.kursi_chf, 'USD': self.kursi_usd}[monedha]
+
+
+class FaturaEPrishur(models.Model):
+    """Faturë e bllokut të Myftinisë që u prish / u anulua (shkruar gabim, e grisur…) — nuk ka pagesë,
+    por te fletorja e bllokut del si "E PRISHUR" e jo si numër që mungon."""
+    LLOJI_CHOICES = [('antaresia', 'Antarësia'), ('varrezat', 'Varrezat'), ('fondi', 'Fondi')]
+    lloji = models.CharField(max_length=10, choices=LLOJI_CHOICES, default='antaresia', verbose_name='Blloku i')
+    blloku = models.CharField(max_length=10, verbose_name='Blloku')
+    nr_fatures = models.CharField(max_length=30, verbose_name='Nr. i faturës')
+    arsyeja = models.CharField(max_length=200, blank=True, verbose_name='Arsyeja')
+    krijuar_me = models.DateTimeField(auto_now_add=True)
+    krijuar_nga = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+
+    class Meta:
+        verbose_name = 'Faturë e prishur'
+        verbose_name_plural = 'Faturat e prishura'
+        ordering = ['lloji', 'blloku', 'nr_fatures']
+        constraints = [models.UniqueConstraint(fields=['lloji', 'blloku', 'nr_fatures'], name='fatura_e_prishur_unike')]
+
+    def __str__(self):
+        return f'Bllok {self.blloku} nr {self.nr_fatures} (e prishur)'
 
 
 class Njoftim(models.Model):

@@ -1832,3 +1832,118 @@ class FaturatESkanuaraTest(TestCase):
         r = self.client.get(reverse('dokumenti_harxhimit', args=[h.pk]))
         self.assertEqual(r.status_code, 302)
         self.assertIn('/login', r['Location'])
+
+
+class NdryshimiFonditFaturatEPrishuraPowerBITest(TestCase):
+    """Ndryshimi i donacionit, faturat e prishura te fletorja e bllokut, dashboardi i ri dhe lidhjet e Power BI."""
+
+    def setUp(self):
+        self.admin = User.objects.create_user('admin', password='x', first_name='A', last_name='B')
+        ProfilStafi.objects.create(user=self.admin, rol='ADMIN')
+        self.client.force_login(self.admin)
+        self.sh = Shtepia.objects.create(nr_shtepise='0001', emri_kryefamiljarit='Agim', mbiemri_kryefamiljarit='Gashi',
+                                         viti_fillimit_antaresise=2024, paguar_deri_viti=2024)
+
+    def test_ndrysho_donacionin(self):
+        from .models import LlojiPageses
+        for emri in ('Fond Xhamie', 'Zeqati'):
+            LlojiPageses.objects.get_or_create(emri=emri, drejtimi='HYRESE')
+        p = PagesaFondi.objects.create(blloku='1110', nr_fatures='000010', lloji='Fond Xhamie', emri_donatorit='Agim',
+                                       mbiemri_donatorit='Gashi', shuma=Decimal('100'), monedha='EUR',
+                                       shuma_monedhe=Decimal('100'), data_pageses=date(2026, 3, 5), arktar=self.admin)
+        self.assertContains(self.client.get(reverse('detaje_pagesa_fondi', args=[p.pk])),
+                            reverse('ndrysho_pagese_fondi', args=[p.pk]))
+        forma = {'blloku': '1110', 'nr_fatures': '000011', 'lloji': 'Fond Xhamie', 'eshte_zekat': 'on',
+                 'emri_donatorit': 'Agim', 'mbiemri_donatorit': 'Gashi', 'nr_telefoni': '070 111 222',
+                 'data_pageses': '2026-03-06', 'shuma_hyrese': '6150', 'monedha': 'MKD', 'kursi': '61.5'}
+        r = self.client.post(reverse('ndrysho_pagese_fondi', args=[p.pk]), forma)
+        self.assertRedirects(r, reverse('detaje_pagesa_fondi', args=[p.pk]))
+        p.refresh_from_db()
+        self.assertEqual((p.nr_fatures, p.nr_telefoni, p.monedha, p.shuma, p.data_pageses, p.eshte_zekat),
+                         ('000011', '070 111 222', 'MKD', Decimal('100.00'), date(2026, 3, 6), True))
+        self.assertIn('Ndryshuar', p.shenime)
+        # lloji "Zeqati" e shënon vetë si zekat, edhe pa kutizën
+        forma.update(lloji='Zeqati', eshte_zekat='')
+        p.eshte_zekat = False
+        p.save()
+        self.client.post(reverse('ndrysho_pagese_fondi', args=[p.pk]), forma)
+        p.refresh_from_db()
+        self.assertTrue(p.eshte_zekat)
+        # stafi nuk mund ta ndryshojë
+        staf = User.objects.create_user('staf', password='x')
+        ProfilStafi.objects.create(user=staf, rol='STAF', mund_regjistrojë_pagesa=True)
+        self.client.force_login(staf)
+        self.assertRedirects(self.client.get(reverse('ndrysho_pagese_fondi', args=[p.pk])),
+                             reverse('detaje_pagesa_fondi', args=[p.pk]))
+
+    def test_fatura_e_prishur(self):
+        from . import raporti
+        from .models import FaturaEPrishur
+        for nr in ('046386', '046389'):
+            PagesaAntaresia.objects.create(blloku='1100', nr_fatures=nr, shtepia=self.sh, shuma_paguar=Decimal('70'),
+                                           viti=2026, data_pageses=date(2026, 3, 1), arktar=self.admin)
+        self.assertEqual(raporti.fletorja_e_bllokut('1100')[2], ['046387', '046388'])
+        url = reverse('fletorja_bllokut') + '?lloji=antaresia&blloku=1100'
+        self.assertContains(self.client.get(url), 'Shëno faturë të prishur')
+        # varg numrash; 046389 ka pagesë, nuk shënohet
+        self.client.post(url, {'shto_prishur': '1', 'lloji_prishur': 'antaresia', 'blloku_prishur': '1100',
+                               'nr_nga': '046387', 'nr_deri': '046389', 'arsyeja': 'shkruar gabim'})
+        self.assertEqual(sorted(FaturaEPrishur.objects.values_list('nr_fatures', flat=True)), ['046387', '046388'])
+        rreshtat, totali, mungojne = raporti.fletorja_e_bllokut('1100')
+        self.assertEqual(mungojne, [])
+        self.assertEqual([r['nr_fatures'] for r in rreshtat], ['046386', '046387', '046388', '046389'])
+        self.assertEqual(totali.nr, 2)
+        self.assertContains(self.client.get(url), 'E PRISHUR')
+        for formati in ('pdf', 'excel'):
+            self.assertEqual(self.client.get(url + '&eksporto=' + formati).status_code, 200)
+        # me numrin e prishur nuk regjistrohet pagesë
+        r = self.client.post(reverse('shto_pagese_antaresia'), {
+            'blloku': '1100', 'nr_fatures': '046387', 'shtepia': self.sh.pk, 'viti': 2025, 'viti_deri': 2025,
+            'data_pageses': '2026-03-02', 'shuma_hyrese': '50', 'monedha': 'EUR', 'kursi': '61.5'})
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'E PRISHUR')
+        # bllok vetëm me fatura të prishura del në listë; heqja e shënimit
+        self.client.post(url, {'shto_prishur': '1', 'lloji_prishur': 'varrezat', 'blloku_prishur': '2200', 'nr_nga': '000001'})
+        self.assertIn('2200', dict(raporti.blloqet('varrezat')))
+        f = FaturaEPrishur.objects.get(nr_fatures='046387')
+        self.client.post(url, {'hiq_prishur': f.pk})
+        self.assertFalse(FaturaEPrishur.objects.filter(pk=f.pk).exists())
+
+    def test_dashboardi_i_antaresise(self):
+        from . import analiza
+        PagesaAntaresia.objects.create(shtepia=self.sh, shuma_paguar=Decimal('120'), monedha='EUR', shuma_monedhe=Decimal('120'),
+                                       viti=2025, viti_deri=2026, data_pageses=date(2026, 3, 10), arktar=self.admin)
+        a = analiza.antaresia(2026)
+        self.assertEqual(a['mujore']['tani'][2], 120.0)
+        self.assertEqual(a['sezoni']['i_forti'], 'Mars')
+        self.assertEqual([p['viti'] for p in a['per_vitet']], [2025, 2026])
+        self.assertEqual(a['kpi']['borxh_i_vjeter'], 60.0)
+        mb = {m['viti']: m for m in a['mbulimi']}
+        self.assertEqual((mb[2024]['paguar'], mb[2025]['paguar'], mb[2026]['paguar']), (1, 1, 1))   # 2024 nga historia
+        r = self.client.get(reverse('dashboard') + '?viti=2026')
+        self.assertContains(r, 'id="gMujore"')
+        self.assertContains(r, 'Në cilët muaj paguhet më shumë')
+
+    def test_powerbi(self):
+        self.sh.nr_telefoni_kryesor = '070 999 888'
+        self.sh.save()
+        PagesaAntaresia.objects.create(shtepia=self.sh, shuma_paguar=Decimal('70'), viti=2026,
+                                       data_pageses=date(2026, 3, 10), arktar=self.admin)
+        url = reverse('powerbi_csv', args=['antaresia'])
+        self.assertEqual(self.client.get(url + '?celesi=').status_code, 404)        # të mbyllura
+        self.client.post(reverse('powerbi'), {'veprimi': 'ri'})
+        celesi = KonfigurimiSistemit.merr().celesi_powerbi
+        self.assertTrue(celesi)
+        self.assertContains(self.client.get(reverse('powerbi')), celesi)
+        self.client.logout()
+        r = self.client.get(url + '?celesi=' + celesi)
+        self.assertEqual(r.status_code, 200)
+        teksti = r.content.decode('utf-8-sig')
+        self.assertTrue(teksti.startswith('pagesa_id,data,viti,muaji'))
+        self.assertIn('2026-03-10', teksti)
+        self.assertEqual(self.client.get(url + '?celesi=gabim').status_code, 404)
+        for emri in ('shtepite', 'antaresia_vitet', 'fondi', 'varrezat', 'harxhimet'):
+            self.assertEqual(self.client.get(reverse('powerbi_csv', args=[emri]) + '?celesi=' + celesi).status_code, 200)
+        shtepite = self.client.get(reverse('powerbi_csv', args=['shtepite']) + '?celesi=' + celesi).content.decode('utf-8-sig')
+        self.assertIn('Agim', shtepite)
+        self.assertNotIn('999', shtepite)    # pa telefona

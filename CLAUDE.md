@@ -125,6 +125,17 @@ and open a new Bash console). Free tier: requests must be fast — avoid heavy w
   `Njoftim.derguar` remembers who got it so "Vazhdo dërgimin" never sends twice.
 - Admin can correct a membership payment (`ndrysho_pagese_antaresia`, e.g. 4300 den → 50 € + 1300 den): same form,
   no new email, old amount noted in `shenime`, category recomputed.
+- Admin can also correct a fund donation (`ndrysho_pagese_fondi`: block/nr, house, type, zekat, name, phone, amount,
+  date; old values noted in `shenime`); type "Zeqati" always sets `eshte_zekat`.
+- **Spoiled invoices** (`FaturaEPrishur`, lloji antaresia/varrezat/fondi): marked on the block ledger page (one nr or a
+  range ≤ 100); shown in red as "E PRISHUR" (screen/PDF/Excel), not counted as missing; payment forms refuse that number
+  (`ShumaMonedhaMixin.clean`).
+- **Membership dashboard** (`xhamia/analiza.py`, Power BI style, Chart.js): KPIs vs previous year (same period), monthly
+  curve (current vs previous year, cumulative toggle), seasonality over all years, coverage per year (payments + history),
+  € per covered year, debt-years distribution, currencies, categories.
+- **Power BI** (`xhamia/powerbi.py`, page `powerbi/`, admin): CSV tables (shtepite, antaresia, antaresia_vitet, fondi,
+  varrezat, harxhimet) at `powerbi/<name>.csv?celesi=…`, no login but secret key `KonfigurimiSistemit.celesi_powerbi`
+  (create / regenerate / close); no phones/emails in them.
 - `xhamia/fletorja.py` — membership ledger: build rows, read a ledger PDF, compare with the app
   (`krahaso`: corrections / conflicts with old debt / name suggestions), apply chosen fixes.
 - `xhamia/word.py` — Word documents: ledger (A4) and "Informim" debt letters (2 per A4 page).

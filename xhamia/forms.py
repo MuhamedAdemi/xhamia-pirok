@@ -141,6 +141,19 @@ class ShumaMonedhaMixin(forms.Form):
         self.kurset = {m: self.konfigurimi.kursi(m) for m, _ in MONEDHA_CHOICES}
         self.kurset_json = json.dumps({m: str(k) for m, k in self.kurset.items()})
 
+    def clean(self):
+        cd = super().clean()
+        # Fatura e shënuar si e prishur (te Fletorja e bllokut) nuk mund të marrë pagesë
+        if 'blloku' in self.fields and cd.get('nr_fatures'):
+            from .models import FaturaEPrishur
+            lloji = {'PagesaAntaresia': 'antaresia', 'PagesaVarrezave': 'varrezat', 'PagesaFondi': 'fondi'}.get(
+                self._meta.model.__name__)
+            if lloji and FaturaEPrishur.objects.filter(lloji=lloji, blloku=cd.get('blloku') or '',
+                                                       nr_fatures=cd['nr_fatures']).exists():
+                self.add_error('nr_fatures', 'Kjo faturë është shënuar si E PRISHUR te Fletorja e bllokut — '
+                                             'përdorni numrin tjetër (ose hiqeni nga lista e të prishurave).')
+        return cd
+
     def apliko_shumen(self, pagese):
         shuma, monedha = self.cleaned_data['shuma_hyrese'], self.cleaned_data['monedha']
         kursi_eur = self.konfigurimi.kursi_eur
@@ -378,6 +391,20 @@ class PagesaFondiForm(ShumaMonedhaMixin, forms.ModelForm):
         super().__init__(*args, **kwargs)
         aktual = self.instance.lloji if self.instance.pk else None
         self.fields['lloji'].choices = [(e, e) for e in llojet_hyrese_te_fondit(aktual)]
+
+    @classmethod
+    def per_ndryshim(cls, pagese, data=None):
+        """Forma e mbushur me donacionin ekzistues (për korrigjim gabimesh)."""
+        return cls(data, instance=pagese, initial={
+            'shuma_hyrese': pagese.shuma_ne_monedhe, 'monedha': pagese.monedha, 'kursi': pagese.kursi_denar,
+        })
+
+    def clean(self):
+        cd = super().clean()
+        lloji = (cd.get('lloji') or '').lower()
+        if 'zeqat' in lloji or 'zekat' in lloji:   # lloji "Zeqati" është gjithmonë zekat
+            cd['eshte_zekat'] = True
+        return cd
 
     class Meta:
         model = PagesaFondi

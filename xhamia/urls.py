@@ -75,6 +75,7 @@ urlpatterns = [
     # Pagesat Fondi
     path('pagesat/fondi/', views.lista_pagesa_fondi, name='lista_pagesa_fondi'),
     path('pagesat/fondi/shto/', views.shto_pagese_fondi, name='shto_pagese_fondi'),
+    path('pagesat/fondi/<int:pk>/ndrysho/', views.ndrysho_pagese_fondi, name='ndrysho_pagese_fondi'),
     path('pagesat/fondi/<int:pk>/', views.detaje_pagesa_fondi, name='detaje_pagesa_fondi'),
     path('pagesat/fondi/<int:pk>/fatura/', views.fatura_fondi_pdf, name='fatura_fondi_pdf'),
     path('pagesat/fondi/<int:pk>/fshi/', views.fshi_pagese_fondi, name='fshi_pagese_fondi'),
@@ -94,6 +95,8 @@ urlpatterns = [
     # SMS
     path('sms/borxhlinjte/', views.borxhlinjte_sms, name='borxhlinjte_sms'),
     path('njoftime/', views.njoftimet_faqja, name='njoftimet'),
+    path('powerbi/', views.powerbi_faqja, name='powerbi'),
+    path('powerbi/<str:emri>.csv', views.powerbi_csv, name='powerbi_csv'),
     path('njoftime/<int:pk>/', views.njoftimi, name='njoftimi'),
     path('letrat/', views.letrat_borxh, name='letrat_borxh'),
     path('sms/historiku/', views.historiku_sms, name='historiku_sms'),

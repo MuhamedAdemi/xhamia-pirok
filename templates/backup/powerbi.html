@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+{% block titulli %}Power BI — Xhamia Pirok{% endblock %}
+
+{% block kontent %}
+<div class="page-header">
+  <div>
+    <h2>📊 Lidhja me Power BI</h2>
+    <p>Të dhënat e aplikacionit si tabela që Power BI i lexon vetë dhe i rifreskon me një klikim ("Refresh").</p>
+  </div>
+</div>
+
+<div class="card" style="margin-bottom:20px; max-width:980px;">
+  <div class="card-header"><h5>🔑 Lidhjet (me çelës sekret)</h5></div>
+  <div class="card-body">
+    {% if lidhjet %}
+    <table class="tabela-xhami">
+      <thead><tr><th>Tabela</th><th>Lidhja për Power BI</th><th></th></tr></thead>
+      <tbody>
+        {% for emri, pershkrimi, url in lidhjet %}
+        <tr>
+          <td><strong>{{ emri }}</strong><br><small class="tekst-dytësor">{{ pershkrimi }}</small></td>
+          <td><input type="text" readonly value="{{ url }}" id="url-{{ emri }}" style="width:100%; font-family:monospace; font-size:12px;" onclick="this.select()"></td>
+          <td><button type="button" class="btn-dytësor btn-sm" onclick="navigator.clipboard.writeText(document.getElementById('url-{{ emri }}').value); this.textContent='✅ U kopjua';">📋 Kopjo</button></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <form method="post" class="flex gap-3" style="margin-top:14px; flex-wrap:wrap;">
+      {% csrf_token %}
+      <button type="submit" name="veprimi" value="ri" class="btn-dytësor" onclick="return confirm('Të krijohet çelës i ri? Lidhjet e vjetra në Power BI do të ndalojnë së punuari.');">🔄 Çelës i ri</button>
+      <button type="submit" name="veprimi" value="mbyll" class="btn-rrezik" onclick="return confirm('Të mbyllen lidhjet?');">🔒 Mbyll lidhjet</button>
+    </form>
+    <p class="ndihma" style="margin-top:10px;">⚠️ Kush e ka lidhjen, i sheh këto të dhëna (emra, pagesa, borxhe — pa telefona e email-e).
+      Mos e dërgoni askujt dhe mos e postoni. Nëse dyshoni se ka rrjedhur: "🔄 Çelës i ri".</p>
+    {% else %}
+    <p>Lidhjet janë të mbyllura. Klikoni për t'i krijuar:</p>
+    <form method="post">{% csrf_token %}<button type="submit" name="veprimi" value="ri" class="btn-kryesor">🔑 Krijo lidhjet për Power BI</button></form>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card" style="max-width:980px;">
+  <div class="card-header"><h5>🧭 Si lidhet në Power BI Desktop (falas)</h5></div>
+  <div class="card-body" style="line-height:1.8;">
+    <ol>
+      <li>Hapni <strong>Power BI Desktop</strong> → <strong>Get data</strong> (Merr të dhëna) → <strong>Web</strong>.</li>
+      <li>Ngjitni lidhjen e një tabele (p.sh. <em>antaresia</em>) → <strong>OK</strong> → zgjidhni <strong>Anonymous</strong> → <strong>Connect</strong>.</li>
+      <li>Në dritaren që hapet: <strong>Transform Data</strong> → kontrolloni që rreshti i parë të jetë koka
+        ("Use first row as headers") → <strong>Close &amp; Apply</strong>.</li>
+      <li>Përsëriteni për tabelat e tjera (shtepite, fondi, harxhimet…).</li>
+      <li>Te <strong>Model view</strong> lidhni tabelat me kolonën <code>nr_shtepise</code> (shtepite → antaresia / varrezat / fondi)
+        dhe <code>pagesa_id</code> (antaresia → antaresia_vitet).</li>
+      <li>Për të dhëna të reja: butoni <strong>Refresh</strong> në Power BI.</li>
+    </ol>
+    <p class="ndihma">Nëse shumat dalin gabim (p.sh. 12.5 lexohet 125): File → Options → <em>Regional settings</em> → "English (United States)".
+      Shumat janë me pikë dhjetore; datat në formatin 2026-11-27. Kolonat <code>shuma_eur</code> janë gjithçka e kthyer në € me kursin blerës.</p>
+    <p class="ndihma">Alternativë pa Power BI: te 💾 Backup → "Excel i plotë", ose hapni lidhjen në Excel (Data → From Web).</p>
+  </div>
+</div>
+{% endblock %}

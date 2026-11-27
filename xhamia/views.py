@@ -253,82 +253,22 @@ def redirect_dashboard(request):
 
 @login_required
 def dashboard_antaresia(request):
+    """Dashboard i Antarësisë si Power BI: treguesit, kurba mujore, sezonaliteti, mbulimi vit për vit… (xhamia/analiza.py)."""
+    from . import analiza as analiza_mod
     viti_zgjedhur = int(request.GET.get('viti', timezone.now().year))
     vitit_lista = list(range(2020, timezone.now().year + 2))
-
-    total_shtepite = Shtepia.objects.filter(është_aktiv=True).count()
-
-    # Shtëpitë që kanë paguar: actual records + historike (paguar_deri_viti)
     paguar_ids = _shtepite_paguara_ids(viti_zgjedhur)
-    kane_paguar = len(paguar_ids)
-    nuk_kane_paguar = total_shtepite - kane_paguar
-
-    total_mbledhur = PagesaAntaresia.objects.filter(data_pageses__year=viti_zgjedhur).aggregate(
-        s=Sum('shuma_paguar')
-    )['s'] or 0
-
-    total_harxhime = Harxhimi.objects.filter(
-        viti=viti_zgjedhur, burimi='ANTARESIA'
-    ).aggregate(s=Sum('shuma_eur'))['s'] or 0
-    bilanci_antaresia = total_mbledhur - total_harxhime
-    harxhimet_e_fundit = Harxhimi.objects.select_related('stafi').filter(
-        viti=viti_zgjedhur, burimi='ANTARESIA'
-    ).order_by('-data_pageses')[:6]
-
-    # Pagesat sipas muajit (për grafik)
-    pagesat_mujore = []
-    muajt_etiketat = ['Jan', 'Shk', 'Mar', 'Pri', 'Maj', 'Qer', 'Kor', 'Gus', 'Sht', 'Tet', 'Nën', 'Dhj']
-    for m in range(1, 13):
-        shuma = PagesaAntaresia.objects.filter(
-            data_pageses__year=viti_zgjedhur, data_pageses__month=m
-        ).aggregate(s=Sum('shuma_paguar'))['s'] or 0
-        pagesat_mujore.append(float(shuma))
-
-    # Sipas kategorisë
-    sipas_kategorise = []
-    for kat in Kategoria.objects.filter(është_aktiv=True):
-        cnt = Shtepia.objects.filter(id__in=paguar_ids, kategoria=kat).count()
-        if cnt > 0:
-            sipas_kategorise.append({'emri': kat.emri, 'count': cnt})
-
-    # Pagesat e fundit
-    pagesat_e_fundit = PagesaAntaresia.objects.select_related('shtepia', 'arktar').order_by('-data_regjistrimit')[:10]
-
-    # Shtëpitë pa pagesë (as actual as historical)
-    shtepite_pa_pagese = Shtepia.objects.filter(
-        është_aktiv=True
-    ).exclude(
-        id__in=paguar_ids
-    ).select_related('kategoria')[:20]
-
-    # Të dhënat 10-vjeçare për grafiket (shtëpi që kanë paguar = actual + historike)
-    viti_aktual = timezone.now().year
-    data_vitet = []
-    for v in range(viti_aktual - 9, viti_aktual + 1):
-        shuma_v = PagesaAntaresia.objects.filter(data_pageses__year=v).aggregate(s=Sum('shuma_paguar'))['s'] or 0
-        act_v = _ids_qe_mbulojne(PagesaAntaresia, v)
-        hist_v = set(Shtepia.objects.filter(
-            paguar_deri_viti__gte=v, viti_fillimit_antaresise__lte=v, është_aktiv=True
-        ).values_list('id', flat=True))
-        data_vitet.append({'viti': v, 'shuma': float(shuma_v), 'nr': len(act_v | hist_v)})
-
+    a = analiza_mod.antaresia(viti_zgjedhur)
     konteksti = {
         'viti_zgjedhur': viti_zgjedhur,
         'vitit_lista': vitit_lista,
-        'total_shtepite': total_shtepite,
-        'kane_paguar': kane_paguar,
-        'nuk_kane_paguar': nuk_kane_paguar,
-        'total_mbledhur': total_mbledhur,
         'total_mbledhur_m': totalet_sipas_monedhes(PagesaAntaresia.objects.filter(data_pageses__year=viti_zgjedhur)),
-        'pagesat_mujore_json': json.dumps(pagesat_mujore),
-        'muajt_etiketat_json': json.dumps(muajt_etiketat),
-        'sipas_kategorise_json': json.dumps(sipas_kategorise),
-        'pagesat_e_fundit': pagesat_e_fundit,
-        'shtepite_pa_pagese': shtepite_pa_pagese,
-        'data_vitet_json': json.dumps(data_vitet),
-        'total_harxhime': total_harxhime,
-        'bilanci_antaresia': bilanci_antaresia,
-        'harxhimet_e_fundit': harxhimet_e_fundit,
+        'pagesat_e_fundit': PagesaAntaresia.objects.select_related('shtepia', 'arktar').order_by('-data_regjistrimit')[:10],
+        'shtepite_pa_pagese': Shtepia.objects.filter(është_aktiv=True).exclude(id__in=paguar_ids)
+                                             .exclude(kategoria__shuma_vjetore=0).select_related('kategoria')[:20],
+        'a': a,
+        'grafiket_json': json.dumps({k: a[k] for k in ('muajt', 'mujore', 'sezoni', 'mbulimi', 'per_vitet',
+                                                       'monedhat', 'kategorite', 'borxhi')}),
         'faqja_aktive': 'dashboard',
     }
     return render(request, 'dashboard/antaresia.html', konteksti)
@@ -518,6 +458,8 @@ def fletorja_fondit(request):
 def fletorja_bllokut(request):
     """Fletorja e një blloku faturash: të gjitha pagesat nga fatura e parë te e fundit, me totalin në den dhe €."""
     lloji = request.GET.get('lloji') if request.GET.get('lloji') in dict(raporti.LLOJET_E_BLLOQEVE) else 'antaresia'
+    if request.method == 'POST' and mund_regjistrojë(request.user):
+        return _faturat_e_prishura(request, lloji)
     blloqet = raporti.blloqet(lloji)
     blloku = request.GET.get('blloku', '')
     if blloku not in dict(blloqet):
@@ -535,8 +477,96 @@ def fletorja_bllokut(request):
     return render(request, 'dashboard/blloku.html', {
         'lloji': lloji, 'llojet': raporti.LLOJET_E_BLLOQEVE,
         'blloqet': blloqet, 'blloku': blloku, 'rreshtat': rreshtat, 'totali': totali, 'mungojne': mungojne,
-        'faqja_aktive': 'blloku',
+        'mund_shenoje': mund_regjistrojë(request.user), 'faqja_aktive': 'blloku',
     })
+
+
+def _faturat_e_prishura(request, lloji):
+    """Shënon (ose heq shënimin) e faturave të prishura të një blloku — një numër ose një varg numrash."""
+    from urllib.parse import urlencode
+    from django.urls import reverse
+    from .models import FaturaEPrishur
+
+    def kthimi(lloji, blloku):
+        return redirect(f"{reverse('fletorja_bllokut')}?{urlencode({'lloji': lloji, 'blloku': blloku})}")
+
+    if request.POST.get('hiq_prishur', '').isdigit():
+        f = FaturaEPrishur.objects.filter(pk=request.POST['hiq_prishur']).first()
+        if not f:
+            return redirect('fletorja_bllokut')
+        f.delete()
+        messages.success(request, f'U hoq shënimi "e prishur" për bllok {f.blloku} nr {f.nr_fatures}.')
+        return kthimi(f.lloji, f.blloku)
+    if request.POST.get('lloji_prishur') in dict(raporti.LLOJET_E_BLLOQEVE):
+        lloji = request.POST['lloji_prishur']
+    blloku = request.POST.get('blloku_prishur', '').strip()
+    nga, deri = request.POST.get('nr_nga', '').strip(), request.POST.get('nr_deri', '').strip() or None
+    arsyeja = request.POST.get('arsyeja', '').strip()[:200]
+    if not blloku or not nga.isdigit() or (deri and not deri.isdigit()):
+        messages.error(request, 'Shkruani bllokun dhe numrin e faturës (vetëm shifra).')
+        return kthimi(lloji, blloku)
+    deri = deri or nga
+    if int(deri) < int(nga) or int(deri) - int(nga) >= 100:
+        messages.error(request, '"Deri nr" duhet të jetë pas numrit të parë (më së shumti 100 fatura njëherësh).')
+        return kthimi(lloji, blloku)
+    model = raporti.LLOJET[lloji][1]
+    gjatesia = max(len(nga), 6)
+    shtuar, me_pagese = [], []
+    for n in range(int(nga), int(deri) + 1):
+        nr = str(n).zfill(gjatesia)
+        if model.objects.filter(blloku=blloku, nr_fatures=nr).exists():
+            me_pagese.append(nr)
+            continue
+        _, krijuar = FaturaEPrishur.objects.get_or_create(
+            lloji=lloji, blloku=blloku, nr_fatures=nr, defaults={'arsyeja': arsyeja, 'krijuar_nga': request.user})
+        if krijuar:
+            shtuar.append(nr)
+    if shtuar:
+        messages.success(request, f'U shënuan si të prishura: bllok {blloku} nr ' + ', '.join(shtuar) + '.')
+    if me_pagese:
+        messages.warning(request, 'Këto kanë pagesë të regjistruar, nuk u shënuan: ' + ', '.join(me_pagese)
+                         + ' — nëse pagesa është gabim, ndryshojeni ose fshijeni më parë.')
+    if not shtuar and not me_pagese:
+        messages.info(request, 'Këto fatura ishin shënuar tashmë si të prishura.')
+    return kthimi(lloji, blloku)
+
+
+@login_required
+def powerbi_faqja(request):
+    """Lidhjet CSV për Power BI: krijo / ndrysho / mbyll çelësin sekret dhe udhëzimet."""
+    import secrets
+    from . import powerbi
+    if not është_admin(request.user):
+        messages.error(request, 'Vetëm administratori.')
+        return redirect('dashboard')
+    konfigurimi = KonfigurimiSistemit.merr()
+    if request.method == 'POST':
+        if request.POST.get('veprimi') == 'mbyll':
+            konfigurimi.celesi_powerbi = ''
+            messages.success(request, 'Lidhjet për Power BI u mbyllën — askush nuk i hap më.')
+        else:
+            konfigurimi.celesi_powerbi = secrets.token_urlsafe(24)
+            messages.success(request, 'U krijua çelës i ri. Lidhjet e vjetra nuk punojnë më — vendosni të rejat në Power BI.')
+        konfigurimi.save(update_fields=['celesi_powerbi'])
+        return redirect('powerbi')
+    baza = request.build_absolute_uri('/')[:-1]
+    lidhjet = [(emri, pershkrimi, f'{baza}{reverse("powerbi_csv", args=[emri])}?celesi={konfigurimi.celesi_powerbi}')
+               for emri, (pershkrimi, _) in powerbi.TABELAT.items()] if konfigurimi.celesi_powerbi else []
+    return render(request, 'backup/powerbi.html', {'lidhjet': lidhjet, 'faqja_aktive': 'powerbi'})
+
+
+def powerbi_csv(request, emri):
+    """Një tabelë CSV për Power BI — pa hyrje, por vetëm me çelësin sekret."""
+    import secrets
+    from django.http import Http404
+    from . import powerbi
+    celesi = KonfigurimiSistemit.merr().celesi_powerbi
+    if emri not in powerbi.TABELAT or not celesi or not secrets.compare_digest(request.GET.get('celesi', ''), celesi):
+        raise Http404()
+    resp = HttpResponse(powerbi.csv_i_tabeles(emri), content_type='text/csv; charset=utf-8')
+    resp['Content-Disposition'] = f'inline; filename="{emri}.csv"'
+    resp['Cache-Control'] = 'no-store'
+    return resp
 
 
 @login_required
@@ -1162,6 +1192,31 @@ def shto_pagese_fondi(request):
     _vetem_shtepia_e_zgjedhur(request, form)
     return render(request, 'pagesat/fondi/forma.html', {
         'form': form, 'titulli': 'Regjistro Pagesë Fondi', 'faqja_aktive': 'pagesat_fondi', 'kthimi': _kthimi(request),
+    })
+
+
+@login_required
+def ndrysho_pagese_fondi(request, pk):
+    """Korrigjim i një donacioni (blloku/nr, shtëpia, lloji, zekati, emri, telefoni, shuma, data…). Vetëm admini;
+    nuk dërgohet email i ri, e vjetra shënohet te Shënime."""
+    if not është_admin(request.user):
+        messages.error(request, 'Vetëm administratori mund ta ndryshojë një donacion.')
+        return redirect('detaje_pagesa_fondi', pk=pk)
+    pagese = get_object_or_404(PagesaFondi, pk=pk)
+    para = f'{pagese.fatura_tekst}, {pagese.shuma_origjinale}, {pagese.data_pageses:%d.%m.%Y}'
+    form = PagesaFondiForm.per_ndryshim(pagese, request.POST or None)
+    if request.method == 'POST' and form.is_valid():
+        if form.has_changed():
+            pagese = form.apliko_shumen(form.save(commit=False))
+            shenimi = (f'Ndryshuar më {timezone.localdate():%d.%m.%Y} nga '
+                       f'{request.user.get_full_name() or request.user.username}: ishte {para}.')
+            pagese.shenime = f'{pagese.shenime}\n{shenimi}'.strip()
+            pagese.save()
+            messages.success(request, f'Donacioni {pagese.fatura_tekst} u ndryshua.')
+        return redirect('detaje_pagesa_fondi', pk=pagese.pk)
+    return render(request, 'pagesat/fondi/forma.html', {
+        'form': form, 'titulli': f'Ndrysho donacionin {pagese.fatura_tekst}', 'faqja_aktive': 'pagesat_fondi',
+        'ndryshim': pagese,
     })
 
 
